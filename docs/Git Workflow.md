@@ -33,7 +33,7 @@
 
 ### Git Flow 구조
 
-`main          : 배포용 (직접 작업 절대 X)
+`master          : 배포용 (직접 작업 절대 X)
   └── develop     : 통합 개발 브랜치
        └── feature/*  : 기능 단위 작업 브랜치`
 
