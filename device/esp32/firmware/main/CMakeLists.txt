@@ -1,0 +1,15 @@
+# main 컴포넌트에 펌웨어 핵심 소스들을 연결한다.
+idf_component_register(
+    SRCS
+        "main.cpp"
+        "../src/packet.cpp"
+        "../src/emg_filter.cpp"
+        "../src/imu_processor.cpp"
+        "../src/calibration.cpp"
+        "../src/state_machine.cpp"
+        "../src/sensor_mock.cpp"
+        "../src/transport_serial.cpp"
+        "../src/runtime_pipeline.cpp"
+    INCLUDE_DIRS
+        "../include"
+)
