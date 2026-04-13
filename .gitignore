@@ -1,0 +1,16 @@
+# 개인 로컬 설정
+AGENTS.md
+.codex
+.vscode/
+
+# ESP32 펌웨어 빌드 산출물
+device/esp32/firmware/build/
+device/esp32/firmware/sdkconfig
+device/esp32/firmware/sdkconfig.old
+
+# 공통 Python 캐시/가상환경
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
