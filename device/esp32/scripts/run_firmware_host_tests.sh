@@ -14,6 +14,7 @@ g++ -std=c++17 \
   "${ROOT_DIR}/firmware/src/calibration.cpp" \
   "${ROOT_DIR}/firmware/src/state_machine.cpp" \
   "${ROOT_DIR}/firmware/src/sensor_mock.cpp" \
+  "${ROOT_DIR}/firmware/src/sensor_analog_emg.cpp" \
   "${ROOT_DIR}/firmware/src/transport_serial.cpp" \
   "${ROOT_DIR}/firmware/src/runtime_pipeline.cpp" \
   "${ROOT_DIR}/firmware/tests/test_main.cpp" \
@@ -22,6 +23,7 @@ g++ -std=c++17 \
   "${ROOT_DIR}/firmware/tests/test_calibration.cpp" \
   "${ROOT_DIR}/firmware/tests/test_state_machine.cpp" \
   "${ROOT_DIR}/firmware/tests/test_sensor_mock.cpp" \
+  "${ROOT_DIR}/firmware/tests/test_sensor_analog_emg.cpp" \
   -o "${BUILD_DIR}/firmware_host_tests"
 
 "${BUILD_DIR}/firmware_host_tests"

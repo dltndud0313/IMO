@@ -23,10 +23,25 @@
 ## 하드웨어 도착 후 바뀌는 파일
 
 - `device/esp32/firmware/src/sensor_mock.cpp` `(실제 장착 후 변경 필요)`
+- `device/esp32/firmware/src/sensor_analog_emg.cpp` `(실제 장착 후 우선 검토 대상)`
 - `device/esp32/firmware/include/sensor_source.h` `(실제 장착 후 구현체 추가)`
 - `device/esp32/firmware/include/config.h` `(실제 장착 후 수치 튜닝 가능성 높음)`
 - `device/esp32/firmware/src/emg_filter.cpp` `(실제 장착 후 수치 튜닝 가능성 높음)`
 - `device/esp32/firmware/src/calibration.cpp` `(실제 장착 후 수치 튜닝 가능성 높음)`
+
+## SZH-GJD001 실센서 연동 시 체크 포인트
+
+- 이 센서는 판매처 예제가 아두이노 코드(`analogRead(A0)`) 기준이라 ESP-IDF에 그대로 넣으면 안 됩니다.
+- ESP32에서는 `A0` 대신 실제 ADC 가능 GPIO와 ESP-IDF ADC 설정을 사용해야 합니다.
+- 값이 아예 안 나오거나 0에 가깝게 나오면 아래 순서로 확인합니다.
+  1. `sensor_analog_emg.cpp`의 ADC 읽기 연결 여부
+  2. ADC 핀/감쇠/전압 범위 설정
+  3. 전극 접촉 상태
+  4. baseline 보정 전 raw 값의 중심 전압
+  5. `emg_filter.cpp`, `calibration.cpp`의 튜닝 값
+
+상세 문서:
+- `docs/esp32_emg_sensor_bringup.md`
 
 ## 유지해야 하는 파일
 

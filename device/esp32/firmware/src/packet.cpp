@@ -15,6 +15,7 @@ std::string escape_json_string(const std::string& value) {
     std::string escaped;
     escaped.reserve(value.size());
     for (const char ch : value) {
+        // 최소한의 escape만 적용해 디버깅 가능한 JSONL 형식을 유지한다.
         if (ch == '\"' || ch == '\\') {
             escaped.push_back('\\');
         }
@@ -24,6 +25,7 @@ std::string escape_json_string(const std::string& value) {
 }
 
 std::optional<std::string> extract_string(std::string_view line, std::string_view key) {
+    // 외부 JSON 라이브러리 없이 host 테스트까지 돌리기 위해 단순 key 검색으로 파싱한다.
     const std::string token = "\"" + std::string(key) + "\"";
     const std::size_t key_pos = line.find(token);
     if (key_pos == std::string_view::npos) {
@@ -81,6 +83,7 @@ std::optional<NumberType> extract_number(std::string_view line, std::string_view
     }
 
     NumberType value {};
+    // std::from_chars는 동적 할당 없이 숫자 파싱이 가능해 MCU/host 공용 코드에 유리하다.
     const std::string numeric_text(line.substr(value_start, value_end - value_start));
     const auto [ptr, error_code] = std::from_chars(
         numeric_text.data(),
@@ -98,6 +101,7 @@ std::optional<NumberType> extract_number(std::string_view line, std::string_view
 
 std::string encode_packet(const OutputPacket& packet) {
     std::ostringstream stream;
+    // 로그 비교와 테스트 재현성을 위해 실수는 고정 소수점 4자리로 맞춘다.
     stream << std::fixed << std::setprecision(4);
     stream << "{"
            << "\"schema\":\"" << escape_json_string(packet.schema) << "\","
@@ -159,6 +163,7 @@ bool decode_packet(std::string_view line, OutputPacket* packet) {
         !state.has_value() ||
         !flags.has_value()
     ) {
+        // 필수 필드 하나라도 없으면 손상 패킷으로 보고 폐기한다.
         return false;
     }
 
