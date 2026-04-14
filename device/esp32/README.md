@@ -29,6 +29,33 @@ ESP32-S3 기반 센서 송신 코드를 관리하는 폴더입니다.
 ./device/esp32/scripts/run_firmware_host_tests.sh
 ```
 
+## 라즈베리파이 전송 방식 요약
+
+현재 ESP32에서 Raspberry Pi로 넘기는 기본 전송 방식은 아래와 같습니다.
+
+- 전송 매체: `USB Serial`
+- 전송 형식: `JSON Lines(JSONL)` 한 줄당 패킷 1개
+- 패킷 경계: 줄바꿈 문자 `\n`
+- 기본 스키마 버전: `emg-glass.v1`
+- 현재 기본 baud rate: `115200`
+- 현재 기본 송신 주기: `20ms` 간격, 약 `50Hz`
+
+즉, Raspberry Pi는 직렬 포트에서 한 줄씩 읽고, 그 한 줄을 JSON으로 파싱하는 구조를 기준으로 맞추면 됩니다.
+
+참고 코드 위치:
+
+- `device/esp32/firmware/src/transport_serial.cpp`
+  - 현재 MVP 기준 Serial 전송 계층입니다.
+- `device/esp32/firmware/src/packet.cpp`
+  - `OutputPacket`을 JSONL 문자열로 바꾸는 코드입니다.
+- `shared/protocol/esp32_pi_packet_format.md`
+  - ESP32-Pi 공통 패킷 포맷 문서입니다.
+
+참고:
+
+- 지금 호스트 테스트에서는 실제 UART 대신 `stdout`으로 JSONL을 출력해 전송 흐름을 검증합니다.
+- 실제 장비 연결 후에는 같은 형식을 유지한 채 ESP-IDF UART 출력으로 연결하면 됩니다.
+
 ## 라즈베리파이가 나중에 받게 될 패킷 필드 이름
 
 ESP32는 처리 결과를 USB Serial 기준 JSONL 한 줄로 보냅니다.  
