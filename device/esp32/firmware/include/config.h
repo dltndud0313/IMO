@@ -17,6 +17,12 @@ inline constexpr float kActivationThreshold = 0.35F;
 inline constexpr float kImuSmoothingAlpha = 0.35F;
 inline constexpr float kMotionDetectionThreshold = 0.08F;
 
+// SZH-GJD001 계열 단일 아날로그 EMG 센서를 붙일 때 참고할 기본값.
+// 현재 패킷 송신 주기는 50Hz(20ms)라서, 센서는 더 빠르게 읽고 한 프레임에 묶어 보내는 쪽이 안전하다.
+inline constexpr uint32_t kAnalogEmgRecommendedSampleRateHz = 500;
+inline constexpr std::size_t kAnalogEmgSamplesPerFrame = 10;
+inline constexpr float kAnalogEmgAdcFullScale = 4095.0F;
+
 inline constexpr uint32_t kFlagMockData = 1U << 0;
 inline constexpr uint32_t kFlagCalibrationReady = 1U << 1;
 inline constexpr uint32_t kFlagMotionDetected = 1U << 2;

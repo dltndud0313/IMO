@@ -65,10 +65,15 @@ OutputPacket MockRuntimePipeline::build_packet(
     const ImuProcessingResult& imu,
     RuntimeState state
 ) {
-    uint32_t flags = kFlagMockData;
+    uint32_t flags = 0;
+    if (sensor_source_.is_mock()) {
+        flags |= kFlagMockData;
+    }
+    // 휴식/MVC 캘리브레이션이 모두 끝났는지 Pi 쪽이 즉시 판단할 수 있게 flag로 노출한다.
     if (calibration_.profile().rest_ready && calibration_.profile().mvc_ready) {
         flags |= kFlagCalibrationReady;
     }
+    // IMU 움직임이 일정 수준을 넘으면 시각화/로그에서 추가 힌트로 활용할 수 있다.
     if (imu.motion_delta >= kMotionDetectionThreshold) {
         flags |= kFlagMotionDetected;
     }
@@ -89,6 +94,7 @@ OutputPacket MockRuntimePipeline::build_packet(
     packet.state = to_string(state);
     packet.flags = flags;
 
+    // seq는 전송 순서를 추적하고 누락 여부를 확인하기 위한 단순 증가 카운터다.
     ++sequence_;
     return packet;
 }

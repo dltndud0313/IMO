@@ -54,11 +54,47 @@ ESP32는 처리 결과를 USB Serial 기준 JSONL 한 줄로 보냅니다.
 
 - `shared/protocol/esp32_pi_packet_format.md`
 
+## 현재 검토 중인 EMG 센서 기준 반영 사항
+
+- 대상 센서: `아두이노 근전도 EMG 모듈 KIT (건식 전극) [SZH-GJD001]`
+- 이 센서는 초기 연동 시 **단일 아날로그 EMG 채널**로 보는 것이 안전합니다.
+- 그래서 현재 코드에는 아래 파일이 추가되었습니다.
+  - `device/esp32/firmware/include/sensor_analog_emg.h`
+  - `device/esp32/firmware/src/sensor_analog_emg.cpp`
+- 이 어댑터는
+  - 센서 예제의 `500Hz` 샘플링 전제를 따라가고
+  - 한 패킷 프레임 안에서 여러 ADC 샘플을 읽어
+  - 우선 `emg_ch1` 에만 값을 넣는 구조입니다.
+- 초기 실제 장착 단계에서는 `emg_ch2`, `emg_ch3` 를 `0` 으로 유지해도 됩니다.
+
+## 실제 센서 연결 시 값이 안 잡힐 때 먼저 볼 것
+
+SZH-GJD001 계열 센서는 판매처 예제가 아두이노 기준이라, ESP32에서 그대로 쓰면 값이 안 잡히거나 이상한 값이 나올 수 있습니다.
+
+- `A0` 같은 아두이노 핀 이름을 ESP32에서 그대로 사용한 경우
+  - ESP-IDF에서는 실제 ADC 가능 GPIO 번호로 바꿔야 합니다.
+- ADC 설정이 빠진 경우
+  - ADC 채널, 감쇠(attentuation), 해상도 전제가 맞지 않으면 값이 거의 0처럼 보일 수 있습니다.
+- 센서 출력 영점이 중간 전압인데 이를 그대로 raw 값으로만 본 경우
+  - baseline 보정 전에 값이 흔들리거나 이상하게 보일 수 있습니다.
+- 전극 접촉 상태가 불안정한 경우
+  - 건식 전극은 접촉 품질에 따라 값 편차가 큽니다.
+- 아두이노 예제의 필터만 믿고 바로 `Serial.println(raw)` 식으로 본 경우
+  - ESP32 쪽에서는 `sensor_analog_emg.cpp` -> `emg_filter.cpp` -> `calibration.cpp` 흐름까지 같이 봐야 합니다.
+
+상세 점검 문서는 아래를 참고합니다.
+
+- `docs/esp32_emg_sensor_bringup.md`
+
 ## 하드웨어 도착 후 교체 포인트
 
 - `device/esp32/firmware/src/sensor_mock.cpp` `(실제 장착 후 변경 필요)`
   - 지금은 가짜 EMG/IMU 값을 생성합니다.
-  - 실제 Grove EMG Detector, MPU-6050 값을 읽는 코드로 교체해야 합니다.
+  - 실제 EMG/IMU 값을 읽는 코드로 교체해야 합니다.
+- `device/esp32/firmware/src/sensor_analog_emg.cpp` `(실제 장착 후 우선 검토 대상)`
+  - SZH-GJD001 계열 단일 아날로그 EMG 센서 기준 어댑터입니다.
+  - 값이 안 잡히는 경우 가장 먼저 확인할 파일입니다.
+  - 실제 ADC 핀, ADC 감쇠, 영점, 증폭 범위에 맞춰 수정해야 합니다.
 - `device/esp32/firmware/include/sensor_source.h` `(실제 장착 후 구현체 연결 필요)`
   - 실센서 입력이 따라야 하는 공통 인터페이스입니다.
   - 인터페이스 자체는 유지하고, 이를 구현하는 실제 센서 어댑터를 추가하면 됩니다.

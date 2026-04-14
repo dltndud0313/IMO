@@ -8,6 +8,7 @@ idf_component_register(
         "../src/calibration.cpp"
         "../src/state_machine.cpp"
         "../src/sensor_mock.cpp"
+        "../src/sensor_analog_emg.cpp"
         "../src/transport_serial.cpp"
         "../src/runtime_pipeline.cpp"
     INCLUDE_DIRS

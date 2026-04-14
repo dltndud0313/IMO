@@ -7,6 +7,7 @@ namespace mvp {
 
 class MockSensorSource : public ISensorSource {
   public:
+    bool is_mock() const override { return true; }
     SensorFrame read_frame(uint32_t timestamp_ms) override;
 };
 

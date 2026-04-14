@@ -10,6 +10,7 @@ namespace mvp {
 class ISensorSource {
   public:
     virtual ~ISensorSource() = default;
+    virtual bool is_mock() const { return false; }
     virtual SensorFrame read_frame(uint32_t timestamp_ms) = 0;
 };
 

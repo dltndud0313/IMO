@@ -8,6 +8,7 @@ RuntimeState StateMachine::state() const {
 }
 
 bool StateMachine::handle_event(RuntimeEvent event) {
+    // RESET과 SENSOR_FAULT는 현재 상태와 상관없이 항상 우선 처리한다.
     switch (event) {
         case RuntimeEvent::RESET:
             state_ = RuntimeState::IDLE;
@@ -43,6 +44,7 @@ bool StateMachine::handle_event(RuntimeEvent event) {
                 state_ = RuntimeState::STREAMING;
                 return true;
             }
+            // READY 상태에서는 필요하면 캘리브레이션을 다시 시작할 수 있게 열어둔다.
             if (event == RuntimeEvent::BEGIN_REST_CALIBRATION) {
                 state_ = RuntimeState::CALIBRATION_REST;
                 return true;

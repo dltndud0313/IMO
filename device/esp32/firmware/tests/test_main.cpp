@@ -6,6 +6,7 @@ void run_test_emg_filter();
 void run_test_calibration();
 void run_test_state_machine();
 void run_test_sensor_mock();
+void run_test_sensor_analog_emg();
 
 int main() {
     run_test_packet();
@@ -13,6 +14,7 @@ int main() {
     run_test_calibration();
     run_test_state_machine();
     run_test_sensor_mock();
+    run_test_sensor_analog_emg();
     std::cout << "[PASS] firmware host-side tests completed\n";
     return 0;
 }

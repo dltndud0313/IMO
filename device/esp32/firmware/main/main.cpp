@@ -10,6 +10,7 @@
 #endif
 
 extern "C" void app_main(void) {
+    // 실제 장착 후에는 MockSensorSource 대신 AnalogEmgSensorSource(+ IMU 어댑터)를 연결한다.
     mvp::MockSensorSource sensor_source;
     mvp::SerialTransport transport;
     mvp::MockRuntimePipeline pipeline(sensor_source, transport);

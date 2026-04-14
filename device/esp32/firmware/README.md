@@ -21,8 +21,26 @@ ESP32-S3(ESP-IDF)용 펌웨어 뼈대입니다.
 
 - `src/sensor_mock.cpp` `(실제 장착 후 변경 필요)`
   - mock 입력을 실제 센서 입력 코드로 교체
+- `src/sensor_analog_emg.cpp` `(실제 장착 후 우선 검토 대상)`
+  - SZH-GJD001 계열 단일 아날로그 EMG 센서를 ESP32 ADC에 연결할 때 먼저 보는 파일
+  - 센서 예제의 500Hz band-pass 필터 아이디어를 옮겨둔 어댑터
 - `include/config.h` `(실제 장착 후 설정값 조정 필요)`
   - threshold, 샘플링 주기, smoothing 계수 튜닝
 - `src/emg_filter.cpp`, `src/calibration.cpp` `(실제 장착 후 튜닝 가능성 높음)`
   - 실측 데이터 기준으로 EMG 처리 파라미터 조정
 - 패킷 스키마(`emg-glass.v1`)는 Pi와의 호환을 위해 유지 권장
+
+## SZH-GJD001 센서 기준 수정 순서
+
+1. `src/sensor_analog_emg.cpp`
+   - `read_raw_sample()`에 ESP-IDF ADC 읽기 코드를 연결
+2. `main/main.cpp`
+   - `MockSensorSource` 대신 실제 센서 어댑터를 연결
+3. `include/config.h`
+   - 샘플 수, ADC full scale, threshold 조정
+4. `src/emg_filter.cpp`
+   - 실제 센서 노이즈에 맞춰 RMS / 이동평균 / threshold 튜닝
+5. `src/calibration.cpp`
+   - rest / MVC 기준이 실제 사용자 데이터에 맞는지 확인
+
+값이 안 잡히면 가장 먼저 `src/sensor_analog_emg.cpp`와 ADC 핀 설정부터 확인하는 것이 좋습니다.
