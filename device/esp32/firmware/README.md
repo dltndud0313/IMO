@@ -20,6 +20,15 @@ ESP32-S3(ESP-IDF)용 펌웨어 뼈대입니다.
 ./device/esp32/scripts/run_firmware_host_tests.sh
 ```
 
+## 빠르게 봐야 할 문서 기준
+
+- 패킷 필드 이름과 예시값
+  - `../README.md`
+- `state` 값 의미
+  - `../README.md`
+- ESP32-Pi 공통 패킷 포맷
+  - `../../shared/protocol/esp32_pi_packet_format.md`
+
 ## 하드웨어 도착 후 교체
 
 - `src/sensor_mock.cpp` `(실제 장착 후 변경 필요)`
