@@ -164,6 +164,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
                       children: [
                         _InfoTile(
                           icon: Icons.height_rounded,
+                          iconColor: AppTheme.primary,
                           label: '키',
                           value: _profile != null
                               ? '${_profile!.heightCm.toStringAsFixed(0)} cm'
@@ -172,6 +173,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
                         _divider(isDark),
                         _InfoTile(
                           icon: Icons.monitor_weight_outlined,
+                          iconColor: AppTheme.rehab,
                           label: '체중',
                           value: _profile != null
                               ? '${_profile!.weightKg.toStringAsFixed(0)} kg'
@@ -180,6 +182,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
                         _divider(isDark),
                         _InfoTile(
                           icon: Icons.cake_outlined,
+                          iconColor: AppTheme.warning,
                           label: '나이',
                           value:
                               _profile != null ? '${_profile!.age}세' : '-',
@@ -187,6 +190,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
                         _divider(isDark),
                         _InfoTile(
                           icon: Icons.wc_rounded,
+                          iconColor: AppTheme.accent,
                           label: '성별',
                           value: _profile?.gender == 'F'
                               ? '여성'
@@ -514,10 +518,12 @@ class _QuickStat extends StatelessWidget {
 
 class _InfoTile extends StatelessWidget {
   final IconData icon;
+  final Color iconColor;
   final String label;
   final String value;
   const _InfoTile({
     required this.icon,
+    required this.iconColor,
     required this.label,
     required this.value,
   });
@@ -533,13 +539,13 @@ class _InfoTile extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 32,
-            height: 32,
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
-              color: AppTheme.primary.withValues(alpha: 0.1),
+              color: iconColor.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(AppTokens.radiusSm),
             ),
-            child: Icon(icon, color: AppTheme.primary, size: 18),
+            child: Icon(icon, color: iconColor, size: 18),
           ),
           const SizedBox(width: AppTokens.space12),
           Text(
