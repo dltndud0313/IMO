@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../db/database_helper.dart';
 import '../models/pose_data.dart';
 import '../models/user_profile.dart';
+import '../services/achievement_service.dart';
 import '../services/profile_storage.dart';
 import '../theme/app_theme.dart';
 import '../theme/app_tokens.dart';
@@ -28,6 +30,11 @@ class _MyPageScreenState extends State<MyPageScreen> {
   String? _email;
   bool _loading = true;
 
+  int _streakDays = 0;
+  int _totalSessions = 0;
+  int _totalReps = 0;
+  int _achievementCount = 0;
+
   @override
   void initState() {
     super.initState();
@@ -35,16 +42,29 @@ class _MyPageScreenState extends State<MyPageScreen> {
   }
 
   Future<void> _load() async {
+    final db = DatabaseHelper();
     final results = await Future.wait([
       _storage.loadProfile(),
       _storage.loadPose(),
       _storage.getEmail(),
+      db.getStreakDays(),
+      db.getAllSessions(),
+      AchievementService().getUnlocked(),
     ]);
     if (!mounted) return;
+    final sessions = results[4] as List;
+    final totalReps = sessions.fold<int>(
+      0,
+      (sum, s) => sum + ((s as dynamic).totalReps as int),
+    );
     setState(() {
       _profile = results[0] as UserProfile?;
       _pose = results[1] as PoseData?;
       _email = results[2] as String?;
+      _streakDays = results[3] as int;
+      _totalSessions = sessions.length;
+      _totalReps = totalReps;
+      _achievementCount = (results[5] as Set).length;
       _loading = false;
     });
   }
@@ -125,6 +145,10 @@ class _MyPageScreenState extends State<MyPageScreen> {
                     name: _profile?.name ?? '사용자',
                     email: _email ?? '',
                     pose: _pose,
+                    streakDays: _streakDays,
+                    totalSessions: _totalSessions,
+                    totalReps: _totalReps,
+                    achievementCount: _achievementCount,
                     onEdit: _editProfile,
                     onAvatarTap: () =>
                         Nav.push(context, const AvatarTestScreen()),
@@ -140,6 +164,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
                       children: [
                         _InfoTile(
                           icon: Icons.height_rounded,
+                          iconColor: AppTheme.primary,
                           label: '키',
                           value: _profile != null
                               ? '${_profile!.heightCm.toStringAsFixed(0)} cm'
@@ -148,6 +173,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
                         _divider(isDark),
                         _InfoTile(
                           icon: Icons.monitor_weight_outlined,
+                          iconColor: AppTheme.rehab,
                           label: '체중',
                           value: _profile != null
                               ? '${_profile!.weightKg.toStringAsFixed(0)} kg'
@@ -156,6 +182,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
                         _divider(isDark),
                         _InfoTile(
                           icon: Icons.cake_outlined,
+                          iconColor: AppTheme.warning,
                           label: '나이',
                           value:
                               _profile != null ? '${_profile!.age}세' : '-',
@@ -163,6 +190,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
                         _divider(isDark),
                         _InfoTile(
                           icon: Icons.wc_rounded,
+                          iconColor: AppTheme.accent,
                           label: '성별',
                           value: _profile?.gender == 'F'
                               ? '여성'
@@ -271,6 +299,10 @@ class _ProfileHeader extends StatelessWidget {
     required this.name,
     required this.email,
     required this.pose,
+    required this.streakDays,
+    required this.totalSessions,
+    required this.totalReps,
+    required this.achievementCount,
     required this.onEdit,
     required this.onAvatarTap,
   });
@@ -278,6 +310,10 @@ class _ProfileHeader extends StatelessWidget {
   final String name;
   final String email;
   final PoseData? pose;
+  final int streakDays;
+  final int totalSessions;
+  final int totalReps;
+  final int achievementCount;
   final VoidCallback onEdit;
   final VoidCallback onAvatarTap;
 
@@ -288,95 +324,120 @@ class _ProfileHeader extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(AppTokens.radiusLg),
         gradient: AppGradients.primary,
-        boxShadow: AppTokens.shadowGlow(const Color(0xFF3B5BDB)),
+        boxShadow: AppTokens.shadowGlow(AppTheme.primary),
       ),
-      child: Row(
+      child: Column(
         children: [
-          // 아바타
-          GestureDetector(
-            onTap: onAvatarTap,
-            child: Container(
-              width: 96,
-              height: 96,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.15),
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.3),
-                  width: 2,
+          Row(
+            children: [
+              // 아바타
+              GestureDetector(
+                onTap: onAvatarTap,
+                child: Container(
+                  width: 96,
+                  height: 96,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.3),
+                      width: 2,
+                    ),
+                  ),
+                  child: pose == null
+                      ? const Icon(
+                          Icons.person_rounded,
+                          color: Colors.white,
+                          size: 48,
+                        )
+                      : ClipOval(
+                          child: CustomPaint(
+                            painter: AvatarPainter(pose: pose!),
+                            child: const SizedBox.expand(),
+                          ),
+                        ),
                 ),
               ),
-              child: pose == null
-                  ? const Icon(
-                      Icons.person_rounded,
-                      color: Colors.white,
-                      size: 48,
-                    )
-                  : ClipOval(
-                      child: CustomPaint(
-                        painter: AvatarPainter(pose: pose!),
-                        child: const SizedBox.expand(),
+              const SizedBox(width: AppTokens.space16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.4,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-            ),
-          ),
-          const SizedBox(width: AppTokens.space16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.4,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  email,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.85),
-                    fontSize: 13,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: AppTokens.space12),
-                Material(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                  child: InkWell(
-                    onTap: onEdit,
-                    borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 6,
+                    const SizedBox(height: 2),
+                    Text(
+                      email,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.85),
+                        fontSize: 13,
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.edit_rounded,
-                              color: Colors.white, size: 14),
-                          SizedBox(width: 4),
-                          Text(
-                            '프로필 편집',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                            ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (streakDays > 0) ...[
+                      const SizedBox(height: 8),
+                      _StreakBadge(days: streakDays),
+                    ],
+                    const SizedBox(height: AppTokens.space12),
+                    Material(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius:
+                          BorderRadius.circular(AppTokens.radiusPill),
+                      child: InkWell(
+                        onTap: onEdit,
+                        borderRadius:
+                            BorderRadius.circular(AppTokens.radiusPill),
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 6,
                           ),
-                        ],
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.edit_rounded,
+                                  color: Colors.white, size: 14),
+                              SizedBox(width: 4),
+                              Text(
+                                '프로필 편집',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppTokens.space16),
+          // 빠른 통계 3개
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+            ),
+            child: Row(
+              children: [
+                _QuickStat(label: '세션', value: totalSessions.toString()),
+                _QuickStat(label: '반복', value: totalReps.toString()),
+                _QuickStat(label: '업적', value: achievementCount.toString()),
               ],
             ),
           ),
@@ -386,12 +447,83 @@ class _ProfileHeader extends StatelessWidget {
   }
 }
 
+class _StreakBadge extends StatelessWidget {
+  const _StreakBadge({required this.days});
+  final int days;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('🔥', style: TextStyle(fontSize: 12)),
+          const SizedBox(width: 4),
+          Text(
+            '$days일 연속',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QuickStat extends StatelessWidget {
+  const _QuickStat({required this.label, required this.value});
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Column(
+          children: [
+            Text(
+              value,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.5,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.7),
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _InfoTile extends StatelessWidget {
   final IconData icon;
+  final Color iconColor;
   final String label;
   final String value;
   const _InfoTile({
     required this.icon,
+    required this.iconColor,
     required this.label,
     required this.value,
   });
@@ -407,13 +539,13 @@ class _InfoTile extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 32,
-            height: 32,
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
-              color: AppTheme.primary.withValues(alpha: 0.1),
+              color: iconColor.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(AppTokens.radiusSm),
             ),
-            child: Icon(icon, color: AppTheme.primary, size: 18),
+            child: Icon(icon, color: iconColor, size: 18),
           ),
           const SizedBox(width: AppTokens.space12),
           Text(

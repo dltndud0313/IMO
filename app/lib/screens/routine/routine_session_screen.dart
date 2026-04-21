@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,11 +13,14 @@ import '../../providers/realtime_provider.dart';
 import '../../services/achievement_service.dart';
 import '../../services/settings_service.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/app_tokens.dart';
 import '../../utils/nav.dart';
 import '../../widgets/achievement_unlock_dialog.dart';
 import '../../widgets/confetti_overlay.dart';
 import '../../widgets/emg_waveform.dart';
 import '../../widgets/rest_timer.dart';
+import '../../widgets/ui/gradient_button.dart';
+import '../../widgets/ui/section_card.dart';
 
 /// 루틴을 순서대로 실행하는 화면.
 /// 운동 → 휴식 → 운동 → 휴식 → ... → 완료
@@ -46,6 +51,10 @@ class _RoutineSessionScreenState
   final List<_SetResult> _setResults = [];
   DateTime? _sessionStart;
 
+  // 경과 시간 표시용 1초 타이머
+  Timer? _elapsedTimer;
+  Duration _elapsed = Duration.zero;
+
   RoutineItem get _currentItem => widget.routine.items[_currentItemIndex];
   bool get _isLastItem =>
       _currentItemIndex >= widget.routine.items.length - 1;
@@ -68,7 +77,24 @@ class _RoutineSessionScreenState
   @override
   void dispose() {
     _bounceCtrl.dispose();
+    _elapsedTimer?.cancel();
     super.dispose();
+  }
+
+  String get _elapsedLabel {
+    final m = _elapsed.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final s = _elapsed.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+
+  void _startElapsedTimer() {
+    _elapsedTimer?.cancel();
+    _elapsedTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted || _sessionStart == null) return;
+      setState(() {
+        _elapsed = DateTime.now().difference(_sessionStart!);
+      });
+    });
   }
 
   Exercise? _findExercise(String id) {
@@ -90,6 +116,7 @@ class _RoutineSessionScreenState
   void _startExercise() {
     _sessionStart ??= DateTime.now();
     ref.read(realtimeProvider.notifier).start();
+    _startElapsedTimer();
     setState(() => _phase = _Phase.exercising);
   }
 
@@ -222,25 +249,27 @@ class _RoutineSessionScreenState
           }
         }
       },
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text(widget.routine.name),
-          leading: IconButton(
-            icon: const Icon(Icons.close),
-            onPressed: () async {
-              if (await _onWillPop()) {
-                if (context.mounted) Navigator.pop(context);
-              }
-            },
-          ),
-        ),
-        body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: _buildBody(exerciseName),
-          ),
-        ),
-      ),
+      child: _phase == _Phase.exercising
+          ? Scaffold(body: _buildExercising(exerciseName))
+          : Scaffold(
+              appBar: AppBar(
+                title: Text(widget.routine.name),
+                leading: IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () async {
+                    if (await _onWillPop()) {
+                      if (context.mounted) Navigator.pop(context);
+                    }
+                  },
+                ),
+              ),
+              body: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: _buildBody(exerciseName),
+                ),
+              ),
+            ),
     );
   }
 
@@ -308,111 +337,262 @@ class _RoutineSessionScreenState
     final state = ref.watch(realtimeProvider);
     final notifier = ref.read(realtimeProvider.notifier);
     _onRepUpdate(state.repCount);
-    final progress = (state.repCount / _currentItem.targetReps)
-        .clamp(0.0, 1.0);
+
     return Column(
       children: [
-        // 상단 정보
-        Text(
-          exerciseName,
-          style: const TextStyle(
-            fontSize: 18,
-            color: AppTheme.textSecondary,
-          ),
-        ),
-        Text(
-          '세트 $_currentSet / ${_currentItem.sets}',
-          style: const TextStyle(
-            fontSize: 14,
-            color: AppTheme.textSecondary,
-          ),
-        ),
-        const SizedBox(height: 16),
-        // 반복 수 / 목표
-        ScaleTransition(
-          scale: _bounceAnim,
-          child: Text(
-            '${state.repCount} / ${_currentItem.targetReps}',
-            style: const TextStyle(
-              fontSize: 84,
-              fontWeight: FontWeight.w800,
-              color: AppTheme.primary,
-              height: 1,
+        // ── 그라데이션 헤더 (close + 이름 + 세트 / 대형 rep 카운터)
+        Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFF2A3470),
+                Color(0xFF7B96E8),
+                Color(0xFF72BFEE),
+              ],
+              stops: [0.0, 0.6, 1.0],
             ),
           ),
-        ),
-        const SizedBox(height: 12),
-        // 진행 바
-        ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: LinearProgressIndicator(
-            value: progress,
-            minHeight: 10,
-            backgroundColor: AppTheme.border,
-            valueColor:
-                const AlwaysStoppedAnimation(AppTheme.primary),
-          ),
-        ),
-        const SizedBox(height: 16),
-        // EMG 파형
-        EmgWaveform(
-          samples: notifier.ch1Wave,
-          color: AppTheme.primary,
-          label: '실시간 EMG',
-          height: 70,
-        ),
-        const Spacer(),
-        // EMG 채널
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
+          child: SafeArea(
+            bottom: false,
+            child: Column(
               children: [
-                _ChVal(label: 'CH1', value: state.ch1),
-                _ChVal(label: 'CH2', value: state.ch2),
-                _ChVal(label: 'CH3', value: state.ch3),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 20, 0),
+                  child: Row(
+                    children: [
+                      _GlassIconButton(
+                        icon: Icons.close,
+                        onTap: () async {
+                          if (await _onWillPop()) {
+                            if (mounted) Navigator.pop(context);
+                          }
+                        },
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          exerciseName,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Text(
+                        '세트 $_currentSet / ${_currentItem.sets}',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.75),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  child: ScaleTransition(
+                    scale: _bounceAnim,
+                    child: Column(
+                      children: [
+                        Text(
+                          '${state.repCount}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 72,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -2,
+                            height: 1,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '회 완료',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.75),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
         ),
-        const SizedBox(height: 20),
-        Row(
+
+        // ── 스크롤 영역
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (state.isCompensation) _buildCompensationBanner(),
+                _buildEmgCard(notifier),
+                const SizedBox(height: 12),
+                _buildStatGrid(state),
+              ],
+            ),
+          ),
+        ),
+
+        // ── 하단 고정 액션바
+        _buildActionBar(notifier),
+      ],
+    );
+  }
+
+  Widget _buildCompensationBanner() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF3CD),
+        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+        border: Border.all(color: const Color(0xFFF5CC70)),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.warning_amber_rounded,
+              color: Color(0xFFB8860B), size: 20),
+          SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('보상동작 감지',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF856404),
+                    )),
+                Text('자세를 바로 잡아주세요',
+                    style: TextStyle(
+                        fontSize: 11, color: Color(0xFF856404))),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmgCard(RealtimeNotifier notifier) {
+    return Container(
+      padding: const EdgeInsets.all(AppTokens.space16),
+      decoration: BoxDecoration(
+        color: AppTheme.bgDark,
+        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'EMG 신호',
+            style: TextStyle(
+              fontSize: 11,
+              color: AppTheme.textSecondaryDark,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 50,
+            child: EmgWaveform(
+              samples: notifier.ch1Wave,
+              color: AppTheme.primary,
+              label: '',
+              height: 50,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatGrid(dynamic state) {
+    return GridView.count(
+      crossAxisCount: 2,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisSpacing: 10,
+      mainAxisSpacing: 10,
+      childAspectRatio: 2.2,
+      children: [
+        _SessionStatCard(
+            label: '총 반복',
+            value: '${state.repCount}',
+            color: AppTheme.primary),
+        _SessionStatCard(
+            label: '보상동작',
+            value: '${state.compensationCount}',
+            color: AppTheme.warning),
+        _SessionStatCard(
+            label: '현재 세트',
+            value: '$_currentSet / ${_currentItem.sets}',
+            color: AppTheme.success),
+        _SessionStatCard(
+            label: '경과 시간',
+            value: _elapsedLabel,
+            color: AppTheme.accent),
+      ],
+    );
+  }
+
+  Widget _buildActionBar(RealtimeNotifier notifier) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        border: Border(top: BorderSide(color: AppTheme.divider)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Row(
           children: [
             Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  if (notifier.isPaused) {
-                    notifier.resume();
-                  } else {
-                    notifier.pause();
-                  }
-                  setState(() {});
-                },
-                icon: Icon(
-                    notifier.isPaused ? Icons.play_arrow : Icons.pause),
-                label:
-                    Text(notifier.isPaused ? '재개' : '일시정지'),
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(56),
-                ),
+              flex: 2,
+              child: GradientButton(
+                label: '+ 반복',
+                gradient: AppGradients.action,
+                height: 52,
+                onPressed: notifier.addRep,
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             Expanded(
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.accent,
+              child: OutlinedButton(
+                onPressed: () => setState(() => _phase = _Phase.resting),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(52),
+                  shape: RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius.circular(AppTokens.radiusMd),
+                  ),
                 ),
+                child: const Text('휴식'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: GradientButton(
+                label: '완료',
+                gradient: AppGradients.primary,
+                height: 52,
                 onPressed: _finishSet,
-                icon: const Icon(Icons.stop),
-                label: const Text('세트 종료'),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 8),
-      ],
+      ),
     );
   }
 
@@ -466,23 +646,67 @@ class _RoutineSessionScreenState
   }
 }
 
-class _ChVal extends StatelessWidget {
-  final String label;
-  final double value;
-  const _ChVal({required this.label, required this.value});
+class _GlassIconButton extends StatelessWidget {
+  const _GlassIconButton({required this.icon, required this.onTap});
+  final IconData icon;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(label,
+    return Material(
+      color: Colors.white.withValues(alpha: 0.18),
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: SizedBox(
+          width: 36,
+          height: 36,
+          child: Icon(icon, color: Colors.white, size: 20),
+        ),
+      ),
+    );
+  }
+}
+
+class _SessionStatCard extends StatelessWidget {
+  const _SessionStatCard({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+  final String label;
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return SectionCard(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            label,
             style: const TextStyle(
-                fontSize: 12, color: AppTheme.textSecondary)),
-        const SizedBox(height: 4),
-        Text(value.toStringAsFixed(1),
-            style: const TextStyle(
-                fontSize: 18, fontWeight: FontWeight.w700)),
-      ],
+              fontSize: 10,
+              color: AppTheme.textSecondary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: color,
+              letterSpacing: -0.3,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

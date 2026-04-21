@@ -65,6 +65,22 @@ class RealtimeNotifier extends StateNotifier<RealtimeState> {
     return v < 0.5 ? v * 2 : 2 - v * 2;
   }
 
+  /// 수동 rep 증가 — 현재 mock 모드에서 "+ 반복" 버튼 등에 사용.
+  /// Pi 연동 후에도 EMG 감지 미스 시 사용자 수동 보정 용도로 유지.
+  void addRep() {
+    if (!_running || _paused) return;
+    final next = state.repCount + 1;
+    state = RealtimeState(
+      repCount: next,
+      speed: state.speed,
+      isCompensation: state.isCompensation,
+      isFatigued: next >= 10,
+      ch1: state.ch1,
+      ch2: state.ch2,
+      ch3: state.ch3,
+    );
+  }
+
   void pause() {
     if (!_running) return;
     _paused = true;
