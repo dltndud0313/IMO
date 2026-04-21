@@ -61,6 +61,25 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
 
+  # 앱 아이콘 자동 생성 (Android/iOS/Web)
+  flutter_launcher_icons: ^0.14.1
+
+# flutter_launcher_icons 설정
+# 실행: flutter pub get && dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/app_icon.jpg"
+  min_sdk_android: 21
+  # Android 8.0+ adaptive icon — 배경은 브랜드 컬러(파랑), 전경은 같은 이미지 사용
+  adaptive_icon_background: "#2F55E0"
+  adaptive_icon_foreground: "assets/images/app_icon.jpg"
+  web:
+    generate: true
+    image_path: "assets/images/app_icon.jpg"
+    background_color: "#2F55E0"
+    theme_color: "#2F55E0"
+
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
