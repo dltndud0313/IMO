@@ -21,8 +21,6 @@ void main() async {
   ]);
   // 설정 로드
   await SettingsService().load();
-  // TODO: 한 번 실행 후 제거 — 개발 중 introSeen 리셋용
-  await SettingsService().setIntroSeen(false);
   runApp(const ProviderScope(child: MuscleVisionApp()));
 }
 
