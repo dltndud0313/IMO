@@ -307,10 +307,10 @@ class _HeroCard extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF1A237E), Color(0xFF3B5BDB), Color(0xFF4DA8FF)],
+          colors: [Color(0xFF2A3470), Color(0xFF7B96E8), Color(0xFF72BFEE)],
           stops: [0.0, 0.6, 1.0],
         ),
-        boxShadow: AppTokens.shadowGlow(const Color(0xFF3B5BDB)),
+        boxShadow: AppTokens.shadowGlow(const Color(0xFF7B96E8)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
