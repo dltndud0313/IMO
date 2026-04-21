@@ -145,7 +145,7 @@ class _BootstrapState extends State<_Bootstrap>
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [Color(0xFF0B0D10), Color(0xFF1A237E), Color(0xFF3B5BDB)],
+                  colors: [Color(0xFF0B0D10), Color(0xFF2A3470), Color(0xFF7B96E8)],
                   stops: [0.0, 0.55, 1.0],
                 ),
               ),

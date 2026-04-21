@@ -7,12 +7,12 @@ import 'app_tokens.dart';
 /// Apple Fitness + Freeletics 톤 — 대형 타이포, 소프트 섀도우, 라운드 카드.
 class AppTheme {
   // 브랜드 색상 (공통) — 기존 호환 유지
-  static const Color primary = Color(0xFF3B5BDB);
-  static const Color rehab = Color(0xFF14B8A6);
-  static const Color accent = Color(0xFFFF6B35);
-  static const Color success = Color(0xFF22D3A4);
-  static const Color warning = Color(0xFFFFAB00);
-  static const Color danger = Color(0xFFFF2E63);
+  static const Color primary = Color(0xFF7B96E8);
+  static const Color rehab = Color(0xFF5CCDC4);
+  static const Color accent = Color(0xFFF5A080);
+  static const Color success = Color(0xFF70DEC0);
+  static const Color warning = Color(0xFFF5CC70);
+  static const Color danger = Color(0xFFF07898);
 
   // 라이트 서피스
   static const Color bg = Color(0xFFF5F6FA);
@@ -174,7 +174,7 @@ class AppTheme {
         style: ElevatedButton.styleFrom(
           backgroundColor: primary,
           foregroundColor: Colors.white,
-          minimumSize: const Size.fromHeight(56),
+          minimumSize: const Size.fromHeight(52),
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppTokens.radiusMd),
@@ -191,7 +191,7 @@ class AppTheme {
       OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: fg,
-          minimumSize: const Size.fromHeight(56),
+          minimumSize: const Size.fromHeight(52),
           side: BorderSide(color: borderColor, width: 1.2),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppTokens.radiusMd),

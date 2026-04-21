@@ -42,9 +42,9 @@ class AppTokens {
 
   static List<BoxShadow> shadowGlow(Color color) => [
         BoxShadow(
-          color: color.withValues(alpha: 0.35),
-          blurRadius: 24,
-          offset: const Offset(0, 8),
+          color: color.withValues(alpha: 0.28),
+          blurRadius: 20,
+          offset: const Offset(0, 6),
         ),
       ];
 
@@ -62,28 +62,28 @@ class AppGradients {
   static const LinearGradient primary = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF3B5BDB), Color(0xFF4DA8FF)],
+    colors: [Color(0xFF7B96E8), Color(0xFF72BFEE)],
   );
 
   /// 운동 / 액션 (오렌지 → 레드) — Freeletics 에너지
   static const LinearGradient action = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFFFF6B35), Color(0xFFFF2E63)],
+    colors: [Color(0xFFF08060), Color(0xFFF05580)],
   );
 
   /// 재활 / 회복 (민트 → 그린) — Apple Fitness Move 링 느낌
   static const LinearGradient rehab = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF14B8A6), Color(0xFF22D3A4)],
+    colors: [Color(0xFF5CCDC4), Color(0xFF70DEC0)],
   );
 
   /// 성취 / 업적 (퍼플 → 핑크)
   static const LinearGradient achievement = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF8B5CF6), Color(0xFFEC4899)],
+    colors: [Color(0xFF9B82E8), Color(0xFFD87AB5)],
   );
 
   /// 다크 히어로 배경
@@ -94,7 +94,7 @@ class AppGradients {
   );
 
   /// Apple Fitness 3-링 컬러 (Move / Exercise / Stand)
-  static const Color ringMove = Color(0xFFFF2E63); // 빨강-핑크
-  static const Color ringExercise = Color(0xFF22D3A4); // 민트
-  static const Color ringStand = Color(0xFF4DA8FF); // 시안
+  static const Color ringMove = Color(0xFFF07898); // 빨강-핑크 (소프트)
+  static const Color ringExercise = Color(0xFF70DEC0); // 민트 (소프트)
+  static const Color ringStand = Color(0xFF72BFEE); // 시안 (소프트)
 }
