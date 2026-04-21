@@ -169,6 +169,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             streak: _streakDays,
                           ),
                           const SizedBox(height: AppTokens.space16),
+                          const _MyGlassesCard(),
+                          const SizedBox(height: AppTokens.space16),
                           if (_weekRecords.isNotEmpty) ...[
                             _WeekMiniChart(records: _weekRecords),
                             const SizedBox(height: AppTokens.space16),
@@ -614,6 +616,79 @@ class _StatCard extends StatelessWidget {
                   ? AppTheme.textSecondaryDark
                   : AppTheme.textSecondary,
               fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MyGlassesCard extends StatelessWidget {
+  const _MyGlassesCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final subColor =
+        isDark ? AppTheme.textSecondaryDark : AppTheme.textSecondary;
+
+    return SectionCard(
+      padding: const EdgeInsets.all(AppTokens.space16),
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+            child: Image.asset(
+              'assets/images/glasses_hero.png',
+              width: 72,
+              height: 72,
+              fit: BoxFit.cover,
+            ),
+          ),
+          const SizedBox(width: AppTokens.space16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '내 글래스',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: subColor,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                const Text(
+                  'Inside Muscle Out',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: subColor,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '연결 대기 중',
+                      style: TextStyle(fontSize: 12, color: subColor),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ],
