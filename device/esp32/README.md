@@ -60,6 +60,7 @@ ESP32-S3 기반 센서 송신 코드를 관리하는 폴더입니다.
 - 변경 이유와 영향 범위: `docs/esp32_packet_protocol_migration.md`
 - Raspberry Pi는 위 문서를 기준으로 **byte stream을 읽고 binary unpack** 하는 구조로 맞추는 것이 권장됩니다.
 - 문자열 키 이름 대신 고정된 필드 순서와 상태 코드 표를 사용합니다.
+- Pi 담당자 시작 문서: `device/raspberry-pi/README.md`
 
 ### 포맷 선택 구조
 
@@ -83,6 +84,15 @@ ESP32-S3 기반 센서 송신 코드를 관리하는 폴더입니다.
 
 - 지금 호스트 테스트와 현재 펌웨어 출력은 실제 UART 대신 `stdout`/console로 v1 JSONL을 먼저 검증한 상태입니다.
 - 실시간 경로 최종안은 v2 바이너리로 정리하되, v1 JSONL은 archive로 남겨 둡니다.
+
+## Raspberry Pi 담당자에게 바로 전달할 기준
+
+- 전체 개요: `device/esp32/README.md`
+- Pi 구현 시작 문서: `device/raspberry-pi/README.md`
+- 실제 구현 기준: `shared/protocol/esp32_pi_packet_format.md`
+- 기존 JSON 로그 해석: `shared/protocol/archive/esp32_pi_packet_format_v1_jsonl.md`
+
+즉, Pi 담당자는 **개요 -> Pi README -> 프로토콜 문서** 순서로 보면 됩니다.
 
 ## v2로 바꾸는 이유와 예상 개선 폭
 
