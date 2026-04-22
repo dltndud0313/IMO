@@ -42,6 +42,67 @@
 현재 기본값은 디버깅 편의를 위해 `JSON_V1` 입니다.  
 실시간 비교 테스트를 하려면 이 값을 `BINARY_V2`로 바꾸면 됩니다.
 
+## 포맷별 실행 방법
+
+현재 포맷 선택은 **컴파일 타임 선택**입니다.  
+즉, `config.h`에서 값을 바꾼 뒤 다시 `build -> flash` 해야 합니다.
+
+### 1. JSON_V1 실행
+
+`device/esp32/firmware/include/config.h`에서:
+
+```cpp
+inline constexpr PacketFormat kDefaultPacketFormat = PacketFormat::JSON_V1;
+```
+
+그다음:
+
+```bash
+cd ~/S14P31C203/device/esp32/firmware
+source ~/esp/esp-idf/export.sh
+idf.py build
+idf.py -p /dev/ttyACM0 -b 115200 flash monitor
+```
+
+정상이라면 사람이 읽을 수 있는 JSON 한 줄이 계속 출력됩니다.
+
+### 2. BINARY_V2 실행
+
+`device/esp32/firmware/include/config.h`에서:
+
+```cpp
+inline constexpr PacketFormat kDefaultPacketFormat = PacketFormat::BINARY_V2;
+```
+
+그다음:
+
+```bash
+cd ~/S14P31C203/device/esp32/firmware
+source ~/esp/esp-idf/export.sh
+idf.py build
+idf.py -p /dev/ttyACM0 -b 115200 flash
+```
+
+바이너리는 사람이 읽는 문자열이 아니므로 `monitor` 대신 raw bytes 확인이 더 적합합니다.
+
+```bash
+stty -F /dev/ttyACM0 115200 raw -echo
+dd if=/dev/ttyACM0 bs=38 count=1 status=none | xxd -g1
+```
+
+### 3. 포트 먼저 확인
+
+환경에 따라 포트가 `/dev/ttyUSB0` 또는 `/dev/ttyACM0`로 바뀔 수 있습니다.
+
+```bash
+ls /dev/ttyUSB* /dev/ttyACM* 2>/dev/null
+```
+
+### 4. 종료 방법
+
+- `idf.py monitor` 종료:
+  - `Ctrl + ]`
+
 ## Raspberry Pi 담당자가 보는 순서
 
 1. `device/raspberry-pi/README.md`
