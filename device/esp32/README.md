@@ -72,6 +72,23 @@ ESP32-S3 기반 센서 송신 코드를 관리하는 폴더입니다.
 - 이후 무선 경로(MQTT) 실험 시에도 `OutputPacket -> PacketBuffer` 구조를 그대로 재사용할 수 있습니다.
 - 포맷 차이와 현재 기본값을 한 번에 보려면 `docs/esp32_pi_protocol_quick_reference.md`를 먼저 보면 됩니다.
 
+### 포맷 바꿔서 실행하는 법
+
+현재 포맷 선택은 **`config.h` 수정 -> 재빌드 -> 재플래시** 방식입니다.
+
+1. `device/esp32/firmware/include/config.h`에서 `kDefaultPacketFormat` 값을 선택
+2. 아래 명령으로 다시 빌드/플래시
+
+```bash
+cd ~/S14P31C203/device/esp32/firmware
+source ~/esp/esp-idf/export.sh
+idf.py build
+idf.py -p /dev/ttyACM0 -b 115200 flash monitor
+```
+
+- `JSON_V1`이면 사람이 읽을 수 있는 JSON이 출력됩니다.
+- `BINARY_V2`이면 문자열 대신 raw bytes가 송신되므로, 자세한 확인 방법은 `docs/esp32_pi_protocol_quick_reference.md`를 참고합니다.
+
 참고 코드 위치:
 
 - `device/esp32/firmware/src/transport_serial.cpp`
