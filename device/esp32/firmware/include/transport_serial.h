@@ -2,7 +2,6 @@
 #pragma once
 
 #include <functional>
-#include <string>
 
 #include "packet.h"
 
@@ -10,12 +9,14 @@ namespace mvp {
 
 class SerialTransport {
   public:
-    using Sink = std::function<void(const std::string&)>;
+    using Sink = std::function<void(const PacketBuffer&)>;
 
-    explicit SerialTransport(Sink sink = {});
+    explicit SerialTransport(PacketFormat format = PacketFormat::JSON_V1, Sink sink = {});
     bool send_packet(const OutputPacket& packet) const;
+    PacketFormat packet_format() const;
 
   private:
+    PacketFormat format_;
     Sink sink_;
 };
 

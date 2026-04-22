@@ -10,9 +10,17 @@
   - 용도: 초기 bring-up, 사람이 직접 읽는 디버깅
   - 문서: `shared/protocol/archive/esp32_pi_packet_format_v1_jsonl.md`
 - `v2`: 바이너리 패킷
-  - 상태: 설계 기준
+  - 상태: 구현 진행 기준
   - 용도: 실시간 전송, Raspberry Pi 수신기 연동
   - 권장 여부: **권장**
+
+## 선택형 운용 원칙
+
+- 구현은 `JSON_V1`, `BINARY_V2` 두 포맷을 모두 유지합니다.
+- 디버깅과 bring-up은 `JSON_V1`이 유리합니다.
+- 실시간 경로와 성능 비교는 `BINARY_V2`가 기준입니다.
+- 포맷 선택은 `device/esp32/firmware/include/config.h` 의 `kDefaultPacketFormat` 에서 시작합니다.
+- 이후 MQTT 같은 무선 전송 경로를 붙일 때도 직렬화 결과 `PacketBuffer`를 그대로 재사용합니다.
 
 ## 왜 v2 바이너리로 전환하나
 
