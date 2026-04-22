@@ -24,4 +24,5 @@
 - `shared/`  
   여러 구성 요소가 함께 참조하는 공통 자원들을 관리하는 디렉터리입니다.
   통신 규약, 공통 설정, 상수 정의 등이 포함될 수 있습니다.
-  - `shared/protocol/esp32_pi_packet_format.md`: ESP32-Pi 직렬 패킷 포맷 문서
+  - `shared/protocol/esp32_pi_packet_format.md`: ESP32-Pi 직렬 패킷 포맷(v2 binary) 문서
+  - `shared/protocol/archive/esp32_pi_packet_format_v1_jsonl.md`: 초기 JSONL 시도안 archive

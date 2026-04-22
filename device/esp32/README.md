@@ -10,7 +10,7 @@ ESP32-S3 기반 센서 송신 코드를 관리하는 폴더입니다.
 - EMG 처리
 - 캘리브레이션
 - 상태머신 전이
-- JSONL 패킷 생성
+- 패킷 생성
 - USB Serial 송신 준비
 
 ## 구성
@@ -31,35 +31,71 @@ ESP32-S3 기반 센서 송신 코드를 관리하는 폴더입니다.
 
 ## 라즈베리파이 전송 방식 요약
 
-현재 ESP32에서 Raspberry Pi로 넘기는 기본 전송 방식은 아래와 같습니다.
+전송 계층은 **v1 JSONL 시도안을 archive로 보존하고, 실시간 경로는 v2 바이너리 프로토콜로 전환하는 방향**으로 정리합니다.
+
+### 현재 코드에서 바로 확인되는 것
+
+- 현재 실행 중인 펌웨어는 `emg-glass.v1` JSONL 패킷을 출력합니다.
+- 즉, 어제 ESP32에서 본 `{...}` 한 줄 출력은 **v1 JSONL 송신 성공**입니다.
+- 이 형식은 bring-up과 디버깅에는 유리하지만, 실시간 경로 최종안으로는 무겁습니다.
+
+### 현재 기준 권장 전송 방식
 
 - 전송 매체: `USB Serial`
-- 전송 형식: `JSON Lines(JSONL)` 한 줄당 패킷 1개
-- 패킷 경계: 줄바꿈 문자 `\n`
-- 기본 스키마 버전: `emg-glass.v1`
+- 전송 형식: `v2 binary frame`
+- 프레임 경계: `magic + payload_len + crc16`
+- 프로토콜 버전: `2`
 - 현재 기본 baud rate: `115200`
 - 현재 기본 송신 주기: `20ms` 간격, 약 `50Hz`
 
-즉, Raspberry Pi는 직렬 포트에서 한 줄씩 읽고, 그 한 줄을 JSON으로 파싱하는 구조를 기준으로 맞추면 됩니다.
+### v1 JSONL archive
+
+- v1 문서: `shared/protocol/archive/esp32_pi_packet_format_v1_jsonl.md`
+- 용도: 사람이 직접 읽는 초기 디버깅, bring-up 참고
+- 상태: archive
+
+### v2 바이너리 설계 문서
+
+- 현재 기준 문서: `shared/protocol/esp32_pi_packet_format.md`
+- 변경 이유와 영향 범위: `docs/esp32_packet_protocol_migration.md`
+- Raspberry Pi는 위 문서를 기준으로 **byte stream을 읽고 binary unpack** 하는 구조로 맞추는 것이 권장됩니다.
+- 문자열 키 이름 대신 고정된 필드 순서와 상태 코드 표를 사용합니다.
 
 참고 코드 위치:
 
 - `device/esp32/firmware/src/transport_serial.cpp`
-  - 현재 MVP 기준 Serial 전송 계층입니다.
+  - 현재/후속 MVP 기준 Serial 전송 계층입니다.
 - `device/esp32/firmware/src/packet.cpp`
-  - `OutputPacket`을 JSONL 문자열로 바꾸는 코드입니다.
+  - `OutputPacket`을 wire format으로 바꾸는 계층입니다.
 - `shared/protocol/esp32_pi_packet_format.md`
-  - ESP32-Pi 공통 패킷 포맷 문서입니다.
+  - ESP32-Pi 공통 패킷 포맷 v2 문서입니다.
 
 참고:
 
-- 지금 호스트 테스트에서는 실제 UART 대신 `stdout`으로 JSONL을 출력해 전송 흐름을 검증합니다.
-- 실제 장비 연결 후에는 같은 형식을 유지한 채 ESP-IDF UART 출력으로 연결하면 됩니다.
+- 지금 호스트 테스트와 현재 펌웨어 출력은 실제 UART 대신 `stdout`/console로 v1 JSONL을 먼저 검증한 상태입니다.
+- 실시간 경로 최종안은 v2 바이너리로 정리하되, v1 JSONL은 archive로 남겨 둡니다.
+
+## v2로 바꾸는 이유와 예상 개선 폭
+
+- JSONL은 디버깅이 쉽지만 문자열 생성/파싱 비용이 있습니다.
+- 패킷 길이가 길어 `115200 baud` 에서 프레임 예산을 많이 차지합니다.
+- v2 바이너리 프레임은 동일 정보량 기준 약 `38 bytes` 수준으로 설계합니다.
+
+추정 비교:
+
+- v1 JSON 예시 한 줄: 약 `228 bytes`
+- v2 바이너리 프레임: 약 `38 bytes`
+- 바이트 수 감소: 약 `83%`
+- 동일 baud `115200` 기준 순수 전송 시간:
+  - v1 JSON: 약 `19.8ms`
+  - v2 Binary: 약 `3.3ms`
+
+즉, 현재 `20ms` 주기에서는 **JSON은 전송 시간만으로 프레임 예산 대부분을 쓰지만**, v2 바이너리는 같은 baud rate에서도 훨씬 큰 여유를 확보합니다.
 
 ## 라즈베리파이가 나중에 받게 될 패킷 필드 이름
 
-ESP32는 처리 결과를 USB Serial 기준 JSONL 한 줄로 보냅니다.  
-라즈베리파이는 아래 이름의 필드를 기준으로 데이터를 받게 됩니다.
+아래 항목은 **v1 JSONL archive 기준 필드 이름**입니다.  
+기존 bring-up 로그와 문서를 읽을 때 참고용으로 유지합니다.
 
 - `schema`
 - `seq`
@@ -79,10 +115,10 @@ ESP32는 처리 결과를 USB Serial 기준 JSONL 한 줄로 보냅니다.
 
 패킷 포맷 상세 설명과 예시는 아래 문서를 기준으로 맞춥니다.
 
-- `shared/protocol/esp32_pi_packet_format.md`
+- `shared/protocol/archive/esp32_pi_packet_format_v1_jsonl.md`
 
-현재 기준에서는 위 패킷 필드 이름을 **수정하지 않고 유지하는 것이 맞습니다.**
-필드 이름을 바꾸면 Raspberry Pi 파서도 같이 수정해야 하므로, 센서가 바뀌더라도 우선은 동일한 이름을 유지하는 쪽이 안전합니다.
+v2 바이너리에서는 위 문자열 필드 이름을 wire format에 직접 싣지 않습니다.  
+대신 `seq`, `timestamp_ms`, 상태 코드, 스케일된 정수 payload 순서로 송신합니다.
 
 ## 패킷 필드 빠른 설명
 
@@ -195,8 +231,8 @@ SZH-GJD001 계열 센서는 판매처 예제가 아두이노 기준이라, ESP32
 - `device/esp32/firmware/include/types.h`
   - EMG/IMU/출력 패킷 구조체 정의입니다.
 - `device/esp32/firmware/src/packet.cpp`
-  - `OutputPacket`을 JSONL 문자열로 바꾸는 코드입니다.
+  - `OutputPacket`을 wire format으로 바꾸는 계층입니다.
 - `device/esp32/firmware/src/runtime_pipeline.cpp`
   - 센서 읽기 -> 처리 -> 패킷 생성 -> 송신 흐름을 묶는 중심 파일입니다.
 
-핵심은 **전체 구조를 다시 짜는 것이 아니라, 센서 입력부와 튜닝 포인트만 교체하는 것**입니다.
+핵심은 **전체 구조를 다시 짜는 것이 아니라, 센서 입력부와 전송 계층만 교체하는 것**입니다.

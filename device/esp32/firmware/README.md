@@ -6,6 +6,8 @@ ESP32-S3(ESP-IDF)용 펌웨어 뼈대입니다.
 현재는 mock 파이프라인과 함께, `SZH-GJD001` 계열 단일 아날로그 EMG 센서를 염두에 둔
 실센서 어댑터 뼈대(`src/sensor_analog_emg.cpp`)도 같이 포함되어 있습니다.
 
+패킷 계층은 초기 v1 JSONL 시도안을 보존하면서, 실시간 경로 최종안은 v2 바이너리 프로토콜로 전환하는 방향으로 정리합니다.
+
 ## 하위 폴더
 
 - `include/`: 공용 타입, 인터페이스, 설정값
@@ -26,8 +28,27 @@ ESP32-S3(ESP-IDF)용 펌웨어 뼈대입니다.
   - `../README.md`
 - `state` 값 의미
   - `../README.md`
-- ESP32-Pi 공통 패킷 포맷
+- ESP32-Pi 공통 패킷 포맷(v2 binary)
   - `../../shared/protocol/esp32_pi_packet_format.md`
+- ESP32-Pi 공통 패킷 포맷(v1 JSONL archive)
+  - `../../shared/protocol/archive/esp32_pi_packet_format_v1_jsonl.md`
+- 패킷 전환 배경/영향 범위
+  - `../../docs/esp32_packet_protocol_migration.md`
+
+## 패킷 전환 메모
+
+- 현재 코드에서 바로 확인되는 출력은 v1 JSONL입니다.
+- 하지만 실시간 경로 기준 권장안은 v2 바이너리입니다.
+- 전환 이유:
+  - 문자열 생성/파싱 비용 제거
+  - Serial 대역폭 사용량 감소
+  - `115200 baud` 기준 전송 시간 단축
+- 추정 비교:
+  - v1 JSON 예시: 약 `228 bytes`
+  - v2 Binary 프레임: 약 `38 bytes`
+  - 전송 바이트 수: 약 `83%` 감소
+
+즉, 센서 처리 로직은 유지하고 `packet.cpp`, `transport_serial.cpp` 중심으로 전송 계층을 바꾸는 것이 핵심입니다.
 
 ## 하드웨어 도착 후 교체
 
@@ -41,7 +62,8 @@ ESP32-S3(ESP-IDF)용 펌웨어 뼈대입니다.
 - `src/emg_filter.cpp`, `src/calibration.cpp` `(실제 장착 후 튜닝 가능성 높음)`
   - 실측 데이터 기준으로 EMG 처리 파라미터 조정
 - 패킷 스키마(`emg-glass.v1`)는 Pi와의 호환을 위해 유지 권장
-- 패킷 필드 이름(`schema`, `emg_ch1`, `state` 등)도 Pi 파서와 맞물리므로 현재 이름 유지 권장
+- v1 JSONL 필드 이름(`schema`, `emg_ch1`, `state` 등)은 archive 기준으로 유지
+- v2 binary는 상태 코드와 고정 순서 payload를 사용
 
 ## SZH-GJD001 센서 기준 수정 순서
 
