@@ -16,6 +16,53 @@ ESP32-S3(ESP-IDF)용 펌웨어 뼈대입니다.
 - `tests/`: Ubuntu 호스트 기반 C++ 테스트
 - `tools/`: 가짜 패킷 발생기 같은 보조 실행 파일
 
+### `include/`
+
+- 헤더 파일 모음입니다.
+- 데이터 구조: `types.h`
+- 설정 상수: `config.h`
+- 모듈 경계: `packet.h`, `emg_filter.h`, `imu_processor.h`, `calibration.h`, `state_machine.h`
+- 확장 포인트: `sensor_source.h`, `transport_serial.h`
+- 처음 볼 때는 `types.h -> sensor_source.h -> config.h` 순서가 가장 좋습니다.
+
+### `src/`
+
+- `include/`에서 선언한 기능의 실제 구현이 들어 있습니다.
+- `runtime_pipeline.cpp`: 센서 입력부터 패킷 송출까지 한 주기 전체 흐름
+- `packet.cpp`: `JSON_V1`, `BINARY_V2` 직렬화/역직렬화
+- `emg_filter.cpp`, `imu_processor.cpp`: 경량 전처리
+- `calibration.cpp`, `state_machine.cpp`: 캘리브레이션/상태 제어
+
+### `main/`
+
+- ESP-IDF 진입점 폴더입니다.
+- `main.cpp`의 `app_main()`이 실제 디바이스 실행 시작점입니다.
+- 현재는 mock 파이프라인 기준으로 전체 흐름을 반복 실행하게 구성되어 있습니다.
+
+### `tests/`
+
+- Ubuntu 22.04에서 펌웨어 핵심 로직을 검증하는 호스트 기반 테스트입니다.
+- 테스트 항목:
+  - 패킷 인코딩/디코딩
+  - EMG 계산(RMS/이동평균/정규화)
+  - 캘리브레이션 누적
+  - 상태머신 전이
+  - 가짜 센서 신호 변화
+- 실행:
+
+```bash
+./device/esp32/scripts/run_firmware_host_tests.sh
+```
+
+### `tools/`
+
+- 개발 보조 실행 파일을 둡니다.
+- `mock_stream_main.cpp`: ESP32 없이 패킷을 생성하는 호스트용 발생기
+- 주요 사용처:
+  - Pi receiver와 end-to-end 파이프라인 연결 검증
+  - 하드웨어 도착 전 통신/파싱/로그 경로 확인
+  - JSON/BINARY 포맷 비교 테스트
+
 ## 빠른 검증
 
 ```bash
@@ -82,3 +129,8 @@ ESP32-S3(ESP-IDF)용 펌웨어 뼈대입니다.
    - rest / MVC 기준이 실제 사용자 데이터에 맞는지 확인
 
 값이 안 잡히면 가장 먼저 `src/sensor_analog_emg.cpp`와 ADC 핀 설정부터 확인하는 것이 좋습니다.
+
+## 문서 정리 메모
+
+- 폴더별 짧은 README는 중복을 줄이기 위해 이 문서로 통합했습니다.
+- 기존 하위 README 원본은 `docs/archive/firmware_readmes/` 아래에 보관합니다.

@@ -87,7 +87,8 @@ idf.py -p /dev/ttyACM0 -b 115200 flash monitor
 ```
 
 - `JSON_V1`이면 사람이 읽을 수 있는 JSON이 출력됩니다.
-- `BINARY_V2`이면 문자열 대신 raw bytes가 송신되므로, 자세한 확인 방법은 `docs/esp32_pi_protocol_quick_reference.md`를 참고합니다.
+- `BINARY_V2`이면 문자열 대신 raw bytes가 송신됩니다.
+- JSON 출력 예시와 바이너리 1프레임/연속 프레임 확인 명령은 `docs/esp32_pi_protocol_quick_reference.md`에 정리돼 있습니다.
 
 참고 코드 위치:
 
@@ -100,7 +101,8 @@ idf.py -p /dev/ttyACM0 -b 115200 flash monitor
 
 참고:
 
-- 지금 호스트 테스트와 현재 펌웨어 출력은 실제 UART 대신 `stdout`/console로 v1 JSONL을 먼저 검증한 상태입니다.
+- 지금 호스트 테스트는 JSON/BINARY 두 포맷 모두 검증합니다.
+- 실제 ESP32 보드에서는 `JSON_V1` 문자열 출력과 `BINARY_V2` raw frame 출력 모두 확인할 수 있습니다.
 - 실시간 경로 최종안은 v2 바이너리로 정리하되, v1 JSONL은 archive로 남겨 둡니다.
 
 ## Raspberry Pi 담당자에게 바로 전달할 기준

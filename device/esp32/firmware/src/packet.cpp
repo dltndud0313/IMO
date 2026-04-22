@@ -180,7 +180,11 @@ int16_t rep_index_to_i16(const std::optional<int32_t>& rep_index) {
     if (!rep_index.has_value()) {
         return kRepIndexMissing;
     }
-    const int32_t clamped = std::clamp(rep_index.value(), -32768, 32767);
+    const int32_t clamped = std::clamp(
+        rep_index.value(),
+        static_cast<int32_t>(-32768),
+        static_cast<int32_t>(32767)
+    );
     return static_cast<int16_t>(clamped);
 }
 

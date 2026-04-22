@@ -66,6 +66,12 @@ idf.py -p /dev/ttyACM0 -b 115200 flash monitor
 
 정상이라면 사람이 읽을 수 있는 JSON 한 줄이 계속 출력됩니다.
 
+예:
+
+```json
+{"schema":"emg-glass.v1","seq":811,"timestamp_ms":16220,"emg_ch1":0.0536,"emg_ch2":0.0000,"emg_ch3":0.0371,"acc_x":0.0431,"acc_y":0.0160,"acc_z":1.0246,"gyro_x":0.1106,"gyro_y":0.1400,"gyro_z":0.0096,"state":"STREAMING","flags":7}
+```
+
 ### 2. BINARY_V2 실행
 
 `device/esp32/firmware/include/config.h`에서:
@@ -90,6 +96,18 @@ stty -F /dev/ttyACM0 115200 raw -echo
 dd if=/dev/ttyACM0 bs=38 count=1 status=none | xxd -g1
 ```
 
+한 프레임만 보는 이유는 바이너리가 사람이 읽는 문자열이 아니라 프레임 경계 기준으로 확인해야 하기 때문입니다.
+
+여러 프레임을 연속으로 보고 싶으면:
+
+```bash
+while true; do
+  dd if=/dev/ttyACM0 bs=38 count=1 status=none | xxd -g1 -c38
+done
+```
+
+포트가 `/dev/ttyUSB0`로 잡히면 위 명령의 `/dev/ttyACM0`만 `/dev/ttyUSB0`로 바꿔서 실행합니다.
+
 ### 3. 포트 먼저 확인
 
 환경에 따라 포트가 `/dev/ttyUSB0` 또는 `/dev/ttyACM0`로 바뀔 수 있습니다.
@@ -97,6 +115,11 @@ dd if=/dev/ttyACM0 bs=38 count=1 status=none | xxd -g1
 ```bash
 ls /dev/ttyUSB* /dev/ttyACM* 2>/dev/null
 ```
+
+예:
+
+- `/dev/ttyUSB0` 가 보이면 flash/monitor/raw read 모두 그 포트를 사용합니다.
+- `/dev/ttyACM0` 가 보이면 flash/monitor/raw read 모두 그 포트를 사용합니다.
 
 ### 4. 종료 방법
 
