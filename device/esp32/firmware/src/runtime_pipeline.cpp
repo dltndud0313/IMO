@@ -79,7 +79,7 @@ OutputPacket MockRuntimePipeline::build_packet(
     }
 
     OutputPacket packet;
-    packet.schema = kPacketSchema;
+    packet.schema = kPacketSchemaJsonV1;
     packet.seq = sequence_;
     packet.timestamp_ms = timestamp_ms;
     packet.emg_ch1 = emg.normalized[0];

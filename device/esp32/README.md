@@ -61,6 +61,15 @@ ESP32-S3 기반 센서 송신 코드를 관리하는 폴더입니다.
 - Raspberry Pi는 위 문서를 기준으로 **byte stream을 읽고 binary unpack** 하는 구조로 맞추는 것이 권장됩니다.
 - 문자열 키 이름 대신 고정된 필드 순서와 상태 코드 표를 사용합니다.
 
+### 포맷 선택 구조
+
+- 현재 코드에는 `JSON_V1`, `BINARY_V2` 두 포맷이 모두 들어 있습니다.
+- 기본 선택 위치: `device/esp32/firmware/include/config.h`
+- 기본값: `kDefaultPacketFormat`
+- 현재 기본값은 디버깅 편의를 위해 `JSON_V1` 입니다.
+- 실시간성 비교 테스트 시에는 `BINARY_V2` 로 바꿔 같은 파이프라인을 비교할 수 있습니다.
+- 이후 무선 경로(MQTT) 실험 시에도 `OutputPacket -> PacketBuffer` 구조를 그대로 재사용할 수 있습니다.
+
 참고 코드 위치:
 
 - `device/esp32/firmware/src/transport_serial.cpp`

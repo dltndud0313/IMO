@@ -12,6 +12,11 @@ namespace mvp {
 inline constexpr std::size_t kEmgChannelCount = 3;
 inline constexpr std::size_t kAxisCount = 3;
 
+enum class PacketFormat : uint8_t {
+    JSON_V1 = 1,
+    BINARY_V2 = 2,
+};
+
 enum class RuntimeState : uint8_t {
     IDLE = 0,
     CALIBRATION_REST,

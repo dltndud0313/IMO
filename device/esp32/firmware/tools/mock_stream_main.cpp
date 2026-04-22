@@ -23,7 +23,7 @@ int parse_count(int argc, char** argv) {
 int main(int argc, char** argv) {
     const int count = parse_count(argc, argv);
     mvp::MockSensorSource sensor_source;
-    mvp::SerialTransport transport;
+    mvp::SerialTransport transport(mvp::kDefaultPacketFormat);
     mvp::MockRuntimePipeline pipeline(sensor_source, transport);
 
     uint32_t timestamp_ms = 0;
