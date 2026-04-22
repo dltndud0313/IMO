@@ -32,3 +32,4 @@
 
 - ESP32 담당자는 `device/esp32/README.md`부터 봅니다.
 - Raspberry Pi 담당자는 `device/raspberry-pi/README.md`부터 보고, 실제 구현 기준은 `shared/protocol/esp32_pi_packet_format.md`를 따릅니다.
+- 포맷 차이, 현재 기본값, 구현 기준을 한 번에 보려면 `docs/esp32_pi_protocol_quick_reference.md`를 먼저 봅니다.

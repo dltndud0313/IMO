@@ -7,6 +7,8 @@ Raspberry Pi 수신기, 로그 저장, 후속 처리 코드를 두는 폴더입�
 
 ## 먼저 볼 문서 순서
 
+0. `../../docs/esp32_pi_protocol_quick_reference.md`
+   - 포맷 차이, 현재 기본값, 구현 기준을 한 번에 보는 요약 문서
 1. `../esp32/README.md`
    - 전체 흐름, 현재 기본 포맷, JSON/BINARY 선택 구조
 2. `../../shared/protocol/esp32_pi_packet_format.md`

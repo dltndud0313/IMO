@@ -2,6 +2,8 @@
 
 이 문서는 ESP32-Pi 직렬 통신을 v1 JSONL에서 v2 바이너리로 전환하는 이유와 영향을 정리한 문서입니다.
 
+빠른 비교와 현재 기본값은 `docs/esp32_pi_protocol_quick_reference.md`에서 먼저 볼 수 있습니다.
+
 ## 변경 이유
 
 기존 v1 JSONL은 아래 장점이 있었습니다.

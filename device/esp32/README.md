@@ -70,6 +70,7 @@ ESP32-S3 기반 센서 송신 코드를 관리하는 폴더입니다.
 - 현재 기본값은 디버깅 편의를 위해 `JSON_V1` 입니다.
 - 실시간성 비교 테스트 시에는 `BINARY_V2` 로 바꿔 같은 파이프라인을 비교할 수 있습니다.
 - 이후 무선 경로(MQTT) 실험 시에도 `OutputPacket -> PacketBuffer` 구조를 그대로 재사용할 수 있습니다.
+- 포맷 차이와 현재 기본값을 한 번에 보려면 `docs/esp32_pi_protocol_quick_reference.md`를 먼저 보면 됩니다.
 
 참고 코드 위치:
 
