@@ -242,6 +242,24 @@ SZH-GJD001 계열 센서는 판매처 예제가 아두이노 기준이라, ESP32
 상세 점검 문서는 아래를 참고합니다.
 
 - `docs/esp32_emg_sensor_bringup.md`
+- `docs/esp32_sensor_measurement_guide.md`
+
+## 나중에 수치 비교/보고서용으로 남겨야 할 것
+
+- IMU 정지 상태 `10초` 로그
+- IMU 동작 상태 로그
+- EMG 휴식 상태 로그
+- EMG 수축 상태 로그
+
+JSON 로그를 저장한 뒤 아래 스크립트로 통계를 뽑을 수 있습니다.
+
+```bash
+python3 ./device/esp32/scripts/summarize_json_sensor_log.py /tmp/esp32_sensor_run_01.log
+```
+
+측정 기준, 표 예시, 기록해야 할 설정값은 아래 문서에 정리합니다.
+
+- `docs/esp32_sensor_measurement_guide.md`
 
 ## 하드웨어 도착 후 교체 포인트
 

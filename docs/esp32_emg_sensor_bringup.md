@@ -164,6 +164,7 @@ idf.py -p /dev/ttyUSB0 -b 115200 flash monitor
 
 - `EMG ADC GPIO`: `GPIO4`
 - `ADC full scale`: `4095`
+- `Serial plotter mode`: `device/esp32/firmware/include/config.h`의 `kEnableEmgRawSerialPlotterMode`
 
 실행:
 
@@ -186,3 +187,35 @@ idf.py -p /dev/ttyUSB0 -b 115200 flash monitor
 - `VCC`, `GND`가 정상인지
 - `GPIO4`가 다른 기능에 점유되지 않았는지
 - `device/esp32/firmware/include/config.h`의 `kAnalogEmgAdcGpio` 값이 실제 배선과 맞는지
+
+## EMG raw Serial Plotter 모드
+
+`emg_ch1`가 계속 `0.0000`이면 먼저 필터 전 raw ADC 값이 들어오는지 봐야 합니다.
+
+1. `device/esp32/firmware/include/config.h`에서 아래 값을 켭니다.
+
+```cpp
+inline constexpr bool kEnableEmgRawSerialPlotterMode = true;
+```
+
+2. 다시 빌드/플래시합니다.
+
+```bash
+cd ./device/esp32/firmware
+source ~/esp/esp-idf/export.sh
+idf.py build
+idf.py -p /dev/ttyUSB0 -b 115200 flash monitor
+```
+
+이 모드에서는 JSON 대신 raw ADC 값 한 줄만 계속 출력됩니다.
+
+- 가만히 있을 때도 값이 조금 흔들리면 ADC 입력은 살아 있는 상태입니다.
+- 근육에 힘을 줄 때 값 변화 폭이 커지면 EMG 모듈 출력이 실제로 들어오고 있는 것입니다.
+
+Serial Plotter 확인이 끝나면 다시:
+
+```cpp
+inline constexpr bool kEnableEmgRawSerialPlotterMode = false;
+```
+
+로 돌려야 JSON/BINARY 패킷 송신 경로가 다시 동작합니다.

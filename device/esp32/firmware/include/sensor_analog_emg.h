@@ -53,6 +53,7 @@ class AnalogEmgSensorSource : public ISensorSource {
     );
 
     SensorFrame read_frame(uint32_t timestamp_ms) override;
+    float read_debug_raw_emg_sample();
     void reset();
 
   private:

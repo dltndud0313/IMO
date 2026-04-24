@@ -137,6 +137,10 @@ SensorFrame AnalogEmgSensorSource::read_frame(uint32_t timestamp_ms) {
     return frame;
 }
 
+float AnalogEmgSensorSource::read_debug_raw_emg_sample() {
+    return read_raw_sample();
+}
+
 void AnalogEmgSensorSource::reset() {
     band_pass_filter_.reset();
     emg_ready_ = false;
