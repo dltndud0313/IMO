@@ -16,8 +16,10 @@ namespace {
 
 #if __has_include("driver/i2c_master.h")
 constexpr char kLogTag[] = "sensor_analog_emg";
+constexpr uint8_t kMpu6050RegisterWhoAmI = 0x75;
 constexpr uint8_t kMpu6050RegisterPwrMgmt1 = 0x6B;
 constexpr uint8_t kMpu6050RegisterAccelXoutH = 0x3B;
+constexpr uint8_t kMpu6050ExpectedWhoAmI = 0x68;
 constexpr uint8_t kMpu6050WakeValue = 0x00;
 constexpr float kMpu6050AccelScale = 16384.0F;
 constexpr float kMpu6050GyroScale = 131.0F;
@@ -32,6 +34,10 @@ esp_err_t write_register(i2c_master_dev_handle_t device, uint8_t reg, uint8_t va
 
 esp_err_t read_registers(i2c_master_dev_handle_t device, uint8_t start_reg, uint8_t* buffer, std::size_t size) {
     return i2c_master_transmit_receive(device, &start_reg, 1, buffer, size, -1);
+}
+
+esp_err_t read_register_byte(i2c_master_dev_handle_t device, uint8_t reg, uint8_t* value) {
+    return read_registers(device, reg, value, 1);
 }
 
 int16_t join_i16(uint8_t msb, uint8_t lsb) {
@@ -113,6 +119,8 @@ SensorFrame AnalogEmgSensorSource::read_frame(uint32_t timestamp_ms) {
 void AnalogEmgSensorSource::reset() {
     band_pass_filter_.reset();
     imu_ready_ = false;
+    imu_init_failed_ = false;
+    imu_read_error_logged_ = false;
 }
 
 float AnalogEmgSensorSource::read_raw_sample() const {
@@ -130,6 +138,9 @@ bool AnalogEmgSensorSource::ensure_imu_ready() {
     if (imu_ready_) {
         return true;
     }
+    if (imu_init_failed_) {
+        return false;
+    }
 
     if (g_imu_bus_handle == nullptr) {
         i2c_master_bus_config_t bus_config {};
@@ -145,6 +156,7 @@ bool AnalogEmgSensorSource::ensure_imu_ready() {
 
         if (i2c_new_master_bus(&bus_config, &g_imu_bus_handle) != ESP_OK) {
             ESP_LOGW(kLogTag, "failed to init I2C bus");
+            imu_init_failed_ = true;
             return false;
         }
     }
@@ -159,12 +171,33 @@ bool AnalogEmgSensorSource::ensure_imu_ready() {
 
         if (i2c_master_bus_add_device(g_imu_bus_handle, &device_config, &g_imu_device_handle) != ESP_OK) {
             ESP_LOGW(kLogTag, "failed to add MPU-6050 device at 0x%02x", config_.imu_address);
+            imu_init_failed_ = true;
             return false;
         }
     }
 
+    uint8_t who_am_i_value = 0;
+    if (read_register_byte(g_imu_device_handle, kMpu6050RegisterWhoAmI, &who_am_i_value) != ESP_OK) {
+        ESP_LOGW(kLogTag, "failed to read MPU-6050 WHO_AM_I at 0x%02x", config_.imu_address);
+        imu_init_failed_ = true;
+        return false;
+    }
+
+    ESP_LOGI(kLogTag, "MPU-6050 WHO_AM_I = 0x%02x", who_am_i_value);
+    if (who_am_i_value != kMpu6050ExpectedWhoAmI) {
+        ESP_LOGW(
+            kLogTag,
+            "unexpected MPU-6050 WHO_AM_I value 0x%02x (expected 0x%02x)",
+            who_am_i_value,
+            kMpu6050ExpectedWhoAmI
+        );
+        imu_init_failed_ = true;
+        return false;
+    }
+
     if (write_register(g_imu_device_handle, kMpu6050RegisterPwrMgmt1, kMpu6050WakeValue) != ESP_OK) {
         ESP_LOGW(kLogTag, "failed to wake MPU-6050");
+        imu_init_failed_ = true;
         return false;
     }
 
@@ -193,9 +226,13 @@ ImuSample AnalogEmgSensorSource::read_imu_sample() {
 
     uint8_t raw_bytes[14] = {};
     if (read_registers(g_imu_device_handle, kMpu6050RegisterAccelXoutH, raw_bytes, sizeof(raw_bytes)) != ESP_OK) {
-        ESP_LOGW(kLogTag, "failed to read MPU-6050 frame");
+        if (!imu_read_error_logged_) {
+            ESP_LOGW(kLogTag, "failed to read MPU-6050 sensor frame");
+            imu_read_error_logged_ = true;
+        }
         return sample;
     }
+    imu_read_error_logged_ = false;
 
     const int16_t accel_x = join_i16(raw_bytes[0], raw_bytes[1]);
     const int16_t accel_y = join_i16(raw_bytes[2], raw_bytes[3]);

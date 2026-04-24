@@ -64,6 +64,8 @@ class AnalogEmgSensorSource : public ISensorSource {
     // 채널 1용 band-pass 필터 상태를 소유한다.
     ButterworthBandPassFilter band_pass_filter_ {};
     bool imu_ready_ {false};
+    bool imu_init_failed_ {false};
+    bool imu_read_error_logged_ {false};
 };
 
 }  // namespace mvp

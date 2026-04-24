@@ -118,6 +118,17 @@ idf.py -p /dev/ttyUSB0 -b 115200 flash monitor
 - `gyro_y`
 - `gyro_z`
 
+초기화 로그 기준으로는 아래 두 줄이 먼저 보여야 정상입니다.
+
+- `MPU-6050 WHO_AM_I = 0x68`
+- `MPU-6050 ready on I2C port=...`
+
+반대로 아래 로그가 보이면 배선 또는 주소부터 다시 봐야 합니다.
+
+- `failed to read MPU-6050 WHO_AM_I`
+- `unexpected MPU-6050 WHO_AM_I value`
+- `failed to wake MPU-6050`
+
 ## 권장 bring-up 순서
 
 1. IMU I2C 배선과 주소가 맞는지 먼저 확인
