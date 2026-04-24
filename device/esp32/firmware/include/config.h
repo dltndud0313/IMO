@@ -19,9 +19,9 @@ inline constexpr std::size_t kEmgRmsWindow = 8;
 inline constexpr std::size_t kEmgHistoryWindow = 16;
 inline constexpr std::size_t kCalibrationSampleCount = 32;
 inline constexpr float kActivationThreshold = 0.35F;
-inline constexpr std::size_t kImuGyroBiasCalibrationSamples = 50;
+inline constexpr std::size_t kImuGyroBiasCalibrationSamples = 100;
 inline constexpr float kImuSmoothingAlpha = 0.20F;
-inline constexpr float kMotionDetectionThreshold = 0.35F;
+inline constexpr float kMotionDetectionThreshold = 0.50F;
 
 // SZH-GJD001 계열 단일 아날로그 EMG 센서를 붙일 때 참고할 기본값.
 // 현재 패킷 송신 주기는 50Hz(20ms)라서, 센서는 더 빠르게 읽고 한 프레임에 묶어 보내는 쪽이 안전하다.

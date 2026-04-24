@@ -97,7 +97,7 @@
 - `SDA`: `GPIO8`
 - `SCL`: `GPIO9`
 - `address`: `0x68`
-- `gyro bias calibration`: 부팅 직후 `50` 프레임(약 `1초`)
+- `gyro bias calibration`: 부팅 직후 `100` 프레임(약 `2초`)
 
 배선이 다르면 `device/esp32/firmware/include/config.h`에서 바꿔야 합니다.
 
@@ -126,7 +126,7 @@ idf.py -p /dev/ttyUSB0 -b 115200 flash monitor
 
 주의:
 
-- 부팅 직후 약 `1초` 동안은 보드를 가만히 두는 것이 좋습니다.
+- 부팅 직후 약 `2초` 동안은 보드를 가만히 두는 것이 좋습니다.
 - 이 구간에서 자이로 영점 오프셋을 평균내고, 이후 `gyro_*` 값에서 자동으로 빼 줍니다.
 - 이 구간에 보드를 크게 움직이면 `gyro_*` 값이 계속 치우칠 수 있습니다.
 
@@ -139,7 +139,7 @@ idf.py -p /dev/ttyUSB0 -b 115200 flash monitor
 ## 권장 bring-up 순서
 
 1. IMU I2C 배선과 주소가 맞는지 먼저 확인
-2. 부팅 직후 `1초` 동안 보드를 가만히 둔 뒤 `JSON_V1`로 `acc_*`, `gyro_*` 값이 실제로 바뀌는지 확인
+2. 부팅 직후 `2초` 동안 보드를 가만히 둔 뒤 `JSON_V1`로 `acc_*`, `gyro_*` 값이 실제로 바뀌는지 확인
 3. ADC raw 값이 들어오는지 확인
 4. band-pass 이후 값이 0이 아닌지 확인
 5. `emg_ch1`만 우선 정상화
