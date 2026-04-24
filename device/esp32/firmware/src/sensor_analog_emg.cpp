@@ -3,10 +3,41 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <utility>
+
+#if __has_include("driver/i2c_master.h")
+#include "driver/i2c_master.h"
+#include "esp_log.h"
+#endif
 
 namespace mvp {
 namespace {
+
+#if __has_include("driver/i2c_master.h")
+constexpr char kLogTag[] = "sensor_analog_emg";
+constexpr uint8_t kMpu6050RegisterPwrMgmt1 = 0x6B;
+constexpr uint8_t kMpu6050RegisterAccelXoutH = 0x3B;
+constexpr uint8_t kMpu6050WakeValue = 0x00;
+constexpr float kMpu6050AccelScale = 16384.0F;
+constexpr float kMpu6050GyroScale = 131.0F;
+
+i2c_master_bus_handle_t g_imu_bus_handle = nullptr;
+i2c_master_dev_handle_t g_imu_device_handle = nullptr;
+
+esp_err_t write_register(i2c_master_dev_handle_t device, uint8_t reg, uint8_t value) {
+    const uint8_t payload[2] = {reg, value};
+    return i2c_master_transmit(device, payload, sizeof(payload), -1);
+}
+
+esp_err_t read_registers(i2c_master_dev_handle_t device, uint8_t start_reg, uint8_t* buffer, std::size_t size) {
+    return i2c_master_transmit_receive(device, &start_reg, 1, buffer, size, -1);
+}
+
+int16_t join_i16(uint8_t msb, uint8_t lsb) {
+    return static_cast<int16_t>((static_cast<uint16_t>(msb) << 8U) | static_cast<uint16_t>(lsb));
+}
+#endif
 
 float process_section(
     float input,
@@ -75,14 +106,13 @@ SensorFrame AnalogEmgSensorSource::read_frame(uint32_t timestamp_ms) {
         0.0F,
         0.0F,
     };
-    // IMU는 아직 연결 전이므로 bring-up 이전에는 0으로 유지한다.
-    frame.imu.accel = {0.0F, 0.0F, 0.0F};
-    frame.imu.gyro = {0.0F, 0.0F, 0.0F};
+    frame.imu = read_imu_sample();
     return frame;
 }
 
 void AnalogEmgSensorSource::reset() {
     band_pass_filter_.reset();
+    imu_ready_ = false;
 }
 
 float AnalogEmgSensorSource::read_raw_sample() const {
@@ -93,6 +123,100 @@ float AnalogEmgSensorSource::read_raw_sample() const {
 
     // 실제 장착 후 이 자리에 ESP-IDF adc_oneshot_read 연동을 넣으면 된다.
     return 0.0F;
+}
+
+bool AnalogEmgSensorSource::ensure_imu_ready() {
+#if __has_include("driver/i2c_master.h")
+    if (imu_ready_) {
+        return true;
+    }
+
+    if (g_imu_bus_handle == nullptr) {
+        i2c_master_bus_config_t bus_config {};
+        bus_config.i2c_port = static_cast<i2c_port_num_t>(config_.imu_i2c_port);
+        bus_config.sda_io_num = static_cast<gpio_num_t>(config_.imu_sda_gpio);
+        bus_config.scl_io_num = static_cast<gpio_num_t>(config_.imu_scl_gpio);
+        bus_config.clk_source = I2C_CLK_SRC_DEFAULT;
+        bus_config.glitch_ignore_cnt = 7;
+        bus_config.intr_priority = 0;
+        bus_config.trans_queue_depth = 0;
+        bus_config.flags.enable_internal_pullup = 1;
+        bus_config.flags.allow_pd = 0;
+
+        if (i2c_new_master_bus(&bus_config, &g_imu_bus_handle) != ESP_OK) {
+            ESP_LOGW(kLogTag, "failed to init I2C bus");
+            return false;
+        }
+    }
+
+    if (g_imu_device_handle == nullptr) {
+        i2c_device_config_t device_config {};
+        device_config.dev_addr_length = I2C_ADDR_BIT_LEN_7;
+        device_config.device_address = config_.imu_address;
+        device_config.scl_speed_hz = config_.imu_i2c_clock_hz;
+        device_config.scl_wait_us = 0;
+        device_config.flags.disable_ack_check = 0;
+
+        if (i2c_master_bus_add_device(g_imu_bus_handle, &device_config, &g_imu_device_handle) != ESP_OK) {
+            ESP_LOGW(kLogTag, "failed to add MPU-6050 device at 0x%02x", config_.imu_address);
+            return false;
+        }
+    }
+
+    if (write_register(g_imu_device_handle, kMpu6050RegisterPwrMgmt1, kMpu6050WakeValue) != ESP_OK) {
+        ESP_LOGW(kLogTag, "failed to wake MPU-6050");
+        return false;
+    }
+
+    imu_ready_ = true;
+    ESP_LOGI(
+        kLogTag,
+        "MPU-6050 ready on I2C port=%d sda=%d scl=%d addr=0x%02x",
+        config_.imu_i2c_port,
+        config_.imu_sda_gpio,
+        config_.imu_scl_gpio,
+        config_.imu_address
+    );
+    return true;
+#else
+    return false;
+#endif
+}
+
+ImuSample AnalogEmgSensorSource::read_imu_sample() {
+    ImuSample sample {};
+
+#if __has_include("driver/i2c_master.h")
+    if (!ensure_imu_ready()) {
+        return sample;
+    }
+
+    uint8_t raw_bytes[14] = {};
+    if (read_registers(g_imu_device_handle, kMpu6050RegisterAccelXoutH, raw_bytes, sizeof(raw_bytes)) != ESP_OK) {
+        ESP_LOGW(kLogTag, "failed to read MPU-6050 frame");
+        return sample;
+    }
+
+    const int16_t accel_x = join_i16(raw_bytes[0], raw_bytes[1]);
+    const int16_t accel_y = join_i16(raw_bytes[2], raw_bytes[3]);
+    const int16_t accel_z = join_i16(raw_bytes[4], raw_bytes[5]);
+    const int16_t gyro_x = join_i16(raw_bytes[8], raw_bytes[9]);
+    const int16_t gyro_y = join_i16(raw_bytes[10], raw_bytes[11]);
+    const int16_t gyro_z = join_i16(raw_bytes[12], raw_bytes[13]);
+
+    sample.accel = {
+        static_cast<float>(accel_x) / kMpu6050AccelScale,
+        static_cast<float>(accel_y) / kMpu6050AccelScale,
+        static_cast<float>(accel_z) / kMpu6050AccelScale,
+    };
+    sample.gyro = {
+        static_cast<float>(gyro_x) / kMpu6050GyroScale,
+        static_cast<float>(gyro_y) / kMpu6050GyroScale,
+        static_cast<float>(gyro_z) / kMpu6050GyroScale,
+    };
+#endif
+
+    return sample;
 }
 
 }  // namespace mvp

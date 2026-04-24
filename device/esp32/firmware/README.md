@@ -3,8 +3,8 @@
 ESP32-S3(ESP-IDF)용 펌웨어 뼈대입니다.  
 핵심 목적은 하드웨어가 없어도 `가짜 센서 -> 처리 -> 패킷` 흐름을 먼저 검증하는 것입니다.
 
-현재는 mock 파이프라인과 함께, `SZH-GJD001` 계열 단일 아날로그 EMG 센서를 염두에 둔
-실센서 어댑터 뼈대(`src/sensor_analog_emg.cpp`)도 같이 포함되어 있습니다.
+현재는 mock 파이프라인을 보존하면서, `SZH-GJD001` 계열 단일 아날로그 EMG 센서와
+`MPU-6050` 계열 IMU를 함께 다루는 실센서 어댑터(`src/sensor_analog_emg.cpp`)도 포함되어 있습니다.
 
 패킷 계층은 초기 v1 JSONL 시도안을 보존하면서, 실시간 경로 최종안은 v2 바이너리 프로토콜로 전환하는 방향으로 정리합니다.
 
@@ -37,7 +37,7 @@ ESP32-S3(ESP-IDF)용 펌웨어 뼈대입니다.
 
 - ESP-IDF 진입점 폴더입니다.
 - `main.cpp`의 `app_main()`이 실제 디바이스 실행 시작점입니다.
-- 현재는 mock 파이프라인 기준으로 전체 흐름을 반복 실행하게 구성되어 있습니다.
+- 현재는 `AnalogEmgSensorSource`를 기본으로 연결해, IMU는 실제 I2C 값을 읽고 EMG는 ADC 미연동 시 `0`으로 유지하게 구성되어 있습니다.
 
 ### `tests/`
 
@@ -68,6 +68,27 @@ ESP32-S3(ESP-IDF)용 펌웨어 뼈대입니다.
 ```bash
 ./device/esp32/scripts/run_firmware_host_tests.sh
 ```
+
+## 실제 IMU 빠른 확인
+
+- 현재 기본 전제 IMU는 `MPU-6050` 입니다.
+- 기본 I2C 핀은 `device/esp32/firmware/include/config.h` 기준으로 `SDA=GPIO8`, `SCL=GPIO9` 입니다.
+- 보드 배선이 다르면 아래 값을 먼저 바꿔야 합니다.
+  - `kImuI2cSdaGpio`
+  - `kImuI2cSclGpio`
+  - `kMpu6050Address`
+
+JSON으로 실제 IMU 값을 보려면:
+
+```bash
+cd ./device/esp32/firmware
+source ~/esp/esp-idf/export.sh
+idf.py build
+idf.py -p /dev/ttyUSB0 -b 115200 flash monitor
+```
+
+- `JSON_V1`일 때는 `acc_x`, `acc_y`, `acc_z`, `gyro_x`, `gyro_y`, `gyro_z`가 사람이 읽는 값으로 출력됩니다.
+- 현재 구현 기준으로는 IMU는 실센서 값, EMG는 ADC 미연동이면 `0`에 가깝게 나옵니다.
 
 ## 빠르게 봐야 할 문서 기준
 
@@ -105,8 +126,8 @@ ESP32-S3(ESP-IDF)용 펌웨어 뼈대입니다.
 - `src/sensor_mock.cpp` `(실제 장착 후 변경 필요)`
   - mock 입력을 실제 센서 입력 코드로 교체
 - `src/sensor_analog_emg.cpp` `(실제 장착 후 우선 검토 대상)`
-  - SZH-GJD001 계열 단일 아날로그 EMG 센서를 ESP32 ADC에 연결할 때 먼저 보는 파일
-  - 센서 예제의 500Hz band-pass 필터 아이디어를 옮겨둔 어댑터
+  - SZH-GJD001 계열 단일 아날로그 EMG 센서와 `MPU-6050` IMU를 함께 읽는 어댑터
+  - 센서 예제의 500Hz band-pass 필터 아이디어를 EMG 경로에 적용했고, IMU는 I2C로 실제 값을 읽습니다
 - `include/config.h` `(실제 장착 후 설정값 조정 필요)`
   - threshold, 샘플링 주기, smoothing 계수 튜닝
 - `src/emg_filter.cpp`, `src/calibration.cpp` `(실제 장착 후 튜닝 가능성 높음)`
@@ -119,6 +140,7 @@ ESP32-S3(ESP-IDF)용 펌웨어 뼈대입니다.
 
 1. `src/sensor_analog_emg.cpp`
    - `read_raw_sample()`에 ESP-IDF ADC 읽기 코드를 연결
+   - `read_imu_sample()`의 I2C 핀과 주소가 실제 배선과 맞는지 확인
 2. `main/main.cpp`
    - `MockSensorSource` 대신 실제 센서 어댑터를 연결
 3. `include/config.h`

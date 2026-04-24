@@ -2,6 +2,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 
 #include "sensor_source.h"
@@ -15,6 +16,12 @@ struct AnalogEmgSensorConfig {
     std::size_t samples_per_frame {10};
     // ESP32 ADC를 12bit 기준으로 가정한 기본 full-scale 값이다.
     float adc_full_scale {4095.0F};
+    // MPU-6050 기본 I2C 주소와 버스 설정.
+    int imu_i2c_port {0};
+    int imu_sda_gpio {8};
+    int imu_scl_gpio {9};
+    uint32_t imu_i2c_clock_hz {400000};
+    uint8_t imu_address {0x68};
 };
 
 class ButterworthBandPassFilter {
@@ -49,11 +56,14 @@ class AnalogEmgSensorSource : public ISensorSource {
   private:
     // 실제 장착 후에는 이 함수 내부가 adc_oneshot_read 같은 ESP-IDF 호출로 바뀐다.
     float read_raw_sample() const;
+    ImuSample read_imu_sample();
+    bool ensure_imu_ready();
 
     RawSampleReader raw_reader_ {};
     AnalogEmgSensorConfig config_ {};
     // 채널 1용 band-pass 필터 상태를 소유한다.
     ButterworthBandPassFilter band_pass_filter_ {};
+    bool imu_ready_ {false};
 };
 
 }  // namespace mvp
