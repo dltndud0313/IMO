@@ -180,7 +180,8 @@ idf.py -p /dev/ttyUSB0 -b 115200 flash monitor
 
 정상이라면:
 
-- `kEnableEmgBringupPacketMode = true`일 때 `emg_ch1`는 정규화값이 아니라 EMG RMS/envelope입니다.
+- 현재 기본 설정은 `kEnableEmgBringupPacketMode = false`라서 `emg_ch1`는 normalized 값입니다.
+- 실센서 입력이 실제로 들어오는지 확인해야 할 때만 `kEnableEmgBringupPacketMode = true`로 바꿔 EMG RMS/envelope를 직접 봅니다.
 - 가만히 있을 때 `emg_ch1`는 작은 값에 머뭅니다.
 - 근육에 힘을 주면 `emg_ch1`가 평소보다 커집니다.
 - 현재 구조는 단일 채널이므로 `emg_ch2`, `emg_ch3`는 `0`이 정상입니다.

@@ -202,6 +202,43 @@ python3 ./device/esp32/scripts/summarize_json_sensor_log.py /tmp/esp32_sensor_ru
 - 다만 `max` 차이는 크지 않아 반응 폭은 아직 제한적임
 - 수축 로그에서 IMU 흔들림이 함께 커져, 팔/보드 움직임이 섞였을 가능성이 큼
 
+## 2차 실측 기록
+
+측정 일시:
+
+- `2026-04-24`
+
+측정 조건:
+
+- `JSON_V1`
+- `kEnableEmgBringupPacketMode = true`
+- `emg_ch1`는 정규화값이 아니라 EMG RMS/envelope
+- 팔/보드 움직임을 줄이고 휴식/수축을 다시 분리 측정
+
+로그 파일:
+
+- 휴식: `/tmp/emg_rest.log`
+- 수축: `/tmp/emg_contract.log`
+
+요약 결과:
+
+### EMG 휴식/수축 2차 비교
+
+| 항목 | 휴식 avg | 수축 avg | 휴식 stddev | 수축 stddev | 휴식 max | 수축 max |
+| --- | --- | --- | --- | --- | --- | --- |
+| emg_ch1 | 0.0004 | 0.0082 | 0.0005 | 0.0038 | 0.0040 | 0.0189 |
+
+해석:
+
+- 수축 평균은 휴식 평균 대비 약 `20.5배` 증가함
+- `max`도 `0.0040 -> 0.0189`로 증가해 휴식/수축 구분이 1차보다 선명함
+- 이번 로그는 IMU 흔들림도 크지 않아, EMG 반응 확인용 성공 데이터로 사용 가능함
+
+정리:
+
+- 1차 측정: 수축 반응 확인은 됐지만 IMU 움직임이 섞여 해석이 약했음
+- 2차 측정: 휴식/수축 구분이 선명하게 확인되어 보고서 기준 데이터로 채택 가능
+
 ### 1차 IMU 안정 구간 요약
 
 | 항목 | avg | stddev | range |
@@ -274,7 +311,7 @@ python3 ./device/esp32/scripts/summarize_json_sensor_log.py /tmp/esp32_sensor_ru
 - 게인을 한 번에 크게 바꾸지 말 것
 - 포화되면 오히려 해석이 어려워짐
 
-### 4. bring-up 완료 후 normalized 경로 재검증
+### 4. normalized 경로 재검증
 
 목적:
 
