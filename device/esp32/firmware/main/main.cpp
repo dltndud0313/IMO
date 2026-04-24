@@ -1,4 +1,7 @@
 // ESP-IDF 진입점. 초기 단계에서는 mock 파이프라인을 연속 실행해 디바이스 루프를 먼저 검증한다.
+#include <algorithm>
+#include <array>
+
 #include "config.h"
 #include "runtime_pipeline.h"
 #include "sensor_analog_emg.h"
@@ -24,10 +27,32 @@ extern "C" void app_main(void) {
     mvp::AnalogEmgSensorSource sensor_source({}, sensor_config);
 
     if (mvp::kEnableEmgRawSerialPlotterMode) {
+        std::array<float, mvp::kEmgRawSerialPlotterWindowSamples> recent_raw_emg {};
+        std::size_t recent_count = 0;
+        std::size_t recent_index = 0;
+
         while (true) {
             const float raw_emg = sensor_source.read_debug_raw_emg_sample();
-            // Serial Plotter에서 바로 볼 수 있도록 raw ADC 값만 한 줄로 출력한다.
-            printf("%.0f\n", static_cast<double>(raw_emg));
+            recent_raw_emg[recent_index] = raw_emg;
+            recent_index = (recent_index + 1U) % recent_raw_emg.size();
+            if (recent_count < recent_raw_emg.size()) {
+                ++recent_count;
+            }
+
+            float min_raw = raw_emg;
+            float max_raw = raw_emg;
+            for (std::size_t index = 0; index < recent_count; ++index) {
+                min_raw = std::min(min_raw, recent_raw_emg[index]);
+                max_raw = std::max(max_raw, recent_raw_emg[index]);
+            }
+
+            // Serial Plotter에서 raw / 최근 최소 / 최근 최대를 한 번에 비교할 수 있게 세 값을 같이 출력한다.
+            printf(
+                "raw:%.0f,min:%.0f,max:%.0f\n",
+                static_cast<double>(raw_emg),
+                static_cast<double>(min_raw),
+                static_cast<double>(max_raw)
+            );
 
 #if __has_include("freertos/FreeRTOS.h")
             vTaskDelay(pdMS_TO_TICKS(mvp::kEmgRawSerialPlotterIntervalMs));

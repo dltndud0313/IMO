@@ -30,7 +30,11 @@ inline constexpr std::size_t kAnalogEmgSamplesPerFrame = 10;
 inline constexpr float kAnalogEmgAdcFullScale = 4095.0F;
 inline constexpr int kAnalogEmgAdcGpio = 4;
 inline constexpr bool kEnableEmgRawSerialPlotterMode = false;
-inline constexpr uint32_t kEmgRawSerialPlotterIntervalMs = 5;
+// bring-up 동안에는 정규화 전 RMS/envelope를 패킷에 그대로 실어 실제 센서 입력이 보이는지 먼저 확인한다.
+// 검증이 끝나면 false로 돌려 최종 normalized 경로를 사용한다.
+inline constexpr bool kEnableEmgBringupPacketMode = true;
+inline constexpr std::size_t kEmgRawSerialPlotterWindowSamples = 20;
+inline constexpr uint32_t kEmgRawSerialPlotterIntervalMs = 50;
 
 // MPU-6050 기본 I2C 설정값. 보드 배선에 따라 SDA/SCL은 실제 연결값으로 바꿔야 한다.
 inline constexpr int kImuI2cPort = 0;

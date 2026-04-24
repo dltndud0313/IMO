@@ -4,6 +4,18 @@
 #include "config.h"
 
 namespace mvp {
+namespace {
+
+float select_emg_packet_value(const EmgProcessingResult& emg, std::size_t channel) {
+    if (kEnableEmgBringupPacketMode) {
+        // 실제 센서 bring-up 동안에는 정규화 전 RMS를 바로 내보내야 입력 자체가 살아 있는지 판단하기 쉽다.
+        return emg.rms[channel];
+    }
+
+    return emg.normalized[channel];
+}
+
+}  // namespace
 
 MockRuntimePipeline::MockRuntimePipeline(ISensorSource& sensor_source, SerialTransport& transport)
     : sensor_source_(sensor_source), transport_(transport) {
@@ -82,9 +94,9 @@ OutputPacket MockRuntimePipeline::build_packet(
     packet.schema = kPacketSchemaJsonV1;
     packet.seq = sequence_;
     packet.timestamp_ms = timestamp_ms;
-    packet.emg_ch1 = emg.normalized[0];
-    packet.emg_ch2 = emg.normalized[1];
-    packet.emg_ch3 = emg.normalized[2];
+    packet.emg_ch1 = select_emg_packet_value(emg, 0);
+    packet.emg_ch2 = select_emg_packet_value(emg, 1);
+    packet.emg_ch3 = select_emg_packet_value(emg, 2);
     packet.acc_x = imu.accel_smoothed[0];
     packet.acc_y = imu.accel_smoothed[1];
     packet.acc_z = imu.accel_smoothed[2];

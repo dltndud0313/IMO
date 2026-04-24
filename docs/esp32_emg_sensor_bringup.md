@@ -165,6 +165,9 @@ idf.py -p /dev/ttyUSB0 -b 115200 flash monitor
 - `EMG ADC GPIO`: `GPIO4`
 - `ADC full scale`: `4095`
 - `Serial plotter mode`: `device/esp32/firmware/include/config.h`의 `kEnableEmgRawSerialPlotterMode`
+- `EMG bring-up packet mode`: `device/esp32/firmware/include/config.h`의 `kEnableEmgBringupPacketMode`
+- `Serial plotter interval`: `50ms`
+- `Serial plotter window`: 최근 `20`개 샘플 기준 `min/max`
 
 실행:
 
@@ -177,6 +180,7 @@ idf.py -p /dev/ttyUSB0 -b 115200 flash monitor
 
 정상이라면:
 
+- `kEnableEmgBringupPacketMode = true`일 때 `emg_ch1`는 정규화값이 아니라 EMG RMS/envelope입니다.
 - 가만히 있을 때 `emg_ch1`는 작은 값에 머뭅니다.
 - 근육에 힘을 주면 `emg_ch1`가 평소보다 커집니다.
 - 현재 구조는 단일 채널이므로 `emg_ch2`, `emg_ch3`는 `0`이 정상입니다.
@@ -207,10 +211,14 @@ idf.py build
 idf.py -p /dev/ttyUSB0 -b 115200 flash monitor
 ```
 
-이 모드에서는 JSON 대신 raw ADC 값 한 줄만 계속 출력됩니다.
+이 모드에서는 JSON 대신 아래 3개 값이 함께 출력됩니다.
 
-- 가만히 있을 때도 값이 조금 흔들리면 ADC 입력은 살아 있는 상태입니다.
-- 근육에 힘을 줄 때 값 변화 폭이 커지면 EMG 모듈 출력이 실제로 들어오고 있는 것입니다.
+- `raw`: 현재 ADC 샘플
+- `min`: 최근 `20`개 샘플 최소값
+- `max`: 최근 `20`개 샘플 최대값
+
+- 가만히 있을 때도 `raw` 값이 조금 흔들리면 ADC 입력은 살아 있는 상태입니다.
+- 근육에 힘을 줄 때 `raw`와 `max-min` 폭이 커지면 EMG 모듈 출력이 실제로 들어오고 있는 것입니다.
 
 Serial Plotter 확인이 끝나면 다시:
 
