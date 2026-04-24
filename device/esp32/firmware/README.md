@@ -89,6 +89,11 @@ idf.py -p /dev/ttyUSB0 -b 115200 flash monitor
 
 - `JSON_V1`일 때는 `acc_x`, `acc_y`, `acc_z`, `gyro_x`, `gyro_y`, `gyro_z`가 사람이 읽는 값으로 출력됩니다.
 - 현재 구현 기준으로는 IMU는 실센서 값, EMG는 ADC 미연동이면 `0`에 가깝게 나옵니다.
+- 부팅 직후 약 `1초` 동안은 자이로 bias 보정을 위해 보드를 가만히 두는 것이 좋습니다.
+- 현재 기본 IMU 보정값:
+  - `kImuGyroBiasCalibrationSamples = 50`
+  - `kImuSmoothingAlpha = 0.20`
+  - `kMotionDetectionThreshold = 0.35`
 
 ## 빠르게 봐야 할 문서 기준
 

@@ -91,6 +91,7 @@ idf.py -p /dev/ttyACM0 -b 115200 flash monitor
 - `JSON_V1`이면 사람이 읽을 수 있는 JSON이 출력됩니다.
 - `BINARY_V2`이면 문자열 대신 raw bytes가 송신됩니다.
 - JSON 출력 예시와 바이너리 1프레임/연속 프레임 확인 명령은 `docs/esp32_pi_protocol_quick_reference.md`에 정리돼 있습니다.
+- IMU bring-up 중에는 `JSON_V1`로 두고, 부팅 직후 약 `1초` 동안 보드를 가만히 둔 뒤 `gyro_*` 값이 0 근처로 내려오는지 먼저 확인하는 것이 좋습니다.
 
 참고 코드 위치:
 
