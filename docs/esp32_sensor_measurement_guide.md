@@ -147,7 +147,28 @@ python3 ./device/esp32/scripts/summarize_json_sensor_log.py /tmp/esp32_sensor_ru
   - `max`
   - `avg`
   - `stddev`
-  - `range`
+- `range`
+
+## 바이너리 검증 방법
+
+JSON 기준 수치 검증이 끝난 뒤에는 같은 처리 결과가 `BINARY_V2`에도 그대로 실리는지 확인합니다.
+
+```bash
+cd ./device/esp32/firmware
+python3 ../scripts/decode_binary_sensor_stream.py --port /dev/ttyUSB0
+```
+
+확인 기준:
+
+- 이완 상태에서는 `emg_ch1`가 작아야 함
+- 수축 상태에서는 `emg_ch1`가 커져야 함
+- 자세 변화 시 `acc_*`, `gyro_*`가 같이 반응해야 함
+
+주의:
+
+- binary는 `float`를 그대로 보내지 않고 `1000` 배 스케일한 `int16_t`를 보냅니다.
+- 예를 들어 JSON에서 `0.0002`였던 값은 binary에서 `0`으로 보일 수 있습니다.
+- 따라서 매우 작은 휴식 구간은 JSON보다 binary에서 더 계단형으로 보이는 것이 정상입니다.
 
 ## 보고서에 바로 남길 표 예시
 
