@@ -28,6 +28,7 @@ inline constexpr float kMotionDetectionThreshold = 0.50F;
 inline constexpr uint32_t kAnalogEmgRecommendedSampleRateHz = 500;
 inline constexpr std::size_t kAnalogEmgSamplesPerFrame = 10;
 inline constexpr float kAnalogEmgAdcFullScale = 4095.0F;
+inline constexpr int kAnalogEmgAdcGpio = 4;
 
 // MPU-6050 기본 I2C 설정값. 보드 배선에 따라 SDA/SCL은 실제 연결값으로 바꿔야 한다.
 inline constexpr int kImuI2cPort = 0;

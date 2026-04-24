@@ -6,6 +6,10 @@
 #include <cstdint>
 #include <utility>
 
+#if __has_include("esp_adc/adc_oneshot.h")
+#include "esp_adc/adc_oneshot.h"
+#endif
+
 #if __has_include("driver/i2c_master.h")
 #include "driver/i2c_master.h"
 #include "esp_log.h"
@@ -24,6 +28,7 @@ constexpr uint8_t kMpu6050WakeValue = 0x00;
 constexpr float kMpu6050AccelScale = 16384.0F;
 constexpr float kMpu6050GyroScale = 131.0F;
 
+adc_oneshot_unit_handle_t g_emg_adc_handle = nullptr;
 i2c_master_bus_handle_t g_imu_bus_handle = nullptr;
 i2c_master_dev_handle_t g_imu_device_handle = nullptr;
 
@@ -42,6 +47,22 @@ esp_err_t read_register_byte(i2c_master_dev_handle_t device, uint8_t reg, uint8_
 
 int16_t join_i16(uint8_t msb, uint8_t lsb) {
     return static_cast<int16_t>((static_cast<uint16_t>(msb) << 8U) | static_cast<uint16_t>(lsb));
+}
+
+bool gpio_to_adc_channel(int gpio, adc_channel_t* channel) {
+    switch (gpio) {
+        case 1: *channel = ADC_CHANNEL_0; return true;
+        case 2: *channel = ADC_CHANNEL_1; return true;
+        case 3: *channel = ADC_CHANNEL_2; return true;
+        case 4: *channel = ADC_CHANNEL_3; return true;
+        case 5: *channel = ADC_CHANNEL_4; return true;
+        case 6: *channel = ADC_CHANNEL_5; return true;
+        case 7: *channel = ADC_CHANNEL_6; return true;
+        case 8: *channel = ADC_CHANNEL_7; return true;
+        case 9: *channel = ADC_CHANNEL_8; return true;
+        case 10: *channel = ADC_CHANNEL_9; return true;
+        default: return false;
+    }
 }
 #endif
 
@@ -118,19 +139,84 @@ SensorFrame AnalogEmgSensorSource::read_frame(uint32_t timestamp_ms) {
 
 void AnalogEmgSensorSource::reset() {
     band_pass_filter_.reset();
+    emg_ready_ = false;
+    emg_init_failed_ = false;
     imu_ready_ = false;
     imu_init_failed_ = false;
     imu_read_error_logged_ = false;
 }
 
-float AnalogEmgSensorSource::read_raw_sample() const {
+float AnalogEmgSensorSource::read_raw_sample() {
     if (raw_reader_) {
         // 호스트 테스트나 샘플 주입 시에는 외부 콜백 값을 그대로 사용한다.
         return raw_reader_();
     }
 
-    // 실제 장착 후 이 자리에 ESP-IDF adc_oneshot_read 연동을 넣으면 된다.
+#if __has_include("esp_adc/adc_oneshot.h")
+    if (!ensure_emg_ready()) {
+        return 0.0F;
+    }
+
+    adc_channel_t channel = ADC_CHANNEL_0;
+    if (!gpio_to_adc_channel(config_.emg_adc_gpio, &channel)) {
+        return 0.0F;
+    }
+
+    int raw_value = 0;
+    if (adc_oneshot_read(g_emg_adc_handle, channel, &raw_value) != ESP_OK) {
+        return 0.0F;
+    }
+
+    return static_cast<float>(raw_value);
+#endif
+
     return 0.0F;
+}
+
+bool AnalogEmgSensorSource::ensure_emg_ready() {
+#if __has_include("esp_adc/adc_oneshot.h")
+    if (emg_ready_) {
+        return true;
+    }
+    if (emg_init_failed_) {
+        return false;
+    }
+
+    adc_channel_t channel = ADC_CHANNEL_0;
+    if (!gpio_to_adc_channel(config_.emg_adc_gpio, &channel)) {
+        ESP_LOGW(kLogTag, "GPIO%d is not mapped to an ESP32-S3 ADC1 channel", config_.emg_adc_gpio);
+        emg_init_failed_ = true;
+        return false;
+    }
+
+    if (g_emg_adc_handle == nullptr) {
+        adc_oneshot_unit_init_cfg_t init_config {};
+        init_config.unit_id = ADC_UNIT_1;
+        init_config.ulp_mode = ADC_ULP_MODE_DISABLE;
+
+        if (adc_oneshot_new_unit(&init_config, &g_emg_adc_handle) != ESP_OK) {
+            ESP_LOGW(kLogTag, "failed to init EMG ADC unit");
+            emg_init_failed_ = true;
+            return false;
+        }
+    }
+
+    adc_oneshot_chan_cfg_t channel_config {};
+    channel_config.atten = ADC_ATTEN_DB_12;
+    channel_config.bitwidth = ADC_BITWIDTH_12;
+
+    if (adc_oneshot_config_channel(g_emg_adc_handle, channel, &channel_config) != ESP_OK) {
+        ESP_LOGW(kLogTag, "failed to configure EMG ADC channel for GPIO%d", config_.emg_adc_gpio);
+        emg_init_failed_ = true;
+        return false;
+    }
+
+    emg_ready_ = true;
+    ESP_LOGI(kLogTag, "EMG ADC ready on GPIO%d", config_.emg_adc_gpio);
+    return true;
+#else
+    return false;
+#endif
 }
 
 bool AnalogEmgSensorSource::ensure_imu_ready() {

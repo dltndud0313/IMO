@@ -14,6 +14,7 @@ extern "C" void app_main(void) {
     sensor_config.source_sample_rate_hz = mvp::kAnalogEmgRecommendedSampleRateHz;
     sensor_config.samples_per_frame = mvp::kAnalogEmgSamplesPerFrame;
     sensor_config.adc_full_scale = mvp::kAnalogEmgAdcFullScale;
+    sensor_config.emg_adc_gpio = mvp::kAnalogEmgAdcGpio;
     sensor_config.imu_i2c_port = mvp::kImuI2cPort;
     sensor_config.imu_sda_gpio = mvp::kImuI2cSdaGpio;
     sensor_config.imu_scl_gpio = mvp::kImuI2cSclGpio;

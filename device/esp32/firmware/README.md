@@ -89,6 +89,7 @@ idf.py -p /dev/ttyUSB0 -b 115200 flash monitor
 
 - `JSON_V1`일 때는 `acc_x`, `acc_y`, `acc_z`, `gyro_x`, `gyro_y`, `gyro_z`가 사람이 읽는 값으로 출력됩니다.
 - 현재 구현 기준으로는 IMU는 실센서 값, EMG는 ADC 미연동이면 `0`에 가깝게 나옵니다.
+- 현재 기본 EMG 입력은 `GPIO4` 아날로그 핀입니다. EMG 모듈 출력이 이 핀에 연결되면 `emg_ch1`로 반영됩니다.
 - 부팅 직후 약 `2초` 동안은 자이로 bias 보정을 위해 보드를 가만히 두는 것이 좋습니다.
 - 현재 기본 IMU 보정값:
   - `kImuGyroBiasCalibrationSamples = 100`
@@ -133,6 +134,7 @@ idf.py -p /dev/ttyUSB0 -b 115200 flash monitor
 - `src/sensor_analog_emg.cpp` `(실제 장착 후 우선 검토 대상)`
   - SZH-GJD001 계열 단일 아날로그 EMG 센서와 `MPU-6050` IMU를 함께 읽는 어댑터
   - 센서 예제의 500Hz band-pass 필터 아이디어를 EMG 경로에 적용했고, IMU는 I2C로 실제 값을 읽습니다
+  - 현재 EMG ADC 기본 입력은 `GPIO4` 입니다
 - `include/config.h` `(실제 장착 후 설정값 조정 필요)`
   - threshold, 샘플링 주기, smoothing 계수 튜닝
 - `src/emg_filter.cpp`, `src/calibration.cpp` `(실제 장착 후 튜닝 가능성 높음)`

@@ -49,6 +49,7 @@
 가장 먼저 확인할 파일입니다.
 
 - `read_raw_sample()`에 실제 ESP-IDF ADC 읽기 코드 연결
+- 현재 기본 구현은 `GPIO4`를 `ADC1_CH3`로 읽습니다.
 - `read_imu_sample()`이 MPU-6050에서 accel/gyro raw 값을 읽어오도록 구현됨
 - 실제 ADC 핀과 감쇠 설정 반영
 - 실제 IMU 배선(`SDA`, `SCL`)과 주소(`0x68` 또는 `0x69`) 확인
@@ -66,6 +67,7 @@
 - 샘플링 주기
 - 한 프레임당 샘플 수
 - ADC full scale
+- EMG ADC GPIO
 - 활성 threshold
 - IMU I2C 포트
 - IMU SDA/SCL 핀
@@ -140,7 +142,7 @@ idf.py -p /dev/ttyUSB0 -b 115200 flash monitor
 
 1. IMU I2C 배선과 주소가 맞는지 먼저 확인
 2. 부팅 직후 `2초` 동안 보드를 가만히 둔 뒤 `JSON_V1`로 `acc_*`, `gyro_*` 값이 실제로 바뀌는지 확인
-3. ADC raw 값이 들어오는지 확인
+3. EMG 모듈 출력이 `GPIO4`에 연결된 상태에서 `emg_ch1` 값이 실제로 바뀌는지 확인
 4. band-pass 이후 값이 0이 아닌지 확인
 5. `emg_ch1`만 우선 정상화
 6. calibration 전/후 값 비교
@@ -155,3 +157,32 @@ idf.py -p /dev/ttyUSB0 -b 115200 flash monitor
 - `emg_ch3` = `0`
 
 이 방식은 허용되며, Pi 쪽도 이 전제를 받아들일 수 있게 맞추는 것이 안전합니다.
+
+## EMG ADC 빠른 확인
+
+현재 기본 설정:
+
+- `EMG ADC GPIO`: `GPIO4`
+- `ADC full scale`: `4095`
+
+실행:
+
+```bash
+cd ./device/esp32/firmware
+source ~/esp/esp-idf/export.sh
+idf.py build
+idf.py -p /dev/ttyUSB0 -b 115200 flash monitor
+```
+
+정상이라면:
+
+- 가만히 있을 때 `emg_ch1`는 작은 값에 머뭅니다.
+- 근육에 힘을 주면 `emg_ch1`가 평소보다 커집니다.
+- 현재 구조는 단일 채널이므로 `emg_ch2`, `emg_ch3`는 `0`이 정상입니다.
+
+반대로 계속 `0.0000`이면 먼저 아래를 봐야 합니다.
+
+- EMG 모듈 출력 핀이 정말 `GPIO4`에 연결됐는지
+- `VCC`, `GND`가 정상인지
+- `GPIO4`가 다른 기능에 점유되지 않았는지
+- `device/esp32/firmware/include/config.h`의 `kAnalogEmgAdcGpio` 값이 실제 배선과 맞는지
