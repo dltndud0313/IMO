@@ -108,6 +108,32 @@ done
 
 포트가 `/dev/ttyUSB0`로 잡히면 위 명령의 `/dev/ttyACM0`만 `/dev/ttyUSB0`로 바꿔서 실행합니다.
 
+프레임 경계가 정확히 맞는지 확인하면서 사람이 읽는 값으로 바로 보고 싶으면 아래 디코더 스크립트를 사용합니다.
+
+```bash
+cd ./device/esp32/firmware
+python3 ../scripts/decode_binary_sensor_stream.py --port /dev/ttyACM0
+```
+
+이 스크립트는 아래를 함께 검증합니다.
+
+- `ME` magic 재동기화
+- `version == 2`
+- `packet_type == 1`
+- `payload_len == 30`
+- `crc16` 일치
+
+출력 예:
+
+```text
+seq=3897 ts=77940 emg=(0.001,0.000,0.000) acc=(0.018,0.944,-0.298) gyro=(-0.319,0.711,-0.227) state=STREAMING flags=2 rep_index=None
+```
+
+주의:
+
+- `dd | xxd` 방식은 빠르게 raw bytes를 볼 때는 유용하지만, 연속 스트림에서는 프레임 중간부터 읽을 수 있습니다.
+- 값 검증은 `decode_binary_sensor_stream.py`를 기준으로 하는 편이 안전합니다.
+
 ### 3. 포트 먼저 확인
 
 환경에 따라 포트가 `/dev/ttyUSB0` 또는 `/dev/ttyACM0`로 바뀔 수 있습니다.

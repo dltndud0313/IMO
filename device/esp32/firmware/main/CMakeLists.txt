@@ -13,4 +13,7 @@ idf_component_register(
         "../src/runtime_pipeline.cpp"
     INCLUDE_DIRS
         "../include"
+    REQUIRES
+        esp_adc
+        esp_driver_i2c
 )

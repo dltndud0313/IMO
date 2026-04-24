@@ -4,6 +4,7 @@
 #include <array>
 #include <cstddef>
 
+#include "config.h"
 #include "types.h"
 
 namespace mvp {
@@ -27,6 +28,7 @@ class CalibrationManager {
   private:
     CalibrationProfile profile_ {};
     std::array<float, kEmgChannelCount> rest_accumulator_ {};
+    std::array<std::array<float, kCalibrationSampleCount>, kEmgChannelCount> mvc_samples_buffer_ {};
     std::size_t rest_samples_ {0};
     std::size_t mvc_samples_ {0};
 };

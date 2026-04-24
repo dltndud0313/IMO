@@ -20,6 +20,7 @@ g++ -std=c++17 \
   "${ROOT_DIR}/firmware/tests/test_main.cpp" \
   "${ROOT_DIR}/firmware/tests/test_packet.cpp" \
   "${ROOT_DIR}/firmware/tests/test_emg_filter.cpp" \
+  "${ROOT_DIR}/firmware/tests/test_imu_processor.cpp" \
   "${ROOT_DIR}/firmware/tests/test_calibration.cpp" \
   "${ROOT_DIR}/firmware/tests/test_state_machine.cpp" \
   "${ROOT_DIR}/firmware/tests/test_sensor_mock.cpp" \

@@ -13,7 +13,8 @@ float compute_moving_average(const std::deque<float>& samples, std::size_t windo
 float compute_rms(const std::deque<float>& samples, std::size_t window);
 float apply_baseline(float value, float baseline);
 float normalize_activation(float value, float min_value, float max_value);
-bool threshold_active(float normalized_value, float threshold);
+float smooth_activation(float current_value, float previous_value, float attack_alpha, float release_alpha);
+bool threshold_active(float normalized_value, bool was_active, float threshold_on, float threshold_off);
 
 class EmgFilter {
   public:
@@ -28,6 +29,9 @@ class EmgFilter {
 
   private:
     std::array<std::deque<float>, kEmgChannelCount> sample_history_ {};
+    std::array<float, kEmgChannelCount> activation_history_ {};
+    std::array<float, kEmgChannelCount> display_history_ {};
+    std::array<bool, kEmgChannelCount> active_state_ {};
 };
 
 }  // namespace mvp

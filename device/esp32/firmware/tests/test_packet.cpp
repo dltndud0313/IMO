@@ -13,9 +13,9 @@ void run_test_packet() {
     packet.acc_x = 0.01F;
     packet.acc_y = 0.02F;
     packet.acc_z = 0.98F;
-    packet.gyro_x = 0.15F;
-    packet.gyro_y = 0.25F;
-    packet.gyro_z = 0.35F;
+    packet.gyro_x = 45.15F;
+    packet.gyro_y = -78.25F;
+    packet.gyro_z = 123.35F;
     packet.state = "STREAMING";
     packet.flags = 7;
     packet.rep_index = 3;
@@ -43,6 +43,10 @@ void run_test_packet() {
     expect_true(decoded_binary.schema == "emg-glass.v2", "binary schema should decode as v2");
     expect_true(decoded_binary.seq == packet.seq, "binary seq should round-trip");
     expect_near(decoded_binary.emg_ch3, packet.emg_ch3, 0.001F, "binary emg_ch3 should round-trip");
+    expect_near(decoded_binary.acc_z, packet.acc_z, 0.001F, "binary acc_z should round-trip");
+    expect_near(decoded_binary.gyro_x, packet.gyro_x, 0.01F, "binary gyro_x should round-trip with gyro scale");
+    expect_near(decoded_binary.gyro_y, packet.gyro_y, 0.01F, "binary gyro_y should round-trip with gyro scale");
+    expect_near(decoded_binary.gyro_z, packet.gyro_z, 0.01F, "binary gyro_z should round-trip with gyro scale");
     expect_true(decoded_binary.state == packet.state, "binary state should round-trip");
     expect_true(decoded_binary.rep_index.has_value(), "binary rep_index should be preserved");
 }

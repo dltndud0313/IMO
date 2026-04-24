@@ -3,6 +3,7 @@
 
 void run_test_packet();
 void run_test_emg_filter();
+void run_test_imu_processor();
 void run_test_calibration();
 void run_test_state_machine();
 void run_test_sensor_mock();
@@ -11,6 +12,7 @@ void run_test_sensor_analog_emg();
 int main() {
     run_test_packet();
     run_test_emg_filter();
+    run_test_imu_processor();
     run_test_calibration();
     run_test_state_machine();
     run_test_sensor_mock();

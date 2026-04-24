@@ -2,7 +2,7 @@
 
 ESP32-S3 기반 센서 송신 코드를 관리하는 폴더입니다.
 
-현재 들어 있는 코드는 **실제 EMG 센서와 IMU가 아직 도착하기 전**, 전체 데이터 흐름을 먼저 검증하기 위해 작성한 **mock 기반 사전 구현 코드**입니다.
+현재 들어 있는 코드는 **mock 기반 사전 구현을 출발점으로 만들었고**, 지금은 `MPU-6050` IMU 실제 읽기 경로까지 포함한 상태입니다.
 
 즉, 지금 목표는 아래 흐름을 하드웨어 없이 먼저 고정하는 것입니다.
 
@@ -12,6 +12,8 @@ ESP32-S3 기반 센서 송신 코드를 관리하는 폴더입니다.
 - 상태머신 전이
 - 패킷 생성
 - USB Serial 송신 준비
+
+현재는 위 흐름 중 **IMU 입력은 실제 하드웨어값**, EMG는 ADC 연동 전까지 mock/0 값 기반으로 운영할 수 있습니다.
 
 ## 구성
 
@@ -89,6 +91,7 @@ idf.py -p /dev/ttyACM0 -b 115200 flash monitor
 - `JSON_V1`이면 사람이 읽을 수 있는 JSON이 출력됩니다.
 - `BINARY_V2`이면 문자열 대신 raw bytes가 송신됩니다.
 - JSON 출력 예시와 바이너리 1프레임/연속 프레임 확인 명령은 `docs/esp32_pi_protocol_quick_reference.md`에 정리돼 있습니다.
+- IMU bring-up 중에는 `JSON_V1`로 두고, 부팅 직후 약 `2초` 동안 보드를 가만히 둔 뒤 `gyro_*` 값이 0 근처로 내려오는지 먼저 확인하는 것이 좋습니다.
 
 참고 코드 위치:
 
@@ -239,6 +242,24 @@ SZH-GJD001 계열 센서는 판매처 예제가 아두이노 기준이라, ESP32
 상세 점검 문서는 아래를 참고합니다.
 
 - `docs/esp32_emg_sensor_bringup.md`
+- `docs/esp32_sensor_measurement_guide.md`
+
+## 나중에 수치 비교/보고서용으로 남겨야 할 것
+
+- IMU 정지 상태 `10초` 로그
+- IMU 동작 상태 로그
+- EMG 휴식 상태 로그
+- EMG 수축 상태 로그
+
+JSON 로그를 저장한 뒤 아래 스크립트로 통계를 뽑을 수 있습니다.
+
+```bash
+python3 ./device/esp32/scripts/summarize_json_sensor_log.py /tmp/esp32_sensor_run_01.log
+```
+
+측정 기준, 표 예시, 기록해야 할 설정값은 아래 문서에 정리합니다.
+
+- `docs/esp32_sensor_measurement_guide.md`
 
 ## 하드웨어 도착 후 교체 포인트
 
