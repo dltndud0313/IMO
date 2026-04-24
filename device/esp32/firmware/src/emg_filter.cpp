@@ -114,6 +114,14 @@ EmgProcessingResult EmgFilter::process(
             kEmgReleaseAlpha
         );
         activation_history_[channel] = result.normalized[channel];
+        // 패킷/화면 표시는 한 번 더 완만하게 만들어 운동 유지 상태가 덜 요동치게 본다.
+        result.normalized_display[channel] = smooth_activation(
+            result.normalized[channel],
+            display_history_[channel],
+            kEmgDisplayAttackAlpha,
+            kEmgDisplayReleaseAlpha
+        );
+        display_history_[channel] = result.normalized_display[channel];
         result.active[channel] = threshold_active(
             result.normalized[channel],
             active_state_[channel],
@@ -131,6 +139,7 @@ void EmgFilter::reset() {
         history.clear();
     }
     activation_history_.fill(0.0F);
+    display_history_.fill(0.0F);
     active_state_.fill(false);
 }
 

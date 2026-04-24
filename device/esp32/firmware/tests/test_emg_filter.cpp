@@ -83,6 +83,10 @@ void run_test_emg_filter() {
         result.normalized[0] > 0.70F,
         "smoothed activation should rise toward the sustained contraction level"
     );
+    expect_true(
+        result.normalized_display[0] > 0.35F && result.normalized_display[0] < result.normalized[0],
+        "display smoothing should rise more slowly than logic smoothing"
+    );
     expect_true(result.active[0], "filter should report active after sustained contraction");
 
     for (int sample = 0; sample < 64; ++sample) {
@@ -92,6 +96,10 @@ void run_test_emg_filter() {
     expect_true(
         result.normalized[0] < 0.12F,
         "smoothed activation should decay after relaxation"
+    );
+    expect_true(
+        result.normalized_display[0] > result.normalized[0],
+        "display smoothing should decay more slowly for a steadier UI value"
     );
     expect_true(!result.active[0], "filter should deactivate after enough relaxed samples");
 }

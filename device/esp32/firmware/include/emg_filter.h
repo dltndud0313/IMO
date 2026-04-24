@@ -30,6 +30,7 @@ class EmgFilter {
   private:
     std::array<std::deque<float>, kEmgChannelCount> sample_history_ {};
     std::array<float, kEmgChannelCount> activation_history_ {};
+    std::array<float, kEmgChannelCount> display_history_ {};
     std::array<bool, kEmgChannelCount> active_state_ {};
 };
 

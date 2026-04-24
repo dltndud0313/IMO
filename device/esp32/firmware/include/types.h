@@ -66,6 +66,7 @@ struct EmgProcessingResult {
     std::array<float, kEmgChannelCount> baseline_corrected {};
     std::array<float, kEmgChannelCount> normalized_instant {};
     std::array<float, kEmgChannelCount> normalized {};
+    std::array<float, kEmgChannelCount> normalized_display {};
     std::array<bool, kEmgChannelCount> active {};
 };
 

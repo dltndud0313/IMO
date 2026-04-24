@@ -12,7 +12,7 @@ float select_emg_packet_value(const EmgProcessingResult& emg, std::size_t channe
         return emg.rms[channel];
     }
 
-    return emg.normalized[channel];
+    return emg.normalized_display[channel];
 }
 
 }  // namespace
