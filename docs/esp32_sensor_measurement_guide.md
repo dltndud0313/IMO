@@ -260,6 +260,41 @@ python3 ../scripts/decode_binary_sensor_stream.py --port /dev/ttyUSB0
 
 - 1차 측정: 수축 반응 확인은 됐지만 IMU 움직임이 섞여 해석이 약했음
 - 2차 측정: 휴식/수축 구분이 선명하게 확인되어 보고서 기준 데이터로 채택 가능
+- 대표 기록은 **2차 실측 기록**을 사용함
+- 이후 재측정 로그는 경로 검증 또는 조건 변경 비교용 보조 기록으로 분류함
+
+## normalized 경로 재검증 기록
+
+측정 일시:
+
+- `2026-04-24`
+
+측정 조건:
+
+- `JSON_V1`
+- `kEnableEmgBringupPacketMode = false`
+- `emg_ch1`는 최종 normalized 값
+- 팔 회전을 최소화하고 EMG만 다시 비교
+
+로그 파일:
+
+- 휴식: `/tmp/emg_rest_norm_2.log`
+- 수축: `/tmp/emg_contract_norm_2.log`
+
+요약 결과:
+
+### EMG 휴식/수축 normalized 비교
+
+| 항목 | 휴식 avg | 수축 avg | 휴식 stddev | 수축 stddev | 휴식 max | 수축 max |
+| --- | --- | --- | --- | --- | --- | --- |
+| emg_ch1 | 0.0005 | 0.0041 | 0.0017 | 0.0100 | 0.0096 | 0.0604 |
+
+해석:
+
+- 수축 평균은 휴식 평균 대비 약 `8.2배` 증가함
+- `max`도 `0.0096 -> 0.0604`로 증가해 normalized 경로에서도 휴식/수축 구분이 가능함
+- 다만 평균 기준 분리도는 2차 실측 기록(`20.5배`)보다 낮아 대표 기록으로 쓰기에는 불리함
+- 이번 로그는 **최종 normalized 경로가 실센서에서도 동작함을 확인하는 보조 검증 기록**으로 사용함
 
 ## EMG 값 해석 메모
 
@@ -357,6 +392,11 @@ python3 ../scripts/decode_binary_sensor_stream.py --port /dev/ttyUSB0
 확인할 것:
 
 - normalized `emg_ch1`가 휴식/수축을 구분하는지
+
+현재 상태:
+
+- 확인 완료
+- 대표 측정 대비 분리도는 낮지만, normalized 경로 동작 자체는 검증됨
 
 ## 해석 주의
 
