@@ -22,15 +22,50 @@ void run_test_calibration() {
 
     calibration.begin_mvc_capture();
     for (std::size_t sample = 0; sample < mvp::kCalibrationSampleCount; ++sample) {
-        calibration.push_mvc_sample({0.8F, 0.9F, 1.1F});
+        float channel0 = 0.35F;
+        if (sample < 8) {
+            channel0 = 1.10F - (0.10F * static_cast<float>(sample));
+        }
+
+        calibration.push_mvc_sample({channel0, 0.26F, 1.1F});
     }
 
     expect_true(calibration.mvc_complete(), "mvc calibration should complete");
     expect_true(calibration.profile().mvc_ready, "mvc flag should be set");
     expect_near(
+        calibration.profile().mvc_peak[0],
+        1.1F,
+        0.001F,
+        "mvc peak should retain the maximum value"
+    );
+    expect_near(
+        calibration.profile().mvc_reference[0],
+        0.75F,
+        0.001F,
+        "mvc reference should use the average of top sustained samples"
+    );
+    expect_near(
+        calibration.profile().mvc_peak[1],
+        0.30F,
+        0.001F,
+        "mvc peak should not fall below rest baseline plus minimum margin"
+    );
+    expect_near(
+        calibration.profile().mvc_reference[1],
+        0.30F,
+        0.001F,
+        "mvc reference should clamp to minimum margin when contraction is too small"
+    );
+    expect_near(
         calibration.profile().mvc_peak[2],
         1.1F,
         0.001F,
         "mvc peak should retain the maximum value"
+    );
+    expect_near(
+        calibration.profile().mvc_reference[2],
+        1.1F,
+        0.001F,
+        "flat mvc samples should preserve their sustained reference"
     );
 }

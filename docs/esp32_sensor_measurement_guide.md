@@ -18,6 +18,12 @@
 - `kImuGyroBiasCalibrationSamples = 100`
 - `kImuSmoothingAlpha = 0.20`
 - `kMotionDetectionThreshold = 0.50`
+- `kMvcReferenceTopSampleCount = 8`
+- `kMvcReferenceMinimumMargin = 0.05`
+- `kEmgAttackAlpha = 0.35`
+- `kEmgReleaseAlpha = 0.08`
+- `kActivationThresholdOn = 0.20`
+- `kActivationThresholdOff = 0.12`
 - `kAnalogEmgSamplesPerFrame = 10`
 - `kAnalogEmgAdcFullScale = 4095.0`
 - `kAnalogEmgAdcGpio = 4`
@@ -300,6 +306,10 @@ python3 ../scripts/decode_binary_sensor_stream.py --port /dev/ttyUSB0
 
 - `emg_ch1`는 최종 normalized 값이라 `0.0 ~ 1.0` 범위를 사용합니다.
 - 따라서 `0.030`은 절대값이 작은 것이 아니라 **현재 MVC 기준 약 3.0% 활성도**라는 뜻입니다.
+- 최종 MVC 기준은 순간 최고값 하나가 아니라 **상위 `kMvcReferenceTopSampleCount` 샘플 평균(`mvc_reference`)** 입니다.
+- 따라서 운동 시작 순간 스파이크보다 **유지 가능한 수축 세기**를 더 잘 반영합니다.
+- 출력값은 attack/release smoothing을 거치므로, 운동보조센서처럼 힘 유지 시 수치가 너무 급하게 꺼지지 않도록 설계되어 있습니다.
+- 활성 판정은 `kActivationThresholdOn`, `kActivationThresholdOff`의 hysteresis를 사용하므로 경계 근처에서 깜빡임이 줄어듭니다.
 - 휴식/수축 구분은 절대 숫자보다
   - `휴식 avg`
   - `수축 avg`

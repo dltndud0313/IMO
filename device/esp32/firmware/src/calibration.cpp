@@ -2,6 +2,8 @@
 #include "calibration.h"
 
 #include <algorithm>
+#include <functional>
+#include <numeric>
 
 #include "config.h"
 
@@ -11,7 +13,11 @@ void CalibrationManager::reset() {
     profile_ = {};
     // MVC 상한이 0이면 정규화 분모가 사라지므로 안전한 기본값을 먼저 넣어둔다.
     profile_.mvc_peak.fill(1.0F);
+    profile_.mvc_reference.fill(1.0F);
     rest_accumulator_.fill(0.0F);
+    for (auto& channel_samples : mvc_samples_buffer_) {
+        channel_samples.fill(0.0F);
+    }
     rest_samples_ = 0;
     mvc_samples_ = 0;
 }
@@ -25,9 +31,13 @@ void CalibrationManager::begin_rest_capture() {
 }
 
 void CalibrationManager::begin_mvc_capture() {
-    // 최대 수축 구간은 평균이 아니라 최고값 추적이 중요하다.
+    // 운동보조센서에서는 순간 피크보다 유지 가능한 상위 구간 평균이 더 실용적이다.
     mvc_samples_ = 0;
     profile_.mvc_peak.fill(0.0F);
+    profile_.mvc_reference.fill(0.0F);
+    for (auto& channel_samples : mvc_samples_buffer_) {
+        channel_samples.fill(0.0F);
+    }
     profile_.mvc_ready = false;
 }
 
@@ -58,6 +68,7 @@ void CalibrationManager::push_mvc_sample(const std::array<float, kEmgChannelCoun
     }
 
     for (std::size_t channel = 0; channel < kEmgChannelCount; ++channel) {
+        mvc_samples_buffer_[channel][mvc_samples_] = sample[channel];
         profile_.mvc_peak[channel] = std::max(profile_.mvc_peak[channel], sample[channel]);
     }
 
@@ -65,9 +76,22 @@ void CalibrationManager::push_mvc_sample(const std::array<float, kEmgChannelCoun
 
     if (mvc_complete()) {
         for (std::size_t channel = 0; channel < kEmgChannelCount; ++channel) {
-            // 센서 상태가 좋지 않아도 rest보다 약간 큰 최소 폭은 확보해 정규화가 무너지지 않게 한다.
-            profile_.mvc_peak[channel] =
-                std::max(profile_.mvc_peak[channel], profile_.rest_baseline[channel] + 0.05F);
+            auto sorted_samples = mvc_samples_buffer_[channel];
+            std::sort(sorted_samples.begin(), sorted_samples.end(), std::greater<float>());
+
+            const std::size_t top_sample_count = std::min<std::size_t>(kMvcReferenceTopSampleCount, mvc_samples_);
+            float top_sum = 0.0F;
+            for (std::size_t index = 0; index < top_sample_count; ++index) {
+                top_sum += sorted_samples[index];
+            }
+            const float sustained_reference = top_sample_count > 0
+                ? top_sum / static_cast<float>(top_sample_count)
+                : 0.0F;
+
+            const float minimum_reference = profile_.rest_baseline[channel] + kMvcReferenceMinimumMargin;
+            // 순간 최대값은 보존하고, 실제 정규화는 유지 가능한 상위 평균값을 기준으로 삼는다.
+            profile_.mvc_peak[channel] = std::max(profile_.mvc_peak[channel], minimum_reference);
+            profile_.mvc_reference[channel] = std::max(sustained_reference, minimum_reference);
         }
         profile_.mvc_ready = true;
     }

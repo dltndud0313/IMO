@@ -92,6 +92,8 @@ idf.py -p /dev/ttyUSB0 -b 115200 flash monitor
 - 현재 기본 EMG 입력은 `GPIO4` 아날로그 핀입니다. EMG 모듈 출력이 이 핀에 연결되면 `emg_ch1`로 반영됩니다.
 - `emg_ch1`가 계속 `0`이면 `kEnableEmgRawSerialPlotterMode = true`로 바꿔 raw ADC 값부터 확인하는 것이 좋습니다.
 - 현재 기본 설정에서는 `kEnableEmgBringupPacketMode = false`라서 `emg_ch1`에 normalized 값이 실립니다.
+- 최종 normalized 값은 순간 최고점 하나가 아니라 `MVC 상위 샘플 평균`을 기준으로 계산해, 운동보조센서처럼 힘을 유지할 때 값이 너무 빨리 꺼지지 않게 조정했습니다.
+- 표시값은 attack/release smoothing을 거치고, 활성 판정은 hysteresis(`on/off` 분리 임계값)를 사용합니다.
 - 실센서 입력 확인이 필요할 때만 `kEnableEmgBringupPacketMode = true`로 바꿔 EMG RMS/envelope를 직접 확인합니다.
 - 부팅 직후 약 `2초` 동안은 자이로 bias 보정을 위해 보드를 가만히 두는 것이 좋습니다.
 - 현재 기본 IMU 보정값:
@@ -156,9 +158,10 @@ idf.py -p /dev/ttyUSB0 -b 115200 flash monitor
 3. `include/config.h`
    - 샘플 수, ADC full scale, threshold 조정
 4. `src/emg_filter.cpp`
-   - 실제 센서 노이즈에 맞춰 RMS / 이동평균 / threshold 튜닝
+   - 실제 센서 노이즈에 맞춰 RMS / 이동평균 / attack-release smoothing / hysteresis 튜닝
 5. `src/calibration.cpp`
    - rest / MVC 기준이 실제 사용자 데이터에 맞는지 확인
+   - 운동보조센서 목적이면 `mvc_peak`보다 `mvc_reference`가 유지 동작에 더 적합한지 우선 확인
 
 값이 안 잡히면 가장 먼저 `src/sensor_analog_emg.cpp`와 ADC 핀 설정부터 확인하는 것이 좋습니다.
 

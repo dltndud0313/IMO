@@ -3,8 +3,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <numeric>
-
 #include "config.h"
 
 namespace mvp {
@@ -63,8 +61,22 @@ float normalize_activation(float value, float min_value, float max_value) {
     return std::clamp(normalized, 0.0F, 1.0F);
 }
 
-bool threshold_active(float normalized_value, float threshold) {
-    return normalized_value >= threshold;
+float smooth_activation(float current_value, float previous_value, float attack_alpha, float release_alpha) {
+    const float alpha = current_value >= previous_value ? attack_alpha : release_alpha;
+    return (current_value * alpha) + (previous_value * (1.0F - alpha));
+}
+
+bool threshold_active(
+    float normalized_value,
+    bool was_active,
+    float threshold_on,
+    float threshold_off
+) {
+    if (was_active) {
+        return normalized_value >= threshold_off;
+    }
+
+    return normalized_value >= threshold_on;
 }
 
 EmgProcessingResult EmgFilter::process(
@@ -87,16 +99,28 @@ EmgProcessingResult EmgFilter::process(
         );
 
         const float reference_max = calibration_profile.mvc_ready
-            ? calibration_profile.mvc_peak[channel]
+            ? calibration_profile.mvc_reference[channel]
             : 1.0F;
         // MVC가 아직 없으면 1.0을 임시 상한으로 써서 mock 단계에서도 파이프라인을 유지한다.
-        result.normalized[channel] = normalize_activation(
+        result.normalized_instant[channel] = normalize_activation(
             result.rms[channel],
             calibration_profile.rest_baseline[channel],
             reference_max
         );
-        result.active[channel] =
-            threshold_active(result.normalized[channel], kActivationThreshold);
+        result.normalized[channel] = smooth_activation(
+            result.normalized_instant[channel],
+            activation_history_[channel],
+            kEmgAttackAlpha,
+            kEmgReleaseAlpha
+        );
+        activation_history_[channel] = result.normalized[channel];
+        result.active[channel] = threshold_active(
+            result.normalized[channel],
+            active_state_[channel],
+            kActivationThresholdOn,
+            kActivationThresholdOff
+        );
+        active_state_[channel] = result.active[channel];
     }
 
     return result;
@@ -106,6 +130,8 @@ void EmgFilter::reset() {
     for (auto& history : sample_history_) {
         history.clear();
     }
+    activation_history_.fill(0.0F);
+    active_state_.fill(false);
 }
 
 }  // namespace mvp

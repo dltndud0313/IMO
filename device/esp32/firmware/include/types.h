@@ -55,6 +55,7 @@ struct SensorFrame {
 struct CalibrationProfile {
     std::array<float, kEmgChannelCount> rest_baseline {};
     std::array<float, kEmgChannelCount> mvc_peak {1.0F, 1.0F, 1.0F};
+    std::array<float, kEmgChannelCount> mvc_reference {1.0F, 1.0F, 1.0F};
     bool rest_ready {false};
     bool mvc_ready {false};
 };
@@ -63,6 +64,7 @@ struct EmgProcessingResult {
     std::array<float, kEmgChannelCount> moving_average {};
     std::array<float, kEmgChannelCount> rms {};
     std::array<float, kEmgChannelCount> baseline_corrected {};
+    std::array<float, kEmgChannelCount> normalized_instant {};
     std::array<float, kEmgChannelCount> normalized {};
     std::array<bool, kEmgChannelCount> active {};
 };
