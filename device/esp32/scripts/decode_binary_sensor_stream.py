@@ -16,6 +16,9 @@ MAGIC = b"ME"
 EXPECTED_VERSION = 2
 EXPECTED_PACKET_TYPE = 1
 EXPECTED_PAYLOAD_LEN = 30
+EMG_SCALE = 1000.0
+ACCEL_SCALE = 1000.0
+GYRO_SCALE = 100.0
 CRC_POLY = 0x1021
 CRC_INIT = 0xFFFF
 
@@ -67,9 +70,9 @@ def decode_frame(frame: bytes) -> Optional[str]:
 
     return (
         f"seq={seq} ts={timestamp_ms} "
-        f"emg=({emg1/1000:.3f},{emg2/1000:.3f},{emg3/1000:.3f}) "
-        f"acc=({acc_x/1000:.3f},{acc_y/1000:.3f},{acc_z/1000:.3f}) "
-        f"gyro=({gyro_x/1000:.3f},{gyro_y/1000:.3f},{gyro_z/1000:.3f}) "
+        f"emg=({emg1/EMG_SCALE:.3f},{emg2/EMG_SCALE:.3f},{emg3/EMG_SCALE:.3f}) "
+        f"acc=({acc_x/ACCEL_SCALE:.3f},{acc_y/ACCEL_SCALE:.3f},{acc_z/ACCEL_SCALE:.3f}) "
+        f"gyro=({gyro_x/GYRO_SCALE:.3f},{gyro_y/GYRO_SCALE:.3f},{gyro_z/GYRO_SCALE:.3f}) "
         f"state={state_name} flags={flags} rep_index={rep_index_text}"
     )
 

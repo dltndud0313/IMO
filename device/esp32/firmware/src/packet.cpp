@@ -22,7 +22,9 @@ constexpr uint8_t kBinaryPacketTypeSensorFrame = 1U;
 constexpr uint16_t kBinaryPayloadLength = 30U;
 constexpr std::size_t kBinaryFrameLength = 38U;
 constexpr float kEmgScale = 1000.0F;
-constexpr float kImuScale = 1000.0F;
+constexpr float kAccelScale = 1000.0F;
+// 손목/팔 회전에서는 자이로가 ±32.767 범위를 쉽게 넘기므로 accel과 분리 스케일을 사용한다.
+constexpr float kGyroScale = 100.0F;
 constexpr int16_t kRepIndexMissing = -1;
 
 std::string escape_json_string(const std::string& value) {
@@ -251,12 +253,12 @@ PacketBuffer encode_packet_binary(const OutputPacket& packet) {
     append_i16_le(buffer, scale_to_i16(packet.emg_ch1, kEmgScale));
     append_i16_le(buffer, scale_to_i16(packet.emg_ch2, kEmgScale));
     append_i16_le(buffer, scale_to_i16(packet.emg_ch3, kEmgScale));
-    append_i16_le(buffer, scale_to_i16(packet.acc_x, kImuScale));
-    append_i16_le(buffer, scale_to_i16(packet.acc_y, kImuScale));
-    append_i16_le(buffer, scale_to_i16(packet.acc_z, kImuScale));
-    append_i16_le(buffer, scale_to_i16(packet.gyro_x, kImuScale));
-    append_i16_le(buffer, scale_to_i16(packet.gyro_y, kImuScale));
-    append_i16_le(buffer, scale_to_i16(packet.gyro_z, kImuScale));
+    append_i16_le(buffer, scale_to_i16(packet.acc_x, kAccelScale));
+    append_i16_le(buffer, scale_to_i16(packet.acc_y, kAccelScale));
+    append_i16_le(buffer, scale_to_i16(packet.acc_z, kAccelScale));
+    append_i16_le(buffer, scale_to_i16(packet.gyro_x, kGyroScale));
+    append_i16_le(buffer, scale_to_i16(packet.gyro_y, kGyroScale));
+    append_i16_le(buffer, scale_to_i16(packet.gyro_z, kGyroScale));
     append_u8(buffer, static_cast<uint8_t>(runtime_state_from_string(packet.state)));
     append_u8(buffer, static_cast<uint8_t>(packet.flags & 0xFFU));
     append_i16_le(buffer, rep_index_to_i16(packet.rep_index));
@@ -352,12 +354,12 @@ bool decode_packet_binary(const uint8_t* data, std::size_t size, OutputPacket* p
     packet->emg_ch1 = unscale_i16(read_i16_le(data, 14), kEmgScale);
     packet->emg_ch2 = unscale_i16(read_i16_le(data, 16), kEmgScale);
     packet->emg_ch3 = unscale_i16(read_i16_le(data, 18), kEmgScale);
-    packet->acc_x = unscale_i16(read_i16_le(data, 20), kImuScale);
-    packet->acc_y = unscale_i16(read_i16_le(data, 22), kImuScale);
-    packet->acc_z = unscale_i16(read_i16_le(data, 24), kImuScale);
-    packet->gyro_x = unscale_i16(read_i16_le(data, 26), kImuScale);
-    packet->gyro_y = unscale_i16(read_i16_le(data, 28), kImuScale);
-    packet->gyro_z = unscale_i16(read_i16_le(data, 30), kImuScale);
+    packet->acc_x = unscale_i16(read_i16_le(data, 20), kAccelScale);
+    packet->acc_y = unscale_i16(read_i16_le(data, 22), kAccelScale);
+    packet->acc_z = unscale_i16(read_i16_le(data, 24), kAccelScale);
+    packet->gyro_x = unscale_i16(read_i16_le(data, 26), kGyroScale);
+    packet->gyro_y = unscale_i16(read_i16_le(data, 28), kGyroScale);
+    packet->gyro_z = unscale_i16(read_i16_le(data, 30), kGyroScale);
     packet->state = to_string(runtime_state_from_code(read_u8(data, 32)));
     packet->flags = read_u8(data, 33);
 
