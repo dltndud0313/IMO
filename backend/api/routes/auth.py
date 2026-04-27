@@ -53,3 +53,25 @@ async def login(user_in: UserLogin, db: AsyncSession = Depends(get_db)):
     access_token = create_access_token(subject=user.id)
     
     return {"access_token": access_token, "token_type": "bearer"}
+
+@router.post("/refresh", response_model=TokenResponse)
+async def refresh_token(
+    request: RefreshRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    try:
+        from core.security import ALGORITHM
+        from jose import jwt, JWTError
+        from core.config import settings
+        
+        payload = jwt.decode(
+            request.refresh_token, settings.SECRET_KEY, algorithms=[ALGORITHM] # 시크릿 공유
+        )
+        token_uid = payload.get("sub")
+        if not token_uid: raise JWTError()
+    except (JWTError):
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+    
+    access_token = create_access_token(subject=token_uid)
+    return {"access_token": access_token, "token_type": "bearer"}
+
