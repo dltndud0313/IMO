@@ -1,2 +1,16 @@
-// 주간 통계 메인 화면 (기간 이동, 운동 필터) (FR-51 ~ FR-53)
-// TODO: 구현
+import 'package:flutter/material.dart';
+
+import '../../core/layouts/app_scaffold.dart';
+import '../../core/themes/design_tokens.dart';
+
+class StatsScreen extends StatelessWidget {
+  const StatsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return AppScaffold(
+      title: 'Stats',
+      child: Text('Weekly stats', style: AppTextStyles.title),
+    );
+  }
+}

@@ -1,2 +1,15 @@
-// 기록 상세 화면 (세트별 결과, 그래프, 좌우 비교) (FR-47, FR-48, FR-49)
-// TODO: 구현
+import 'package:flutter/material.dart';
+
+import '../../core/layouts/app_scaffold.dart';
+
+class HistoryDetailScreen extends StatelessWidget {
+  const HistoryDetailScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const AppScaffold(
+      title: 'History Detail',
+      child: Center(child: Text('History detail')),
+    );
+  }
+}
