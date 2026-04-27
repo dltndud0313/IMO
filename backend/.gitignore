@@ -1,0 +1,25 @@
+# 환경변수
+.env
+.env.local
+.env.*.local
+
+# 로컬 DB / 로그
+*.db
+*.sqlite
+*.sqlite3
+*.log
+
+# 추가 lint/type 캐시 (루트 .gitignore에 없는 항목만)
+.mypy_cache/
+.ruff_cache/
+
+# IDE
+.idea/
+
+# 패키지 빌드 산출물
+dist/
+build/
+*.egg-info/
+
+# Claude Code
+.claude/

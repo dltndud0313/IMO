@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  # 백엔드 서버
+  api:
+    build: .
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://imo_user:imo_pass@db:5432/imo_db
+      - JWT_SECRET=super_secret_key_change_in_production
+    depends_on:
+      - db
+    networks:
+      - imo_net
+
+  # PostgreSQL 데이터베이스
+  db:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: imo_user
+      POSTGRES_PASSWORD: imo_pass
+      POSTGRES_DB: imo_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # 아까 생성한 스키마 파일을 초기 설정 위치로 마운트하여 DB 생성 시 자동 실행되게 함
+      - ./backend_db_schema.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - imo_net
+
+volumes:
+  postgres_data:
+
+networks:
+  imo_net:
