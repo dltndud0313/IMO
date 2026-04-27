@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../themes/design_tokens.dart';
+
 class BottomNavShell extends StatelessWidget {
   const BottomNavShell({super.key, required this.child});
 
@@ -21,6 +23,7 @@ class BottomNavShell extends StatelessWidget {
     return Scaffold(
       body: child,
       bottomNavigationBar: NavigationBar(
+        backgroundColor: AppColors.card,
         selectedIndex: currentIndex < 0 ? 0 : currentIndex,
         onDestinationSelected: (index) => context.go(_tabs[index].path),
         destinations: [

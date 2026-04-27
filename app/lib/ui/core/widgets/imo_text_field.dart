@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../themes/design_tokens.dart';
+
 class ImoTextField extends StatelessWidget {
   const ImoTextField({
     super.key,
@@ -16,11 +18,15 @@ class ImoTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      keyboardType: keyboardType,
-      obscureText: obscureText,
-      decoration: InputDecoration(labelText: label),
+    return SizedBox(
+      minHeight: AppSpacing.buttonHeight,
+      child: TextField(
+        controller: controller,
+        keyboardType: keyboardType,
+        obscureText: obscureText,
+        style: AppTextStyles.body,
+        decoration: InputDecoration(labelText: label),
+      ),
     );
   }
 }
