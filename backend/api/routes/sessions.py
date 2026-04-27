@@ -1,10 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from calendar import monthrange
+from datetime import datetime
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import Date, cast, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from core.database import get_db
 from models.session import (
-    WorkoutSession, WorkoutSetResult, WorkoutCalibration, 
+    WorkoutSession, WorkoutSetResult, WorkoutCalibration,
     WorkoutMuscleMap, WorkoutBalanceSummary
 )
 from core.deps import get_current_user
@@ -108,21 +113,98 @@ async def create_session(
 
 @router.get("/")
 async def list_sessions(
-    limit: int = 10,
-    offset: int = 0,
+    date: Optional[str] = Query(None, description="YYYY-MM-DD 단일 날짜 필터"),
+    month: Optional[str] = Query(None, description="YYYY-MM 월 단위 필터 (달력 화면용)"),
+    exerciseType: Optional[str] = Query(None, description="PUSH_UP / LATERAL_RAISE / BICEP_CURL"),
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
-    """내 전체 세션 목록 조회"""
-    result = await db.execute(
+    """API-07: 세션 목록 조회 (date/month/exerciseType 필터 + exerciseDates + pagination)."""
+
+    where_clauses = [WorkoutSession.user_id == current_user.id]
+
+    if date:
+        try:
+            d = datetime.strptime(date, "%Y-%m-%d").date()
+        except ValueError:
+            raise HTTPException(status_code=400, detail="date must be YYYY-MM-DD")
+        where_clauses.append(cast(WorkoutSession.started_at, Date) == d)
+
+    if month:
+        try:
+            year_str, mon_str = month.split("-")
+            year, mon = int(year_str), int(mon_str)
+            if not (1 <= mon <= 12):
+                raise ValueError
+        except (ValueError, AttributeError):
+            raise HTTPException(status_code=400, detail="month must be YYYY-MM")
+        first = datetime(year, mon, 1)
+        _, last_day = monthrange(year, mon)
+        last = datetime(year, mon, last_day, 23, 59, 59)
+        where_clauses.append(WorkoutSession.started_at >= first)
+        where_clauses.append(WorkoutSession.started_at <= last)
+
+    if exerciseType:
+        where_clauses.append(WorkoutSession.exercise_type == exerciseType)
+
+    # totalCount
+    count_q = select(func.count()).select_from(WorkoutSession).where(*where_clauses)
+    total_count = (await db.execute(count_q)).scalar() or 0
+
+    # 페이지 단위 결과
+    list_q = (
         select(WorkoutSession)
-        .where(WorkoutSession.user_id == current_user.id)
+        .where(*where_clauses)
         .order_by(WorkoutSession.started_at.desc())
-        .offset(offset).limit(limit)
+        .offset((page - 1) * size)
+        .limit(size)
     )
-    sessions = result.scalars().all()
-    
-    return {"success": True, "data": sessions}
+    rows = (await db.execute(list_q)).scalars().all()
+
+    # 달력 마커용 — 필터 범위 안에서 운동 수행한 날짜만 distinct
+    dates_q = (
+        select(cast(WorkoutSession.started_at, Date))
+        .where(*where_clauses)
+        .distinct()
+        .order_by(cast(WorkoutSession.started_at, Date).asc())
+    )
+    date_rows = (await db.execute(dates_q)).scalars().all()
+    exercise_dates = [d.isoformat() for d in date_rows if d is not None]
+
+    sessions: list[dict] = []
+    for s in rows:
+        target_total = sum(s.target_reps_per_set or []) if s.target_reps_per_set else 0
+        completion_rate = (s.total_reps / target_total * 100) if target_total > 0 else 0.0
+        sessions.append({
+            "sessionId": s.session_id,
+            "exerciseType": s.exercise_type,
+            "date": s.started_at.date().isoformat() if s.started_at else None,
+            "startTime": s.started_at.isoformat() if s.started_at else None,
+            "endTime": s.ended_at.isoformat() if s.ended_at else None,
+            "totalReps": s.total_reps,
+            "totalSets": s.set_count,
+            "completionRate": round(min(completion_rate, 100.0), 1),
+            "avgTargetActivation": float(s.avg_target_muscle) if s.avg_target_muscle is not None else 0.0,
+        })
+
+    total_pages = (total_count + size - 1) // size if total_count > 0 else 0
+
+    return {
+        "success": True,
+        "data": {
+            "sessions": sessions,
+            "exerciseDates": exercise_dates,
+            "pagination": {
+                "page": page,
+                "size": size,
+                "totalCount": total_count,
+                "totalPages": total_pages,
+            },
+        },
+        "error": None,
+    }
 
 @router.get("/{session_id}")
 async def get_session_detail(
