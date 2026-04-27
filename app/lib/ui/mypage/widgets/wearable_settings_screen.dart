@@ -1,2 +1,15 @@
-// 웨어러블 설정 화면 (Pi 연결 설정, 글래스 연결 상태)
-// TODO: 구현
+import 'package:flutter/material.dart';
+
+import '../../core/layouts/app_scaffold.dart';
+
+class WearableSettingsScreen extends StatelessWidget {
+  const WearableSettingsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const AppScaffold(
+      title: 'Wearable Settings',
+      child: Center(child: Text('Wearable settings')),
+    );
+  }
+}

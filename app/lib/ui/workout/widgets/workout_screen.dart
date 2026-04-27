@@ -1,2 +1,22 @@
-// 실시간 운동 화면 전체 레이아웃
-// TODO: 구현
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../core/layouts/app_scaffold.dart';
+import '../../core/widgets/common_widgets.dart';
+
+class WorkoutScreen extends StatelessWidget {
+  const WorkoutScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return AppScaffold(
+      title: 'Workout',
+      child: Center(
+        child: ImoButton(
+          label: 'Finish workout',
+          onPressed: () => context.go('/session-result'),
+        ),
+      ),
+    );
+  }
+}
