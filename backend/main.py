@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from core.database import engine, Base
-from api.routes import sessions, auth, users
+from api.routes import sessions, auth, users, statistics, exercises
 from contextlib import asynccontextmanager
 
 @asynccontextmanager
@@ -32,6 +32,8 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(users.router, prefix="/api/v1/users", tags=["Users"])
 app.include_router(sessions.router, prefix="/api/v1/sessions", tags=["Sessions"])
+app.include_router(statistics.router, prefix="/api/v1/statistics", tags=["Statistics"])
+app.include_router(exercises.router, prefix="/api/v1/exercises", tags=["Exercises"])
 
 @app.get("/")
 def read_root():
