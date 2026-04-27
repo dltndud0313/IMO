@@ -67,3 +67,19 @@ async def update_user_settings(
     await db.commit()
     await db.refresh(settings)
     return settings
+
+@router.delete("/me/data", status_code=status.HTTP_200_OK)
+async def reset_user_data(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """현재 로그인한 사용자의 모든 운동 기록 데이터 영구 삭제"""
+    # WorkoutSession 삭제 시 내부적으로 CASCADE 되므로 모두 지워짐
+    from models.session import WorkoutSession
+    
+    await db.execute(
+        WorkoutSession.__table__.delete().where(WorkoutSession.user_id == current_user.id)
+    )
+    await db.commit()
+    return {"success": True, "message": "All user workout data erased successfully."}
+
