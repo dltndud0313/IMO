@@ -6,7 +6,7 @@ class ImoCard extends StatelessWidget {
   const ImoCard({
     super.key,
     required this.child,
-    this.padding = const EdgeInsets.all(AppSpacing.md),
+    this.padding = const EdgeInsets.all(AppSpacing.cardPadding),
   });
 
   final Widget child;

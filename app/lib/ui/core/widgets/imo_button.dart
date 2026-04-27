@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../themes/design_tokens.dart';
+
 class ImoButton extends StatelessWidget {
   const ImoButton({
     super.key,
@@ -22,7 +24,7 @@ class ImoButton extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(icon, size: 18),
-              const SizedBox(width: 8),
+              const SizedBox(width: AppSpacing.xs),
               Text(label),
             ],
           );
