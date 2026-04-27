@@ -148,3 +148,24 @@ async def get_session_detail(
             "sets": set_results.scalars().all()
         }
     }
+
+@router.delete("/{session_id}")
+async def delete_session(
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """단일 운동 세션 및 관련 데이터 영구 삭제"""
+    result = await db.execute(select(WorkoutSession).where(
+        WorkoutSession.session_id == session_id,
+        WorkoutSession.user_id == current_user.id
+    ))
+    session = result.scalar_one_or_none()
+    
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+        
+    await db.delete(session) # ondelete="CASCADE" 로 인해 딸려있는 결과/근육맵 다 자동 삭제 됨
+    await db.commit()
+    
+    return {"success": True, "message": "Session and all related data deleted successfully"}
