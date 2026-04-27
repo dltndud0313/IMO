@@ -1,3 +1,25 @@
-// IMO (Inside Muscle Out) - 앱 엔트리 포인트
-// DI 초기화, 라우터·테마 주입, runApp() 호출만 담당
-// TODO: 구현
+import 'package:flutter/material.dart';
+
+import 'config/dependencies.dart';
+import 'config/router.dart';
+import 'config/theme.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await setupDependencies();
+  runApp(const ImoApp());
+}
+
+class ImoApp extends StatelessWidget {
+  const ImoApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp.router(
+      title: 'IMO',
+      theme: buildAppTheme(),
+      routerConfig: buildRouter(),
+      debugShowCheckedModeBanner: false,
+    );
+  }
+}

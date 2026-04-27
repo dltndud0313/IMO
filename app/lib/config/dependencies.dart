@@ -1,3 +1,13 @@
-// get_it DI 등록
-// Service → Repository → UseCase → ViewModel 주입 그래프
-// TODO: 구현
+import 'package:get_it/get_it.dart';
+
+import '../ui/home/view_model/home_viewmodel.dart';
+
+final getIt = GetIt.instance;
+
+Future<void> setupDependencies() async {
+  if (getIt.isRegistered<HomeViewModel>()) {
+    return;
+  }
+
+  getIt.registerFactory(HomeViewModel.new);
+}
