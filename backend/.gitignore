@@ -23,3 +23,6 @@ build/
 
 # Claude Code
 .claude/
+
+# 로컬 cURL 검증용 dev 샘플 (운영 코드 아님)
+_dev_sample_*.json

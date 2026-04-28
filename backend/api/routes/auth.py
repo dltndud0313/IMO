@@ -1,77 +1,92 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from core.database import get_db
+from core.exceptions import DuplicateEmail, Unauthorized
+from core.responses import success_response
+from core.security import (
+    create_access_token,
+    create_refresh_token,
+    decode_refresh_token,
+    get_password_hash,
+    verify_password,
+)
 from models.user import User, UserSettings
-from core.security import verify_password, get_password_hash, create_access_token
-from schemas.auth import UserCreate, UserLogin, TokenResponse, RefreshRequest
-from schemas.user import UserProfileResponse
+from schemas.auth import (
+    LoginResponse,
+    RefreshRequest,
+    RefreshResponse,
+    SignupResponse,
+    UserCreate,
+    UserLogin,
+)
 
 router = APIRouter()
 
+
 @router.post("/signup", status_code=status.HTTP_201_CREATED)
 async def signup(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
+    """API-01 회원가입. 가입과 동시에 토큰 발급."""
     # 이메일 중복 체크
     result = await db.execute(select(User).where(User.email == user_in.email))
     if result.scalar_one_or_none():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="The user with this username already exists in the system.",
-        )
-    
-    # 비밀번호 해시 및 유저 생성
+        raise DuplicateEmail()
+
+    # 비밀번호 해시 + 유저 생성
     user = User(
         email=user_in.email,
         hashed_password=get_password_hash(user_in.password),
-        nickname=user_in.nickname
+        nickname=user_in.nickname,
     )
     db.add(user)
-    await db.flush() # DB에서 id 채번을 받기위해 flush
-    
-    # 기본 프로필 세팅 레코드 생성
-    default_settings = UserSettings(user_id=user.id)
-    db.add(default_settings)
-    
-    await db.commit()
-    return {"success": True, "message": "User registered successfully"}
+    await db.flush()  # id 채번
 
-@router.post("/login", response_model=TokenResponse)
+    # 기본 설정 레코드
+    db.add(UserSettings(user_id=user.id))
+    await db.commit()
+
+    # 토큰 발급 후 명세 SignupResponse 반환
+    access = create_access_token(subject=user.id)
+    refresh = create_refresh_token(subject=user.id)
+    payload = SignupResponse(
+        user_id=user.id,
+        email=user.email,
+        nickname=user.nickname,
+        access_token=access,
+        refresh_token=refresh,
+    )
+    return success_response(payload.model_dump(by_alias=True))
+
+
+@router.post("/login")
 async def login(user_in: UserLogin, db: AsyncSession = Depends(get_db)):
-    # 유저 조회
+    """API-02 로그인."""
     result = await db.execute(select(User).where(User.email == user_in.email))
     user = result.scalar_one_or_none()
-    
-    # 인증 실패
+
     if not user or not verify_password(user_in.password, user.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-        )
-        
-    # 토큰 발급
-    access_token = create_access_token(subject=user.id)
-    
-    return {"access_token": access_token, "token_type": "bearer"}
+        raise Unauthorized("Incorrect email or password")
 
-@router.post("/refresh", response_model=TokenResponse)
-async def refresh_token(
-    request: RefreshRequest,
-    db: AsyncSession = Depends(get_db)
-):
-    try:
-        from core.security import ALGORITHM
-        from jose import jwt, JWTError
-        from core.config import settings
-        
-        payload = jwt.decode(
-            request.refresh_token, settings.SECRET_KEY, algorithms=[ALGORITHM] # 시크릿 공유
-        )
-        token_uid = payload.get("sub")
-        if not token_uid: raise JWTError()
-    except (JWTError):
-        raise HTTPException(status_code=401, detail="Invalid refresh token")
-    
-    access_token = create_access_token(subject=token_uid)
-    return {"access_token": access_token, "token_type": "bearer"}
+    access = create_access_token(subject=user.id)
+    refresh = create_refresh_token(subject=user.id)
+    payload = LoginResponse(
+        user_id=user.id,
+        access_token=access,
+        refresh_token=refresh,
+    )
+    return success_response(payload.model_dump(by_alias=True))
 
+
+@router.post("/refresh")
+async def refresh_token(request: RefreshRequest):
+    """API-03 토큰 갱신. refresh 검증 후 access + refresh 모두 새로 발급(rotation)."""
+    payload = decode_refresh_token(request.refresh_token)
+    sub = payload.get("sub")
+    if not sub:
+        raise Unauthorized("Invalid refresh token payload")
+
+    new_access = create_access_token(subject=sub)
+    new_refresh = create_refresh_token(subject=sub)
+    body = RefreshResponse(access_token=new_access, refresh_token=new_refresh)
+    return success_response(body.model_dump(by_alias=True))

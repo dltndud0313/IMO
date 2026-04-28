@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # 백엔드 서버
   api:
@@ -9,9 +7,16 @@ services:
       - "8000:8000"
     environment:
       - DATABASE_URL=postgresql+asyncpg://imo_user:imo_pass@db:5432/imo_db
-      - JWT_SECRET=super_secret_key_change_in_production
+      - JWT_SECRET=dev_only_access_secret_change_me
+      - JWT_REFRESH_SECRET=dev_only_refresh_secret_change_me
+      - CORS_ORIGINS=*
     depends_on:
       - db
+    # 개발 편의: 호스트 코드를 컨테이너에 마운트 → 코드 수정/마이그레이션 파일이
+    # 즉시 양쪽에 반영. 운영(EC2) 배포 시에는 이 volumes 블록을 제거하거나
+    # docker-compose.override.yml 로 분리할 것.
+    volumes:
+      - ./:/app
     networks:
       - imo_net
 
@@ -27,8 +32,8 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      # 아까 생성한 스키마 파일을 초기 설정 위치로 마운트하여 DB 생성 시 자동 실행되게 함
-      - ./backend_db_schema.sql:/docker-entrypoint-initdb.d/init.sql
+      # 스키마는 Alembic 마이그레이션이 관리한다 (entrypoint.sh 에서 실행).
+      # backend_db_schema.sql 은 MySQL 문법 — Postgres 와 호환되지 않아 마운트하지 않음.
     networks:
       - imo_net
 
