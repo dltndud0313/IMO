@@ -1,13 +1,11 @@
 import '../../domain/models/workout_session.dart';
 import '../services/api_service.dart';
-import '../services/local_db_service.dart';
 
 /// 세션 기록 CRUD (서버와 동기화)
 class SessionHistoryRepository {
   final ApiService _api;
-  final LocalDbService _localDb;
 
-  SessionHistoryRepository(this._api, this._localDb);
+  SessionHistoryRepository(this._api);
 
   /// 운동 종료 시 기록 저장 
   Future<String> saveSession(WorkoutSession session) async {

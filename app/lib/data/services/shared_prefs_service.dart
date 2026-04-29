@@ -1,4 +1,4 @@
-import 'package:shared_preferences/package:shared_preferences.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// 앱 전반의 설정 및 인증 토큰 저장 관리
 class SharedPrefsService {
