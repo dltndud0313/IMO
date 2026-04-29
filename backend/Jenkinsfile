@@ -126,11 +126,11 @@ pipeline {
         }
         success {
             echo '배포 성공'
-            script { notifyMattermost(':jenkins7:', 'Deploy 성공 ✅') }
+            script { notifyMattermost(':jenkins7:', 'Deploy 성공 ✅ [test]') }
         }
         failure {
             echo '배포 실패'
-            script { notifyMattermost(':angry_jenkins:', 'Deploy 실패 ❌') }
+            script { notifyMattermost(':angry_jenkins:', 'Deploy 실패 ❌ [test]') }
         }
     }
 }
