@@ -1,137 +1,230 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:developer';
+
 import 'package:web_socket_channel/web_socket_channel.dart';
+
 import 'pi_message.dart';
 
-/// 1페이지 요약본 규격에 맞춘 Pi WebSocket 연결 서비스
+enum PiSocketConnectionState {
+  disconnected,
+  connecting,
+  connected,
+}
+
 class PiSocketService {
-  WebSocketChannel? _channel;
+  PiSocketService({
+    String url = 'ws://192.168.0.100:8765',
+  }) : _url = url;
+
   final String _url;
-  
-  // 수신된 10종의 이벤트를 앱 내부에 브로드캐스팅하는 스트림
+  WebSocketChannel? _channel;
+  StreamSubscription<dynamic>? _subscription;
+
   final _messageController = StreamController<PiMessage>.broadcast();
-  Stream<PiMessage> get messageStream => _messageController.stream;
+  final _connectionController =
+      StreamController<PiSocketConnectionState>.broadcast();
 
-  bool get isConnected => _channel != null;
+  PiSocketConnectionState _connectionState =
+      PiSocketConnectionState.disconnected;
 
-  PiSocketService({String url = 'ws://192.168.0.100:8765'}) : _url = url;
+  Stream<PiMessage> get messages => _messageController.stream;
+  Stream<PiSocketConnectionState> get connectionState =>
+      _connectionController.stream;
+
+  bool get isConnected => _connectionState == PiSocketConnectionState.connected;
+
+  Stream<T> messagesOf<T extends PiMessage>() {
+    return messages.where((message) => message is T).cast<T>();
+  }
 
   Future<void> connect() async {
-    if (isConnected) return;
+    if (_connectionState == PiSocketConnectionState.connecting ||
+        _connectionState == PiSocketConnectionState.connected) {
+      return;
+    }
+
+    _setConnectionState(PiSocketConnectionState.connecting);
+
     try {
-      final uri = Uri.parse(_url);
-      _channel = WebSocketChannel.connect(uri);
-      
-      _channel!.stream.listen(
-        (data) {
-          try {
-            final jsonMap = jsonDecode(data as String) as Map<String, dynamic>;
-            final message = PiMessage.tryParse(jsonMap);
-            if (message != null) {
-              log('📥 [Pi Socket Received] ${message.type}');
-              _messageController.add(message);
-            } else {
-              log('⚠️ [Pi Socket] 파싱 실패 또는 무시된 이벤트: $data');
-            }
-          } catch (e) {
-            log('🚨 [Pi Socket Error] JSON 해석 실패: $e\nData: $data');
-          }
-        },
-        onError: (error) {
-          log('🚨 [Pi Socket Error] 연결 오류 발생: $error');
-          _disconnectInternal();
-        },
-        onDone: () {
-          log('🔌 [Pi Socket] Pi와의 연결이 종료되었습니다.');
-          _disconnectInternal();
-        },
+      final channel = WebSocketChannel.connect(Uri.parse(_url));
+      _channel = channel;
+      _subscription = channel.stream.listen(
+        _handleRawMessage,
+        onError: _handleSocketError,
+        onDone: _handleSocketDone,
+        cancelOnError: true,
       );
-      log('✅ [Pi Socket] 연결 완료: $_url');
-    } catch (e) {
-      log('🚨 [Pi Socket Error] 연결 실패: $e');
+      _setConnectionState(PiSocketConnectionState.connected);
+    } catch (error, stackTrace) {
+      log(
+        '[PiSocketService] connect failed',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      await disconnect();
       rethrow;
     }
   }
 
-  void _disconnectInternal() {
-    _channel?.sink.close();
+  Future<void> disconnect() async {
+    await _subscription?.cancel();
+    _subscription = null;
+    await _channel?.sink.close();
     _channel = null;
+    _setConnectionState(PiSocketConnectionState.disconnected);
   }
 
-  void disconnect() {
-    _disconnectInternal();
-  }
-
-  /// 공통 메시지 전송 로직
-  void _send(String type, Map<String, dynamic> payload) {
-    if (!isConnected) {
-      log('⚠️ [Pi Socket Error] 전송 불가: Socket 연결 안 됨');
-      return;
+  void send(OutgoingPiMessage message) {
+    if (!isConnected || _channel == null) {
+      throw StateError('Pi socket is not connected.');
     }
-    final frame = {
-      'type': type,
-      'payload': payload,
-    };
-    log('📤 [Pi Socket Send] $type');
-    _channel!.sink.add(jsonEncode(frame));
+
+    _channel!.sink.add(jsonEncode(message.toJson()));
   }
 
-  // ═══════════════════════════════════════════════════════════
-  //  App → Pi 발신 함수들 (주로 제어 명령 처리)
-  // ═══════════════════════════════════════════════════════════
-
-  /// 3-1. 운동 선택 및 계획(세트/횟수/휴식시간) 병합 전송
   void submitWorkoutPlan({
     required String exerciseType,
     required int setCount,
     required List<int> targetRepsPerSet,
     required int restSec,
   }) {
-    _send('submit_workout_plan', {
-      'exercise_type': exerciseType,
-      'set_count': setCount,
-      'target_reps_per_set': targetRepsPerSet,
-      'rest_sec': restSec,
-    });
+    send(
+      OutgoingPiMessage(
+        type: PiMessageType.submitWorkoutPlan,
+        payload: {
+          'exercise_type': exerciseType,
+          'set_count': setCount,
+          'target_reps_per_set': targetRepsPerSet,
+          'rest_sec': restSec,
+        },
+      ),
+    );
   }
 
-  /// 3-2. 캘리브레이션 시작 측정 명령어
-  void startCalibration(String exerciseType) {
-    _send('start_calibration', {
-      'exercise_type': exerciseType,
-    });
+  void startCalibration({
+    required String exerciseType,
+  }) {
+    send(
+      OutgoingPiMessage(
+        type: PiMessageType.startCalibration,
+        payload: {
+          'exercise_type': exerciseType,
+        },
+      ),
+    );
   }
 
-  /// 3-4. 비상 중지 (즉각 근 활성도 한계점 등에서 기기 차단용)
-  void emergencyStop({String reason = 'user_emergency'}) {
-    _send('emergency_stop', {'reason': reason});
+  void pauseWorkout({
+    String reason = 'user_request',
+  }) {
+    send(
+      OutgoingPiMessage(
+        type: PiMessageType.pauseWorkout,
+        payload: {
+          'reason': reason,
+        },
+      ),
+    );
   }
 
-  /// 3-5. 사용자에 의한 일반 운동 중단
-  void stopWorkout({String reason = 'user_request', bool saveResult = true}) {
-    _send('stop_workout', {
-      'reason': reason,
-      'save_result': saveResult,
-    });
+  void resumeWorkout({
+    String reason = 'user_request',
+  }) {
+    send(
+      OutgoingPiMessage(
+        type: PiMessageType.resumeWorkout,
+        payload: {
+          'reason': reason,
+        },
+      ),
+    );
   }
 
-  /// 3-6. 운동 중단 (전화왔거나 휴식)
-  void pauseWorkout({String reason = 'user_request'}) {
-    _send('pause_workout', {
-      'reason': reason,
-    });
+  void stopWorkout({
+    String reason = 'user_request',
+    bool saveResult = true,
+  }) {
+    send(
+      OutgoingPiMessage(
+        type: PiMessageType.stopWorkout,
+        payload: {
+          'reason': reason,
+          'save_result': saveResult,
+        },
+      ),
+    );
   }
 
-  /// 3-7. 운동 재개
-  void resumeWorkout({String reason = 'user_request'}) {
-    _send('resume_workout', {
-      'reason': reason,
-    });
+  void emergencyStop({
+    String reason = 'user_emergency',
+  }) {
+    send(
+      OutgoingPiMessage(
+        type: PiMessageType.emergencyStop,
+        payload: {
+          'reason': reason,
+        },
+      ),
+    );
   }
 
-  void dispose() {
-    disconnect();
-    _messageController.close();
+  Future<void> dispose() async {
+    await disconnect();
+    await _messageController.close();
+    await _connectionController.close();
+  }
+
+  void _handleRawMessage(dynamic rawData) {
+    if (rawData is! String) {
+      log('[PiSocketService] ignored non-string message: $rawData');
+      return;
+    }
+
+    try {
+      final decoded = jsonDecode(rawData);
+      if (decoded is! Map<String, dynamic>) {
+        log('[PiSocketService] ignored non-object JSON: $rawData');
+        return;
+      }
+
+      final message = PiMessage.tryParse(decoded);
+      if (message == null) {
+        log('[PiSocketService] ignored invalid Pi message: $rawData');
+        return;
+      }
+
+      _messageController.add(message);
+    } catch (error, stackTrace) {
+      log(
+        '[PiSocketService] message parse failed: $rawData',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
+  void _handleSocketError(Object error, StackTrace stackTrace) {
+    log(
+      '[PiSocketService] socket error',
+      error: error,
+      stackTrace: stackTrace,
+    );
+    unawaited(disconnect());
+  }
+
+  void _handleSocketDone() {
+    unawaited(disconnect());
+  }
+
+  void _setConnectionState(PiSocketConnectionState state) {
+    if (_connectionState == state) {
+      return;
+    }
+
+    _connectionState = state;
+    if (!_connectionController.isClosed) {
+      _connectionController.add(state);
+    }
   }
 }
