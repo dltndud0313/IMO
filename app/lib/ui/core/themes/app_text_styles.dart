@@ -65,4 +65,24 @@ abstract final class AppTextStyles {
     fontWeight: FontWeight.w800,
     height: 1.1,
   );
+
+  // Compatibility aliases for Figma Make component mapping.
+  static const displayLg = metric;
+  static const headingLg = title;
+  static const headingMd = sectionTitle;
+  static const titleMd = label;
+  static const titleSm = TextStyle(
+    color: AppColors.textPrimary,
+    fontSize: 15,
+    fontWeight: FontWeight.w600,
+    height: 1.4,
+  );
+  static const bodyLg = TextStyle(
+    color: AppColors.textPrimary,
+    fontSize: 16,
+    fontWeight: FontWeight.w400,
+    height: 1.5,
+  );
+  static const bodyMd = body;
+  static const bodySm = bodySmall;
 }

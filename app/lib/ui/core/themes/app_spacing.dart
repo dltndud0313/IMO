@@ -15,9 +15,13 @@ abstract final class AppSpacing {
   static const double heroSectionGap = 32;
 
   static const double buttonHeight = 52;
+  static const double buttonHeightMd = 44;
+  static const double buttonHeightSm = 36;
   static const double buttonRadius = 16;
   static const double cardRadius = 20;
   static const double heroCardRadius = 24;
+  static const double appBarHeight = 56;
+  static const double bottomNavHeight = 68;
   static const double pillRadius = 999;
   static const double borderWidth = 1;
 }
