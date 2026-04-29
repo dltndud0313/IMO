@@ -8,6 +8,7 @@ import '../ui/history/widgets/history_detail_screen.dart';
 import '../ui/home/view_model/home_viewmodel.dart';
 import '../ui/home/widgets/home_screen.dart';
 import '../ui/mypage/widgets/mypage_screen.dart';
+import '../ui/mypage/widgets/profile_edit_screen.dart';
 import '../ui/onboarding/widgets/onboarding_screen.dart';
 import '../ui/session_result/widgets/session_result_screen.dart';
 import '../ui/stats/widgets/stats_screen.dart';
@@ -97,6 +98,10 @@ GoRouter buildRouter() {
         builder: (context, state) => HistoryDetailScreen(
           sessionId: state.uri.queryParameters['session'] ?? 'sess_20260427_001',
         ),
+      ),
+      GoRoute(
+        path: '/profile-edit',
+        builder: (context, state) => const ProfileEditScreen(),
       ),
     ],
   );
