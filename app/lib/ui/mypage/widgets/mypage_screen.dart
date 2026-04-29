@@ -20,19 +20,19 @@ class _MyPageScreenState extends State<MyPageScreen> {
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
-      title: 'My Page',
-      subtitle: 'Profile and settings',
+      title: '내 정보',
+      subtitle: '프로필 및 설정',
       scrollable: true,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _ProfileCard(onEdit: () => context.go('/profile-edit')),
           const SizedBox(height: AppSpacing.sectionGap),
-          Text('Devices', style: AppTextStyles.sectionTitle),
+          Text('기기', style: AppTextStyles.sectionTitle),
           const SizedBox(height: AppSpacing.sm),
           _DeviceStatusCard(onTap: () => context.go('/wearable-settings')),
           const SizedBox(height: AppSpacing.sectionGap),
-          Text('App settings', style: AppTextStyles.sectionTitle),
+          Text('앱 설정', style: AppTextStyles.sectionTitle),
           const SizedBox(height: AppSpacing.sm),
           ImoCard(
             paddingSize: ImoCardPadding.none,
@@ -40,7 +40,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
               children: [
                 _SettingsRow(
                   icon: Icons.volume_up_rounded,
-                  label: 'Voice cue',
+                  label: '음성 안내',
                   trailing: Switch(
                     value: _voiceCue,
                     activeThumbColor: AppColors.primary,
@@ -50,7 +50,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
                 const Divider(height: 1, color: AppColors.divider),
                 _SettingsRow(
                   icon: Icons.vibration_rounded,
-                  label: 'Haptic cue',
+                  label: '진동 안내',
                   trailing: Switch(
                     value: _hapticCue,
                     activeThumbColor: AppColors.primary,
@@ -60,7 +60,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
                 const Divider(height: 1, color: AppColors.divider),
                 _SettingsRow(
                   icon: Icons.dark_mode_rounded,
-                  label: 'Dark mode',
+                  label: '다크 모드',
                   trailing: Switch(
                     value: _darkMode,
                     activeThumbColor: AppColors.primary,
@@ -71,7 +71,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
             ),
           ),
           const SizedBox(height: AppSpacing.sectionGap),
-          Text('Account', style: AppTextStyles.sectionTitle),
+          Text('계정', style: AppTextStyles.sectionTitle),
           const SizedBox(height: AppSpacing.sm),
           ImoCard(
             paddingSize: ImoCardPadding.none,
@@ -79,28 +79,28 @@ class _MyPageScreenState extends State<MyPageScreen> {
               children: [
                 _SettingsRow(
                   icon: Icons.info_outline_rounded,
-                  label: 'App version',
+                  label: '앱 버전',
                   trailing: Text('1.0.0', style: AppTextStyles.caption),
                 ),
                 const Divider(height: 1, color: AppColors.divider),
                 _SettingsRow(
                   icon: Icons.delete_outline_rounded,
-                  label: 'Clear local history',
+                  label: '로컬 기록 삭제',
                   danger: true,
                   onTap: () => _showSimpleDialog(
                     context,
-                    title: 'Clear local history',
-                    message: 'This will clear local workout history later.',
+                    title: '로컬 기록 삭제',
+                    message: '추후 로컬 운동 기록 삭제 기능이 연결됩니다.',
                   ),
                 ),
                 const Divider(height: 1, color: AppColors.divider),
                 _SettingsRow(
                   icon: Icons.logout_rounded,
-                  label: 'Log out',
+                  label: '로그아웃',
                   onTap: () => _showSimpleDialog(
                     context,
-                    title: 'Log out',
-                    message: 'Login flow will be connected later.',
+                    title: '로그아웃',
+                    message: '추후 로그인 플로우와 연결됩니다.',
                   ),
                 ),
               ],
@@ -124,7 +124,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
+            child: const Text('확인'),
           ),
         ],
       ),
@@ -162,14 +162,14 @@ class _ProfileCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('IMO User', style: AppTextStyles.sectionTitle),
+                Text('IMO 사용자', style: AppTextStyles.sectionTitle),
                 const SizedBox(height: AppSpacing.xxs),
-                Text('28 · 170cm · 65kg', style: AppTextStyles.caption),
+                Text('28세 · 170cm · 65kg', style: AppTextStyles.caption),
               ],
             ),
           ),
           ImoButton(
-            label: 'Edit',
+            label: '수정',
             size: ImoButtonSize.sm,
             variant: ImoButtonVariant.outline,
             fullWidth: false,
@@ -198,7 +198,7 @@ class _DeviceStatusCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text('Wearable devices', style: AppTextStyles.label),
+                child: Text('웨어러블 기기', style: AppTextStyles.label),
               ),
               Icon(
                 Icons.chevron_right_rounded,
@@ -211,13 +211,13 @@ class _DeviceStatusCard extends StatelessWidget {
             spacing: AppSpacing.xs,
             runSpacing: AppSpacing.xs,
             children: [
-              StatusBadge(label: 'Pi standby', variant: StatusVariant.info),
+              StatusBadge(label: 'Pi 대기 중', variant: StatusVariant.info),
               StatusBadge(
-                label: 'ESP32 pending',
+                label: 'ESP32 대기',
                 variant: StatusVariant.neutral,
               ),
               StatusBadge(
-                label: 'Glass pending',
+                label: '글래스 대기',
                 variant: StatusVariant.neutral,
               ),
             ],
