@@ -65,11 +65,11 @@ class _PlanSettingScreenState extends State<PlanSettingScreen> {
   Widget build(BuildContext context) {
     return AppScaffold(
       title: _exerciseTitle,
-      subtitle: 'Workout plan',
+      subtitle: '운동 계획',
       showBackButton: true,
       scrollable: true,
       bottom: ImoButton(
-        label: 'Continue',
+        label: '다음',
         rightIcon: const Icon(Icons.arrow_forward_rounded),
         onPressed: () => context.go('/sensor-guide?exercise=${widget.exerciseId}'),
       ),
@@ -156,14 +156,14 @@ class _PlanSummaryHeader extends StatelessWidget {
                 Text(exerciseTitle, style: AppTextStyles.sectionTitle),
                 const SizedBox(height: AppSpacing.xxs),
                 Text(
-                  '$setCount sets · $totalReps target reps',
+                  '$setCount세트 · 목표 $totalReps회',
                   style: AppTextStyles.bodySmall,
                 ),
               ],
             ),
           ),
           const ImoChip(
-            label: 'Draft',
+            label: '작성 중',
             variant: ImoChipVariant.selected,
           ),
         ],
@@ -187,10 +187,10 @@ class _SetCountCard extends StatelessWidget {
       paddingSize: ImoCardPadding.lg,
       child: Row(
         children: [
-          Expanded(
+          const Expanded(
             child: _SettingTitle(
-              title: 'Set count',
-              description: 'Choose how many sets to perform.',
+              title: '세트 수',
+              description: '진행할 세트 수를 정합니다.',
             ),
           ),
           _NumberStepper(
@@ -233,12 +233,12 @@ class _RepsCard extends StatelessWidget {
             children: [
               const Expanded(
                 child: _SettingTitle(
-                  title: 'Target reps',
-                  description: 'Use the same reps or customize each set.',
+                  title: '목표 횟수',
+                  description: '전체 동일 횟수 또는 세트별 횟수를 정합니다.',
                 ),
               ),
               ImoChip(
-                label: perSetMode ? 'Per set' : 'Same',
+                label: perSetMode ? '세트별' : '동일',
                 variant: perSetMode
                     ? ImoChipVariant.selected
                     : ImoChipVariant.defaultChip,
@@ -251,7 +251,7 @@ class _RepsCard extends StatelessWidget {
           if (!perSetMode)
             Row(
               children: [
-                Text('Every set', style: AppTextStyles.label),
+                Text('모든 세트', style: AppTextStyles.label),
                 const Spacer(),
                 _NumberStepper(
                   value: repsPerSet.first,
@@ -299,7 +299,7 @@ class _PerSetRepsRow extends StatelessWidget {
       paddingSize: ImoCardPadding.sm,
       child: Row(
         children: [
-          Text('Set ${index + 1}', style: AppTextStyles.label),
+          Text('${index + 1}세트', style: AppTextStyles.label),
           const Spacer(),
           _NumberStepper(
             value: value,
@@ -330,8 +330,8 @@ class _RestTimeCard extends StatelessWidget {
         children: [
           const Expanded(
             child: _SettingTitle(
-              title: 'Rest time',
-              description: 'Set the rest time between sets.',
+              title: '휴식 시간',
+              description: '세트 사이 휴식 시간을 정합니다.',
             ),
           ),
           _NumberStepper(
@@ -339,7 +339,7 @@ class _RestTimeCard extends StatelessWidget {
             min: 30,
             max: 300,
             step: 15,
-            suffix: 's',
+            suffix: '초',
             onChanged: onChanged,
           ),
         ],
@@ -369,15 +369,15 @@ class _PlanTotalCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Plan summary', style: AppTextStyles.label),
+          Text('계획 요약', style: AppTextStyles.label),
           const SizedBox(height: AppSpacing.md),
-          _SummaryLine(label: 'Sets', value: '$setCount'),
+          _SummaryLine(label: '세트', value: '$setCount'),
           const SizedBox(height: AppSpacing.xs),
-          _SummaryLine(label: 'Target reps', value: '$totalReps'),
+          _SummaryLine(label: '목표 횟수', value: '$totalReps'),
           const SizedBox(height: AppSpacing.xs),
-          _SummaryLine(label: 'Rest', value: '${restSeconds}s'),
+          _SummaryLine(label: '휴식', value: '$restSeconds초'),
           const SizedBox(height: AppSpacing.xs),
-          _SummaryLine(label: 'Estimated time', value: '$estimatedMinutes min'),
+          _SummaryLine(label: '예상 시간', value: '$estimatedMinutes분'),
         ],
       ),
     );
@@ -399,10 +399,7 @@ class _SummaryLine extends StatelessWidget {
       children: [
         Text(label, style: AppTextStyles.bodySmall),
         const Spacer(),
-        Text(
-          value,
-          style: AppTextStyles.label,
-        ),
+        Text(value, style: AppTextStyles.label),
       ],
     );
   }
@@ -515,7 +512,7 @@ class _StepperButton extends StatelessWidget {
 }
 
 const _exerciseNames = {
-  'pushup': 'Push-up',
-  'lateral_raise': 'Lateral raise',
-  'bicep_curl': 'Bicep curl',
+  'pushup': '푸시업',
+  'lateral_raise': '사이드 레터럴 레이즈',
+  'bicep_curl': '바이셉 컬',
 };
