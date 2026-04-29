@@ -40,11 +40,11 @@ class _SensorGuideScreenState extends State<SensorGuideScreen> {
   Widget build(BuildContext context) {
     return AppScaffold(
       title: _config.title,
-      subtitle: 'Sensor placement',
+      subtitle: '센서 부착',
       showBackButton: true,
       scrollable: true,
       bottom: ImoButton(
-        label: _allChecked ? 'Start calibration' : 'Check all sensors',
+        label: _allChecked ? '캘리브레이션 시작' : '센서 확인 필요',
         disabled: !_allChecked,
         rightIcon: const Icon(Icons.arrow_forward_rounded),
         onPressed: _allChecked
@@ -56,7 +56,7 @@ class _SensorGuideScreenState extends State<SensorGuideScreen> {
         children: [
           _SensorMapCard(config: _config),
           const SizedBox(height: AppSpacing.sectionGap),
-          Text('Placement checklist', style: AppTextStyles.sectionTitle),
+          Text('부착 체크리스트', style: AppTextStyles.sectionTitle),
           const SizedBox(height: AppSpacing.sm),
           for (final sensor in _config.sensors) ...[
             _SensorCheckTile(
@@ -95,10 +95,10 @@ class _SensorMapCard extends StatelessWidget {
                 size: 18,
               ),
               const SizedBox(width: AppSpacing.xs),
-              Text('Attachment map', style: AppTextStyles.label),
+              Text('센서 부착 위치', style: AppTextStyles.label),
               const Spacer(),
               StatusBadge(
-                label: '${config.sensors.length} sensors',
+                label: '센서 ${config.sensors.length}개',
                 variant: StatusVariant.info,
               ),
             ],
@@ -259,7 +259,7 @@ class _SensorCheckTile extends StatelessWidget {
             ),
           ),
           StatusBadge(
-            label: checked ? 'Checked' : 'Pending',
+            label: checked ? '확인됨' : '대기',
             variant: checked ? StatusVariant.success : StatusVariant.neutral,
           ),
         ],
@@ -287,15 +287,15 @@ class _SensorNoticeCard extends StatelessWidget {
                 color: AppColors.primaryStrong,
               ),
               const SizedBox(width: AppSpacing.xs),
-              Text('Before calibration', style: AppTextStyles.label),
+              Text('캘리브레이션 전 확인', style: AppTextStyles.label),
             ],
           ),
           const SizedBox(height: AppSpacing.md),
-          const _NoticeLine('Attach sensors firmly to clean, dry skin.'),
+          const _NoticeLine('깨끗하고 건조한 피부에 센서를 단단히 부착합니다.'),
           const SizedBox(height: AppSpacing.xs),
-          const _NoticeLine('Keep the sensor order consistent with the map.'),
+          const _NoticeLine('센서 순서가 부착 위치 안내와 일치하는지 확인합니다.'),
           const SizedBox(height: AppSpacing.xs),
-          const _NoticeLine('Check that the IMU is stable before moving on.'),
+          const _NoticeLine('다음 단계로 이동하기 전에 IMU가 안정적인지 확인합니다.'),
         ],
       ),
     );
@@ -353,99 +353,99 @@ class _SensorInfo {
 
 const _sensorConfigs = {
   'pushup': _SensorConfig(
-    title: 'Push-up',
+    title: '푸시업',
     sensors: [
       _SensorInfo(
         id: 'emg_1',
         label: 'EMG 1',
-        position: 'Chest',
+        position: '가슴',
         top: 72,
         left: 92,
       ),
       _SensorInfo(
         id: 'emg_2',
         label: 'EMG 2',
-        position: 'Shoulder',
+        position: '어깨',
         top: 96,
         right: 54,
       ),
       _SensorInfo(
         id: 'emg_3',
         label: 'EMG 3',
-        position: 'Triceps',
+        position: '삼두',
         top: 56,
         right: 86,
       ),
       _SensorInfo(
         id: 'imu_1',
         label: 'IMU',
-        position: 'Upper back',
+        position: '상부 등',
         top: 132,
         left: 112,
       ),
     ],
   ),
   'lateral_raise': _SensorConfig(
-    title: 'Lateral raise',
+    title: '사이드 레터럴 레이즈',
     sensors: [
       _SensorInfo(
         id: 'emg_1',
         label: 'EMG 1',
-        position: 'Side deltoid',
+        position: '측면 삼각근',
         top: 64,
         right: 56,
       ),
       _SensorInfo(
         id: 'emg_2',
         label: 'EMG 2',
-        position: 'Upper trapezius',
+        position: '상부 승모근',
         top: 44,
         left: 108,
       ),
       _SensorInfo(
         id: 'emg_3',
         label: 'EMG 3',
-        position: 'Rear shoulder',
+        position: '후면 어깨',
         top: 72,
         left: 64,
       ),
       _SensorInfo(
         id: 'imu_1',
         label: 'IMU',
-        position: 'Wrist',
+        position: '손목',
         top: 148,
         right: 42,
       ),
     ],
   ),
   'bicep_curl': _SensorConfig(
-    title: 'Bicep curl',
+    title: '바이셉 컬',
     sensors: [
       _SensorInfo(
         id: 'emg_1',
         label: 'EMG 1',
-        position: 'Biceps',
+        position: '이두',
         top: 104,
         left: 54,
       ),
       _SensorInfo(
         id: 'emg_2',
         label: 'EMG 2',
-        position: 'Forearm',
+        position: '전완',
         top: 148,
         left: 46,
       ),
       _SensorInfo(
         id: 'emg_3',
         label: 'EMG 3',
-        position: 'Shoulder',
+        position: '어깨',
         top: 80,
         right: 58,
       ),
       _SensorInfo(
         id: 'imu_1',
         label: 'IMU',
-        position: 'Wrist',
+        position: '손목',
         top: 150,
         right: 46,
       ),
