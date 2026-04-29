@@ -1,5 +1,8 @@
 import 'package:get_it/get_it.dart';
+import 'package:dio/dio.dart';
 
+import '../data/services/api_service.dart';
+import '../data/services/auth_service.dart';
 import '../data/services/pi_socket_service.dart';
 import '../ui/home/view_model/home_viewmodel.dart';
 
@@ -10,6 +13,17 @@ Future<void> setupDependencies() async {
     return;
   }
 
+  getIt.registerLazySingleton<Dio>(
+    () => Dio(
+      BaseOptions(
+        baseUrl: backendApiBaseUrl,
+        connectTimeout: const Duration(seconds: 10),
+        receiveTimeout: const Duration(seconds: 10),
+      ),
+    ),
+  );
+  getIt.registerLazySingleton(() => ApiService(getIt<Dio>()));
+  getIt.registerLazySingleton(() => AuthService(getIt<Dio>()));
   getIt.registerLazySingleton(PiSocketService.new);
   getIt.registerFactory(HomeViewModel.new);
 }
