@@ -11,8 +11,8 @@ class HistoryScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
-      title: 'History',
-      subtitle: 'Workout records',
+      title: '기록',
+      subtitle: '운동 기록',
       scrollable: true,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -21,10 +21,10 @@ class HistoryScreen extends StatelessWidget {
           const SizedBox(height: AppSpacing.sectionGap),
           Row(
             children: [
-              Text('Recent sessions', style: AppTextStyles.sectionTitle),
+              Text('최근 운동', style: AppTextStyles.sectionTitle),
               const Spacer(),
               const ImoChip(
-                label: 'started_at DESC',
+                label: '최신순',
                 variant: ImoChipVariant.outline,
               ),
             ],
@@ -64,17 +64,17 @@ class _MonthSummaryCard extends StatelessWidget {
                 size: 18,
               ),
               const SizedBox(width: AppSpacing.xs),
-              Text('April summary', style: AppTextStyles.label),
+              Text('4월 요약', style: AppTextStyles.label),
               const Spacer(),
-              const StatusBadge(label: '3 sessions', variant: StatusVariant.info),
+              const StatusBadge(label: '3회 운동', variant: StatusVariant.info),
             ],
           ),
           const SizedBox(height: AppSpacing.lg),
           const Row(
             children: [
-              Expanded(child: _SummaryMetric(label: 'Sessions', value: '3')),
-              Expanded(child: _SummaryMetric(label: 'Reps', value: '96')),
-              Expanded(child: _SummaryMetric(label: 'Minutes', value: '22')),
+              Expanded(child: _SummaryMetric(label: '운동', value: '3')),
+              Expanded(child: _SummaryMetric(label: '횟수', value: '96')),
+              Expanded(child: _SummaryMetric(label: '시간', value: '22분')),
             ],
           ),
         ],
@@ -116,6 +116,8 @@ class _SessionListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final completed = session.status == '정상 완료';
+
     return ImoCard(
       interactive: true,
       onTap: onTap,
@@ -153,16 +155,14 @@ class _SessionListTile extends StatelessWidget {
                     const SizedBox(width: AppSpacing.xs),
                     StatusBadge(
                       label: session.status,
-                      variant: session.status == 'completed'
-                          ? StatusVariant.success
-                          : StatusVariant.warning,
+                      variant: completed ? StatusVariant.success : StatusVariant.warning,
                       showDot: false,
                     ),
                   ],
                 ),
                 const SizedBox(height: AppSpacing.xxs),
                 Text(
-                  '${session.startedAt} · ${session.totalReps} reps · ${session.duration}',
+                  '${session.startedAt} · ${session.totalReps}회 · ${session.duration}',
                   style: AppTextStyles.caption,
                 ),
               ],
@@ -198,7 +198,7 @@ class _HistoryQueryNotice extends StatelessWidget {
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
-              'Later this screen will query SQLite by started_at and exercise_type + started_at indexes.',
+              '추후 SQLite의 started_at, exercise_type + started_at 인덱스를 기준으로 기록을 조회합니다.',
               style: AppTextStyles.bodySmall,
             ),
           ),
@@ -229,26 +229,26 @@ class _HistorySession {
 const _sessions = [
   _HistorySession(
     id: 'sess_20260427_001',
-    exerciseName: 'Push-up',
-    startedAt: 'Apr 27, 09:28',
-    duration: '7m 12s',
+    exerciseName: '푸시업',
+    startedAt: '4월 27일 09:28',
+    duration: '7분 12초',
     totalReps: 33,
-    status: 'completed',
+    status: '정상 완료',
   ),
   _HistorySession(
     id: 'sess_20260425_001',
-    exerciseName: 'Lateral raise',
-    startedAt: 'Apr 25, 20:10',
-    duration: '8m 40s',
+    exerciseName: '사이드 레터럴 레이즈',
+    startedAt: '4월 25일 20:10',
+    duration: '8분 40초',
     totalReps: 36,
-    status: 'completed',
+    status: '정상 완료',
   ),
   _HistorySession(
     id: 'sess_20260422_001',
-    exerciseName: 'Bicep curl',
-    startedAt: 'Apr 22, 18:42',
-    duration: '6m 50s',
+    exerciseName: '바이셉 컬',
+    startedAt: '4월 22일 18:42',
+    duration: '6분 50초',
     totalReps: 27,
-    status: 'stopped',
+    status: '중단',
   ),
 ];
