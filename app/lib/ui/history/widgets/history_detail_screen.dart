@@ -15,7 +15,7 @@ class HistoryDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
-      title: 'History Detail',
+      title: '기록 상세',
       subtitle: sessionId,
       showBackButton: true,
       scrollable: true,
@@ -67,13 +67,13 @@ class _DetailHeroCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Push-up', style: AppTextStyles.sectionTitle),
+                Text('푸시업', style: AppTextStyles.sectionTitle),
                 const SizedBox(height: AppSpacing.xxs),
-                Text('Apr 27, 2026 · 09:28', style: AppTextStyles.caption),
+                Text('2026년 4월 27일 09:28', style: AppTextStyles.caption),
               ],
             ),
           ),
-          const StatusBadge(label: 'completed', variant: StatusVariant.success),
+          const StatusBadge(label: '정상 완료', variant: StatusVariant.success),
         ],
       ),
     );
@@ -93,10 +93,10 @@ class _DetailMetricGrid extends StatelessWidget {
       mainAxisSpacing: AppSpacing.sm,
       childAspectRatio: 1.45,
       children: const [
-        _DetailMetric(label: 'Total reps', value: '33'),
-        _DetailMetric(label: 'Valid reps', value: '31'),
-        _DetailMetric(label: 'Duration', value: '7m 12s'),
-        _DetailMetric(label: 'Compensation', value: '4'),
+        _DetailMetric(label: '총 횟수', value: '33'),
+        _DetailMetric(label: '유효 횟수', value: '31'),
+        _DetailMetric(label: '운동 시간', value: '7분 12초'),
+        _DetailMetric(label: '보상동작', value: '4'),
       ],
     );
   }
@@ -138,13 +138,13 @@ class _DetailSetCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Set logs', style: AppTextStyles.label),
+          Text('세트 로그', style: AppTextStyles.label),
           const SizedBox(height: AppSpacing.md),
-          const _SetLogLine(index: 1, reps: '12 / 12', speed: 'normal'),
+          const _SetLogLine(index: 1, reps: '12 / 12', speed: '보통'),
           const SizedBox(height: AppSpacing.sm),
-          const _SetLogLine(index: 2, reps: '12 / 12', speed: 'normal'),
+          const _SetLogLine(index: 2, reps: '12 / 12', speed: '보통'),
           const SizedBox(height: AppSpacing.sm),
-          const _SetLogLine(index: 3, reps: '9 / 10', speed: 'slow'),
+          const _SetLogLine(index: 3, reps: '9 / 10', speed: '느림'),
         ],
       ),
     );
@@ -166,9 +166,9 @@ class _SetLogLine extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Text('Set $index', style: AppTextStyles.label),
+        Text('$index세트', style: AppTextStyles.label),
         const Spacer(),
-        Text('$reps reps · $speed', style: AppTextStyles.bodySmall),
+        Text('$reps회 · $speed', style: AppTextStyles.bodySmall),
       ],
     );
   }
@@ -193,7 +193,7 @@ class _DetailInsightCard extends StatelessWidget {
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
-              'Detail will later be loaded by session_id and rep logs will use session_id + rep_number index order.',
+              '추후 session_id 기준으로 상세 데이터를 불러오고, 반복 로그는 session_id + rep_number 인덱스 순서로 조회합니다.',
               style: AppTextStyles.bodySmall,
             ),
           ),
