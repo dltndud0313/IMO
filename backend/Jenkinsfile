@@ -8,14 +8,19 @@ import groovy.json.JsonOutput
 
 def notifyMattermost(String emoji, String title) {
     // Pull develop 단계에서 capture 한 커밋 정보 사용. 그 단계 전에 죽으면 '-'.
-    def hash   = env.DEPLOY_HASH   ?: '-'
-    def msg    = env.DEPLOY_MSG    ?: '-'
-    def author = env.DEPLOY_AUTHOR ?: '-'
+    def sha = env.DEPLOY_SHA ?: '-'
+    def msg = env.DEPLOY_MSG ?: '-'
 
-    def text = "${emoji} **${title}**\n" +
+    def commitText = msg
+    if (sha != '-') {
+        commitText = "[${msg}](${env.REPO_WEB_URL}/-/commit/${sha})"
+    }
+
+    def text = "# ${emoji} ${title}\n\n" +
+               "**알림**: @here\n" +
                "**브랜치**: develop\n" +
-               "**커밋**: `${hash}` ${msg} _by ${author}_\n" +
-               "[#${env.BUILD_NUMBER} 빌드 보기](${env.BUILD_URL})"
+               "**커밋**: ${commitText}\n" +
+               "**Jenkins**: [빌드 보기](${env.BUILD_URL})"
 
     // JsonOutput.toJson 으로 escape 안전 처리 (한글/특수문자/줄바꿈 모두 OK)
     def json = JsonOutput.toJson([text: text])
@@ -34,6 +39,7 @@ pipeline {
         BACKEND_DIR  = '/home/ubuntu/S14P31C203/backend'
         COMPOSE_FILE = 'docker-compose.ec2.yml'
         HEALTH_URL   = 'http://127.0.0.1:8000/'
+        REPO_WEB_URL = 'https://lab.ssafy.com/s14-final/S14P31C203'
     }
 
     options {
@@ -67,9 +73,8 @@ pipeline {
                 }
                 // 알림용 커밋 정보 capture
                 script {
-                    env.DEPLOY_HASH   = sh(returnStdout: true, script: "cd $DEPLOY_DIR && git log --format='%h' -1").trim()
-                    env.DEPLOY_MSG    = sh(returnStdout: true, script: "cd $DEPLOY_DIR && git log --format='%s' -1").trim()
-                    env.DEPLOY_AUTHOR = sh(returnStdout: true, script: "cd $DEPLOY_DIR && git log --format='%an' -1").trim()
+                    env.DEPLOY_SHA = sh(returnStdout: true, script: "cd $DEPLOY_DIR && git log --format='%H' -1").trim()
+                    env.DEPLOY_MSG = sh(returnStdout: true, script: "cd $DEPLOY_DIR && git log --format='%s' -1").trim()
                 }
             }
         }
@@ -121,11 +126,11 @@ pipeline {
         }
         success {
             echo '배포 성공'
-            script { notifyMattermost(':jenkins7:', 'Deploy 성공') }
+            script { notifyMattermost(':jenkins7:', 'Deploy 성공 ✅') }
         }
         failure {
             echo '배포 실패'
-            script { notifyMattermost(':angry_jenkins:', 'Build 실패') }
+            script { notifyMattermost(':angry_jenkins:', 'Deploy 실패 ❌') }
         }
     }
 }
