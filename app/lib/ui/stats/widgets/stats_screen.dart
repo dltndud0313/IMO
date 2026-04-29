@@ -15,14 +15,14 @@ class StatsScreen extends StatefulWidget {
 
 class _StatsScreenState extends State<StatsScreen> {
   _StatsTab _selectedTab = _StatsTab.heatmap;
-  String _period = 'Week';
-  String _exercise = 'All';
+  String _period = '주간';
+  String _exercise = '전체';
 
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
-      title: 'Stats',
-      subtitle: 'Exercise analytics',
+      title: '통계',
+      subtitle: '운동 분석',
       scrollable: true,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -75,13 +75,13 @@ class _StatsFilterBar extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Query filters', style: AppTextStyles.label),
+          Text('조회 필터', style: AppTextStyles.label),
           const SizedBox(height: AppSpacing.md),
           Wrap(
             spacing: AppSpacing.xs,
             runSpacing: AppSpacing.xs,
             children: [
-              for (final option in const ['Week', 'Month', '3M'])
+              for (final option in const ['주간', '월간', '3개월'])
                 ImoChip(
                   label: option,
                   selected: period == option,
@@ -95,10 +95,10 @@ class _StatsFilterBar extends StatelessWidget {
             runSpacing: AppSpacing.xs,
             children: [
               for (final option in const [
-                'All',
-                'Push-up',
-                'Lateral raise',
-                'Bicep curl',
+                '전체',
+                '푸시업',
+                '사이드 레터럴 레이즈',
+                '바이셉 컬',
               ])
                 ImoChip(
                   label: option,
@@ -127,10 +127,10 @@ class _StatsSummaryGrid extends StatelessWidget {
       mainAxisSpacing: AppSpacing.sm,
       childAspectRatio: 1.4,
       children: const [
-        _StatsSummaryTile(label: 'Sessions', value: '12', color: AppColors.primary),
-        _StatsSummaryTile(label: 'Total reps', value: '384', color: AppColors.success),
-        _StatsSummaryTile(label: 'Valid rate', value: '92%', color: AppColors.secondary),
-        _StatsSummaryTile(label: 'Compensation', value: '18', color: AppColors.warning),
+        _StatsSummaryTile(label: '운동', value: '12', color: AppColors.primary),
+        _StatsSummaryTile(label: '총 횟수', value: '384', color: AppColors.success),
+        _StatsSummaryTile(label: '유효율', value: '92%', color: AppColors.secondary),
+        _StatsSummaryTile(label: '보상동작', value: '18', color: AppColors.warning),
       ],
     );
   }
@@ -199,17 +199,17 @@ class _StatsTabBar extends StatelessWidget {
         child: Row(
           children: [
             _StatsTabButton(
-              label: 'Heatmap',
+              label: '히트맵',
               selected: selectedTab == _StatsTab.heatmap,
               onTap: () => onChanged(_StatsTab.heatmap),
             ),
             _StatsTabButton(
-              label: 'Balance',
+              label: '균형',
               selected: selectedTab == _StatsTab.balance,
               onTap: () => onChanged(_StatsTab.balance),
             ),
             _StatsTabButton(
-              label: 'Trend',
+              label: '추세',
               selected: selectedTab == _StatsTab.trend,
               onTap: () => onChanged(_StatsTab.trend),
             ),
@@ -270,7 +270,7 @@ class _HeatmapStatsTab extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text('Muscle activation heatmap', style: AppTextStyles.label),
+              Text('근육 활성 히트맵', style: AppTextStyles.label),
               const Spacer(),
               const StatusBadge(label: '2D', variant: StatusVariant.info),
             ],
@@ -291,11 +291,11 @@ class _HeatmapStatsTab extends StatelessWidget {
                     color: AppColors.heatmapInactive,
                   ),
                 ),
-                _HeatmapLabel(label: 'Chest 85%', top: 72, left: 70, color: AppColors.heatmapHigh),
-                _HeatmapLabel(label: 'Shoulder 72%', top: 58, right: 48, color: AppColors.heatmapNormal),
-                _HeatmapLabel(label: 'Biceps 58%', top: 132, left: 38, color: AppColors.heatmapNormal),
-                _HeatmapLabel(label: 'Triceps 42%', top: 142, right: 42, color: AppColors.heatmapLow),
-                _HeatmapLabel(label: 'Core 31%', top: 198, left: 96, color: AppColors.heatmapLow),
+                _HeatmapLabel(label: '가슴 85%', top: 72, left: 70, color: AppColors.heatmapHigh),
+                _HeatmapLabel(label: '어깨 72%', top: 58, right: 48, color: AppColors.heatmapNormal),
+                _HeatmapLabel(label: '이두 58%', top: 132, left: 38, color: AppColors.heatmapNormal),
+                _HeatmapLabel(label: '삼두 42%', top: 142, right: 42, color: AppColors.heatmapLow),
+                _HeatmapLabel(label: '코어 31%', top: 198, left: 96, color: AppColors.heatmapLow),
               ],
             ),
           ),
@@ -304,10 +304,10 @@ class _HeatmapStatsTab extends StatelessWidget {
             spacing: AppSpacing.xs,
             runSpacing: AppSpacing.xs,
             children: [
-              StatusBadge(label: 'Low', color: AppColors.heatmapLow, showDot: false),
-              StatusBadge(label: 'Normal', color: AppColors.heatmapNormal, showDot: false),
-              StatusBadge(label: 'High', color: AppColors.heatmapHigh, showDot: false),
-              StatusBadge(label: 'Danger', color: AppColors.heatmapDanger, showDot: false),
+              StatusBadge(label: '낮음', color: AppColors.heatmapLow, showDot: false),
+              StatusBadge(label: '정상', color: AppColors.heatmapNormal, showDot: false),
+              StatusBadge(label: '높음', color: AppColors.heatmapHigh, showDot: false),
+              StatusBadge(label: '주의', color: AppColors.heatmapDanger, showDot: false),
             ],
           ),
         ],
@@ -371,7 +371,7 @@ class _BalanceStatsTab extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Left/right balance', style: AppTextStyles.label),
+          Text('좌우 균형', style: AppTextStyles.label),
           const SizedBox(height: AppSpacing.md),
           for (final item in _balanceRows) ...[
             _BalanceRow(item: item),
@@ -382,7 +382,7 @@ class _BalanceStatsTab extends StatelessWidget {
             variant: ImoCardVariant.subtle,
             paddingSize: ImoCardPadding.md,
             child: Text(
-              'Balance metrics are enabled only when sensor pairing supports left/right comparison.',
+              '좌우 비교가 가능한 센서 배치일 때만 균형 지표를 표시합니다.',
               style: AppTextStyles.bodySmall,
             ),
           ),
@@ -409,7 +409,7 @@ class _BalanceRow extends StatelessWidget {
             Text(item.label, style: AppTextStyles.label),
             const Spacer(),
             StatusBadge(
-              label: diff >= 10 ? 'Check' : 'Stable',
+              label: diff >= 10 ? '확인 필요' : '안정',
               variant: diff >= 10 ? StatusVariant.warning : StatusVariant.success,
               showDot: false,
             ),
@@ -436,7 +436,7 @@ class _BalanceRow extends StatelessWidget {
           ],
         ),
         const SizedBox(height: AppSpacing.xs),
-        Text('Left ${item.left}% · Right ${item.right}%', style: AppTextStyles.caption),
+        Text('왼쪽 ${item.left}% · 오른쪽 ${item.right}%', style: AppTextStyles.caption),
       ],
     );
   }
@@ -490,21 +490,21 @@ class _TrendStatsTab extends StatelessWidget {
       key: const ValueKey('trend'),
       children: const [
         _TrendCard(
-          title: 'Target activation',
+          title: '주동근 활성도',
           values: [55, 62, 68, 70, 72, 75, 78],
           color: AppColors.primary,
           unit: '%',
         ),
         SizedBox(height: AppSpacing.md),
         _TrendCard(
-          title: 'Fatigue signal',
+          title: '피로 신호',
           values: [40, 45, 55, 50, 62, 70, 68],
           color: AppColors.warning,
           unit: '%',
         ),
         SizedBox(height: AppSpacing.md),
         _TrendCard(
-          title: 'Compensation count',
+          title: '보상동작 횟수',
           values: [5, 4, 6, 3, 4, 2, 3],
           color: AppColors.error,
           unit: '',
@@ -625,9 +625,9 @@ class _BalanceMetric {
 }
 
 const _balanceRows = [
-  _BalanceMetric(label: 'Chest', left: 78, right: 82),
-  _BalanceMetric(label: 'Shoulder', left: 65, right: 72),
-  _BalanceMetric(label: 'Triceps', left: 71, right: 74),
+  _BalanceMetric(label: '가슴', left: 78, right: 82),
+  _BalanceMetric(label: '어깨', left: 65, right: 72),
+  _BalanceMetric(label: '삼두', left: 71, right: 74),
 ];
 
-const _days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const _days = ['월', '화', '수', '목', '금', '토', '일'];
