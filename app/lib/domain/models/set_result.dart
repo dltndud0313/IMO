@@ -1,5 +1,3 @@
-import 'realtime_feedback.dart';
-
 /// 세트 단위 결과
 /// 백엔드 DB의 `workout_set_results` 테이블 구조에 대응
 class SetResult {
