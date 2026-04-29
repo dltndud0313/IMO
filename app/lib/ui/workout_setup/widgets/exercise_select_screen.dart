@@ -11,7 +11,7 @@ class ExerciseSelectScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
-      title: 'Workout Setup',
+      title: '운동 준비',
       showBackButton: true,
       scrollable: true,
       body: Column(
@@ -19,7 +19,7 @@ class ExerciseSelectScreen extends StatelessWidget {
         children: [
           const _ExerciseSelectIntro(),
           const SizedBox(height: AppSpacing.sectionGap),
-          Text('Exercise', style: AppTextStyles.sectionTitle),
+          Text('운동 선택', style: AppTextStyles.sectionTitle),
           const SizedBox(height: AppSpacing.sm),
           for (final exercise in _exerciseOptions) ...[
             _ExerciseOptionCard(
@@ -60,10 +60,10 @@ class _ExerciseSelectIntro extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Choose your movement', style: AppTextStyles.sectionTitle),
+              Text('운동을 선택해 주세요', style: AppTextStyles.sectionTitle),
               const SizedBox(height: AppSpacing.xxs),
               Text(
-                'Select an exercise before sending the workout plan to Pi.',
+                'Pi로 운동 계획을 보내기 전에 오늘 진행할 운동을 고릅니다.',
                 style: AppTextStyles.body,
               ),
             ],
@@ -172,25 +172,25 @@ class _ExerciseOption {
 const _exerciseOptions = [
   _ExerciseOption(
     id: 'pushup',
-    title: 'Push-up',
-    description: 'Track chest, shoulder, and triceps activation.',
-    level: 'Basic',
+    title: '푸시업',
+    description: '가슴, 어깨, 삼두 근활성도를 확인합니다.',
+    level: '기본',
     icon: Icons.fitness_center_rounded,
     gradient: [AppColors.primary, AppColors.primaryStrong],
   ),
   _ExerciseOption(
     id: 'lateral_raise',
-    title: 'Lateral raise',
-    description: 'Check shoulder activation and compensation patterns.',
-    level: 'Basic',
+    title: '사이드 레터럴 레이즈',
+    description: '어깨 활성도와 보상 패턴을 확인합니다.',
+    level: '기본',
     icon: Icons.accessibility_new_rounded,
     gradient: [AppColors.secondary, Color(0xFF5DC447)],
   ),
   _ExerciseOption(
     id: 'bicep_curl',
-    title: 'Bicep curl',
-    description: 'Review arm activation and movement consistency.',
-    level: 'Basic',
+    title: '바이셉 컬',
+    description: '팔 근활성도와 움직임 일관성을 확인합니다.',
+    level: '기본',
     icon: Icons.sports_gymnastics_rounded,
     gradient: [Color(0xFFFFB371), AppColors.warning],
   ),
