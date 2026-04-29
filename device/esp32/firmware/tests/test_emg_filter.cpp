@@ -92,7 +92,7 @@ void run_test_emg_filter() {
 
     expect_true(result.rms[0] > 0.75F, "rms should follow sustained contraction level");
     expect_true(
-        result.display[0] > 0.70F && result.display[0] <= 1.00F,
+        result.display[0] > 0.70F && result.display[0] <= 0.90F,
         "display value should rise for sustained contraction"
     );
     expect_true(result.active[0], "filter should report active after sustained contraction");

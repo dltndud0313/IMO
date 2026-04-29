@@ -75,7 +75,7 @@ EmgProcessingResult EmgFilter::process(
             sample_history_[channel].clear();
             result.moving_average[channel] = raw[channel];
             result.rms[channel] = raw[channel];
-            result.display[channel] = kEmgDisplayMax;
+            result.display[channel] = kAnalogEmgDetachFrameValue;
             result.active[channel] = true;
             display_history_[channel] = 0.0F;
             display_hold_count_[channel] = 0U;
@@ -107,7 +107,7 @@ EmgProcessingResult EmgFilter::process(
             display_base = 0.0F;
         }
         display_base *= kEmgDisplayGain;
-        display_base = std::clamp(display_base, 0.0F, kEmgDisplayMax);
+        display_base = std::clamp(display_base, 0.0F, kEmgDisplaySignalMax);
         if (display_base < kEmgDisplayZeroClamp) {
             display_base = 0.0F;
         }
@@ -115,7 +115,7 @@ EmgProcessingResult EmgFilter::process(
         const float instant_display = std::clamp(
             raw[channel] * kEmgDisplayGain,
             0.0F,
-            kEmgDisplayMax
+            kEmgDisplaySignalMax
         );
         if (instant_display >= kActivationThresholdOn) {
             display_hold_count_[channel] = kEmgDisplayHoldFrames;

@@ -19,7 +19,7 @@ inline constexpr std::size_t kEmgMovingAverageWindow = 16;
 inline constexpr std::size_t kEmgRmsWindow = 16;
 inline constexpr std::size_t kEmgHistoryWindow = 40;
 inline constexpr float kEmgDisplayAttackAlpha = 0.12F;
-inline constexpr float kEmgDisplayReleaseAlpha = 0.12F;
+inline constexpr float kEmgDisplayReleaseAlpha = 0.99F;
 inline constexpr float kEmgDisplayZeroReleaseAlpha = 0.040F;
 inline constexpr std::size_t kEmgDisplayHoldFrames = 18;
 inline constexpr float kEmgDisplayNoiseFloor = 0.000F;
@@ -28,6 +28,7 @@ inline constexpr float kEmgRestDisplayThreshold = 0.010F;
 inline constexpr float kEmgDisplayZeroClamp = kEmgRestDisplayThreshold;
 // 운동보조 표시값은 휴식 기준선 대비 변화량을 보기 쉽게 키운다.
 inline constexpr float kEmgDisplayGain = 20.00F;
+inline constexpr float kEmgDisplaySignalMax = 0.900F;
 inline constexpr float kEmgDisplayMax = 1.000F;
 // 센서 소스가 탈착을 감지하면 이 값으로 표시 경고를 보낸다. 근육 히스토리에는 넣지 않는다.
 inline constexpr float kEmgDetachInputThreshold = 0.99F;
