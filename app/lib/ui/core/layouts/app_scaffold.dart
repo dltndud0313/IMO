@@ -45,19 +45,29 @@ class AppScaffold extends StatelessWidget {
     final horizontalInset =
         horizontalPadding ? AppSpacing.screenHorizontal : 0.0;
     final effectiveBody = body ?? child!;
+    final effectiveContent = heroSlot == null
+        ? effectiveBody
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              heroSlot!,
+              const SizedBox(height: AppSpacing.sectionGap),
+              effectiveBody,
+            ],
+          );
     final content = Padding(
       padding: EdgeInsets.symmetric(
         horizontal: horizontalInset,
         vertical: AppSpacing.md,
       ),
-      child: effectiveBody,
+      child: effectiveContent,
     );
     final bodyContent = scrollable
         ? SingleChildScrollView(
             padding: EdgeInsets.only(
               bottom: bottom != null || bottomNavigationBar != null
-                  ? AppSpacing.xxl
-                  : AppSpacing.md,
+                  ? AppSpacing.bottomNavHeight + AppSpacing.xl
+                  : AppSpacing.bottomNavHeight + AppSpacing.xxl,
             ),
             child: content,
           )
@@ -75,15 +85,12 @@ class AppScaffold extends StatelessWidget {
 
   PreferredSizeWidget? _buildAppBar(BuildContext context) {
     final hasBar = title != null || subtitle != null || showBackButton || actions != null;
-    if (!hasBar && heroSlot == null) {
+    if (!hasBar) {
       return null;
     }
 
-    final height = (hasBar ? AppSpacing.appBarHeight : 0.0) +
-        (heroSlot == null ? 0.0 : 56.0);
-
     return PreferredSize(
-      preferredSize: Size.fromHeight(height),
+      preferredSize: const Size.fromHeight(AppSpacing.appBarHeight),
       child: ClipRect(
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
@@ -98,25 +105,7 @@ class AppScaffold extends StatelessWidget {
             ),
             child: SafeArea(
               bottom: false,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (hasBar) _buildToolbar(context),
-                  if (heroSlot != null)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.screenHorizontal,
-                        0,
-                        AppSpacing.screenHorizontal,
-                        AppSpacing.sm,
-                      ),
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: heroSlot,
-                      ),
-                    ),
-                ],
-              ),
+              child: _buildToolbar(context),
             ),
           ),
         ),
@@ -182,16 +171,31 @@ class AppScaffold extends StatelessWidget {
       return null;
     }
 
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.screenHorizontal,
-          AppSpacing.sm,
-          AppSpacing.screenHorizontal,
-          AppSpacing.sm,
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: AppColors.card.withValues(alpha: 0.9),
+            border: Border(
+              top: BorderSide(
+                color: AppColors.border.withValues(alpha: 0.7),
+              ),
+            ),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.screenHorizontal,
+                AppSpacing.sm,
+                AppSpacing.screenHorizontal,
+                AppSpacing.sm,
+              ),
+              child: bottom,
+            ),
+          ),
         ),
-        child: bottom,
       ),
     );
   }
