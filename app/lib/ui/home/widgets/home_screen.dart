@@ -12,22 +12,22 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final viewModel = context.watch<HomeViewModel>();
+    context.watch<HomeViewModel>();
 
     return AppScaffold(
       title: 'IMO',
-      subtitle: viewModel.statusLabel,
+      subtitle: '오늘의 운동 준비',
       scrollable: true,
       heroSlot: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Build today with better movement.',
+            '오늘도 좋은 움직임을 만들어볼까요?',
             style: AppTextStyles.caption,
           ),
           const SizedBox(height: AppSpacing.xxs),
           Text(
-            'Ready for your next session?',
+            '다음 운동을 시작할 준비가 되었어요.',
             style: AppTextStyles.sectionTitle,
           ),
         ],
@@ -37,11 +37,11 @@ class HomeScreen extends StatelessWidget {
         children: [
           const _TodaySummaryCard(),
           const SizedBox(height: AppSpacing.sectionGap),
-          Text('Start', style: AppTextStyles.sectionTitle),
+          Text('운동 시작', style: AppTextStyles.sectionTitle),
           const SizedBox(height: AppSpacing.sm),
           _HomeActionCard(
-            title: 'Workout mode',
-            description: 'Set exercise, reps, and rest time before connecting Pi.',
+            title: '운동 모드',
+            description: '운동 종류, 횟수, 휴식 시간을 설정하고 Pi와 연결해요.',
             icon: Icons.fitness_center_rounded,
             gradient: const [
               AppColors.primary,
@@ -51,8 +51,8 @@ class HomeScreen extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.md),
           _HomeActionCard(
-            title: 'Recovery mode',
-            description: 'Use the same flow for guided light movement sessions.',
+            title: '재활 모드',
+            description: '가벼운 움직임도 같은 흐름으로 안내받을 수 있어요.',
             icon: Icons.monitor_heart_rounded,
             gradient: const [
               AppColors.secondary,
@@ -85,10 +85,10 @@ class _TodaySummaryCard extends StatelessWidget {
                 size: 18,
               ),
               const SizedBox(width: AppSpacing.xs),
-              Text('Today summary', style: AppTextStyles.label),
+              Text('오늘 요약', style: AppTextStyles.label),
               const Spacer(),
               const StatusBadge(
-                label: 'Ready',
+                label: '준비됨',
                 variant: StatusVariant.info,
               ),
             ],
@@ -97,13 +97,13 @@ class _TodaySummaryCard extends StatelessWidget {
           const Row(
             children: [
               Expanded(
-                child: _SummaryMetric(label: 'Sessions', value: '0', unit: ''),
+                child: _SummaryMetric(label: '운동', value: '0', unit: ''),
               ),
               Expanded(
-                child: _SummaryMetric(label: 'Reps', value: '0', unit: ''),
+                child: _SummaryMetric(label: '횟수', value: '0', unit: ''),
               ),
               Expanded(
-                child: _SummaryMetric(label: 'Minutes', value: '0', unit: 'min'),
+                child: _SummaryMetric(label: '시간', value: '0', unit: '분'),
               ),
             ],
           ),
