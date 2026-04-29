@@ -72,11 +72,11 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   String get _stateLabel {
     switch (_state) {
       case _WorkoutState.running:
-        return 'Running';
+        return '운동 중';
       case _WorkoutState.paused:
-        return 'Paused';
+        return '일시정지';
       case _WorkoutState.resting:
-        return 'Resting';
+        return '휴식 중';
     }
   }
 
@@ -94,7 +94,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
-      title: 'Push-up',
+      title: '푸시업',
       subtitle: _stateLabel,
       scrollable: true,
       bottom: Column(
@@ -104,7 +104,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
             children: [
               Expanded(
                 child: ImoButton(
-                  label: _state == _WorkoutState.paused ? 'Resume' : 'Pause',
+                  label: _state == _WorkoutState.paused ? '재개' : '일시정지',
                   variant: ImoButtonVariant.outline,
                   leftIcon: Icon(
                     _state == _WorkoutState.paused
@@ -117,7 +117,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: ImoButton(
-                  label: 'Stop',
+                  label: '종료',
                   variant: ImoButtonVariant.danger,
                   leftIcon: const Icon(Icons.stop_rounded),
                   onPressed: _finishWorkout,
@@ -129,7 +129,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
           TextButton.icon(
             onPressed: _emergencyStop,
             icon: const Icon(Icons.emergency_rounded, size: 16),
-            label: const Text('Emergency stop'),
+            label: const Text('비상 종료'),
             style: TextButton.styleFrom(
               foregroundColor: AppColors.error,
               textStyle: AppTextStyles.caption,
@@ -218,7 +218,7 @@ class _WorkoutHeroCard extends StatelessWidget {
                   ),
                   const SizedBox(width: AppSpacing.xs),
                   Text(
-                    'Glass cue active',
+                    '스마트 글래스 안내 활성화',
                     style: AppTextStyles.caption.copyWith(
                       color: AppColors.card.withValues(alpha: 0.88),
                       fontWeight: FontWeight.w600,
@@ -234,7 +234,7 @@ class _WorkoutHeroCard extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.xxl),
               Text(
-                'Elapsed time',
+                '운동 시간',
                 style: AppTextStyles.caption.copyWith(
                   color: AppColors.card.withValues(alpha: 0.78),
                 ),
@@ -250,7 +250,7 @@ class _WorkoutHeroCard extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.md),
               Text(
-                'Set $currentSet / $setCount',
+                '$currentSet세트 / $setCount세트',
                 style: AppTextStyles.bodySmall.copyWith(
                   color: AppColors.card.withValues(alpha: 0.9),
                   fontWeight: FontWeight.w600,
@@ -286,10 +286,10 @@ class _CurrentRepCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text('Current set', style: AppTextStyles.label),
+              Text('현재 세트', style: AppTextStyles.label),
               const Spacer(),
               StatusBadge(
-                label: '$currentRep / $targetRep reps',
+                label: '$currentRep / $targetRep회',
                 variant: StatusVariant.info,
               ),
             ],
@@ -306,7 +306,7 @@ class _CurrentRepCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.md),
           ImoButton(
-            label: 'Simulate rep',
+            label: '횟수 테스트',
             size: ImoButtonSize.md,
             variant: ImoButtonVariant.secondary,
             leftIcon: const Icon(Icons.add_rounded),
@@ -336,7 +336,7 @@ class _SetProgressCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Workout plan', style: AppTextStyles.label),
+          Text('운동 계획', style: AppTextStyles.label),
           const SizedBox(height: AppSpacing.md),
           for (var index = 0; index < targets.length; index++) ...[
             _SetProgressRow(
@@ -400,10 +400,10 @@ class _SetProgressRow extends StatelessWidget {
           ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
-            child: Text('Set $index', style: AppTextStyles.label),
+            child: Text('$index세트', style: AppTextStyles.label),
           ),
           Text(
-            active ? '$currentRep / $target' : '$target reps',
+            active ? '$currentRep / $target' : '$target회',
             style: AppTextStyles.bodySmall,
           ),
         ],
@@ -423,15 +423,15 @@ class _ConnectionStatusCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Device status', style: AppTextStyles.label),
+          Text('기기 상태', style: AppTextStyles.label),
           const SizedBox(height: AppSpacing.md),
           const Wrap(
             spacing: AppSpacing.xs,
             runSpacing: AppSpacing.xs,
             children: [
-              StatusBadge(label: 'Pi connected', variant: StatusVariant.success),
-              StatusBadge(label: 'ESP32 connected', variant: StatusVariant.success),
-              StatusBadge(label: 'Glass ready', variant: StatusVariant.info),
+              StatusBadge(label: 'Pi 연결됨', variant: StatusVariant.success),
+              StatusBadge(label: 'ESP32 연결됨', variant: StatusVariant.success),
+              StatusBadge(label: '글래스 준비됨', variant: StatusVariant.info),
             ],
           ),
         ],
@@ -449,7 +449,7 @@ class _WorkoutNoticeCard extends StatelessWidget {
       variant: ImoCardVariant.outlined,
       paddingSize: ImoCardPadding.lg,
       child: Text(
-        'This screen is a UI skeleton. Pi WebSocket events will later drive set progress, pause/resume, stop, emergency, and session result transitions.',
+        '현재 화면은 운동 중 UI 스켈레톤입니다. 이후 Pi WebSocket 이벤트로 세트 진행, 일시정지, 재개, 종료, 결과 화면 전환이 연결됩니다.',
         style: AppTextStyles.bodySmall,
       ),
     );
