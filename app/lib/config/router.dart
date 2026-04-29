@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../ui/core/layouts/bottom_nav_shell.dart';
 import '../ui/history/widgets/history_screen.dart';
+import '../ui/history/widgets/history_detail_screen.dart';
 import '../ui/home/view_model/home_viewmodel.dart';
 import '../ui/home/widgets/home_screen.dart';
 import '../ui/mypage/widgets/mypage_screen.dart';
@@ -90,6 +91,12 @@ GoRouter buildRouter() {
       GoRoute(
         path: '/session-result',
         builder: (context, state) => const SessionResultScreen(),
+      ),
+      GoRoute(
+        path: '/history-detail',
+        builder: (context, state) => HistoryDetailScreen(
+          sessionId: state.uri.queryParameters['session'] ?? 'sess_20260427_001',
+        ),
       ),
     ],
   );
