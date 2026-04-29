@@ -19,11 +19,10 @@ namespace {
 
 constexpr uint16_t kBinaryMagic = 0x454DU;
 constexpr uint8_t kBinaryPacketTypeSensorFrame = 1U;
-constexpr uint16_t kBinaryPayloadLength = 30U;
-constexpr std::size_t kBinaryFrameLength = 38U;
+constexpr uint16_t kBinaryPayloadLength = 56U;
+constexpr std::size_t kBinaryFrameLength = 64U;
 constexpr float kEmgScale = 1000.0F;
 constexpr float kAccelScale = 1000.0F;
-// 손목/팔 회전에서는 자이로가 ±32.767 범위를 쉽게 넘기므로 accel과 분리 스케일을 사용한다.
 constexpr float kGyroScale = 100.0F;
 constexpr int16_t kRepIndexMissing = -1;
 
@@ -31,7 +30,6 @@ std::string escape_json_string(const std::string& value) {
     std::string escaped;
     escaped.reserve(value.size());
     for (const char ch : value) {
-        // 최소한의 escape만 적용해 디버깅 가능한 JSONL 형식을 유지한다.
         if (ch == '\"' || ch == '\\') {
             escaped.push_back('\\');
         }
@@ -41,7 +39,6 @@ std::string escape_json_string(const std::string& value) {
 }
 
 std::optional<std::string> extract_string(std::string_view line, std::string_view key) {
-    // 외부 JSON 라이브러리 없이 host 테스트까지 돌리기 위해 단순 key 검색으로 파싱한다.
     const std::string token = "\"" + std::string(key) + "\"";
     const std::size_t key_pos = line.find(token);
     if (key_pos == std::string_view::npos) {
@@ -99,7 +96,6 @@ std::optional<NumberType> extract_number(std::string_view line, std::string_view
     }
 
     NumberType value {};
-    // std::from_chars는 동적 할당 없이 숫자 파싱이 가능해 MCU/host 공용 코드에 유리하다.
     const std::string numeric_text(line.substr(value_start, value_end - value_start));
     const auto [ptr, error_code] = std::from_chars(
         numeric_text.data(),
@@ -195,14 +191,8 @@ RuntimeState runtime_state_from_code(uint8_t code) {
         case 0:
             return RuntimeState::IDLE;
         case 1:
-            return RuntimeState::CALIBRATION_REST;
-        case 2:
-            return RuntimeState::CALIBRATION_MVC;
-        case 3:
-            return RuntimeState::READY;
-        case 4:
             return RuntimeState::STREAMING;
-        case 5:
+        case 2:
             return RuntimeState::ERROR;
         default:
             return RuntimeState::ERROR;
@@ -211,22 +201,33 @@ RuntimeState runtime_state_from_code(uint8_t code) {
 
 PacketBuffer encode_packet_json(const OutputPacket& packet) {
     std::ostringstream stream;
-    // 로그 비교와 테스트 재현성을 위해 실수는 고정 소수점 4자리로 맞춘다.
     stream << std::fixed << std::setprecision(4);
     stream << "{"
            << "\"schema\":\"" << escape_json_string(packet.schema) << "\","
            << "\"seq\":" << packet.seq << ","
            << "\"timestamp_ms\":" << packet.timestamp_ms << ","
-           << "\"emg_ch1\":" << packet.emg_ch1 << ","
-           << "\"emg_ch2\":" << packet.emg_ch2 << ","
-           << "\"emg_ch3\":" << packet.emg_ch3 << ","
-           << "\"acc_x\":" << packet.acc_x << ","
-           << "\"acc_y\":" << packet.acc_y << ","
-           << "\"acc_z\":" << packet.acc_z << ","
-           << "\"gyro_x\":" << packet.gyro_x << ","
-           << "\"gyro_y\":" << packet.gyro_y << ","
-           << "\"gyro_z\":" << packet.gyro_z << ","
-           << "\"state\":\"" << escape_json_string(packet.state) << "\","
+           << "\"emg_ch1\":" << packet.emg[0] << ","
+           << "\"emg_ch2\":" << packet.emg[1] << ","
+           << "\"emg_ch3\":" << packet.emg[2] << ","
+           << "\"emg_ch4\":" << packet.emg[3] << ","
+           << "\"acc_x\":" << packet.imus[0].accel[0] << ","
+           << "\"acc_y\":" << packet.imus[0].accel[1] << ","
+           << "\"acc_z\":" << packet.imus[0].accel[2] << ","
+           << "\"gyro_x\":" << packet.imus[0].gyro[0] << ","
+           << "\"gyro_y\":" << packet.imus[0].gyro[1] << ","
+           << "\"gyro_z\":" << packet.imus[0].gyro[2] << ",";
+
+    for (std::size_t imu_index = 0; imu_index < kImuSensorCount; ++imu_index) {
+        const std::size_t imu_id = imu_index + 1U;
+        stream << "\"imu" << imu_id << "_acc_x\":" << packet.imus[imu_index].accel[0] << ","
+               << "\"imu" << imu_id << "_acc_y\":" << packet.imus[imu_index].accel[1] << ","
+               << "\"imu" << imu_id << "_acc_z\":" << packet.imus[imu_index].accel[2] << ","
+               << "\"imu" << imu_id << "_gyro_x\":" << packet.imus[imu_index].gyro[0] << ","
+               << "\"imu" << imu_id << "_gyro_y\":" << packet.imus[imu_index].gyro[1] << ","
+               << "\"imu" << imu_id << "_gyro_z\":" << packet.imus[imu_index].gyro[2] << ",";
+    }
+
+    stream << "\"state\":\"" << escape_json_string(packet.state) << "\","
            << "\"flags\":" << packet.flags;
 
     if (packet.rep_index.has_value()) {
@@ -234,7 +235,6 @@ PacketBuffer encode_packet_json(const OutputPacket& packet) {
     }
 
     stream << "}\n";
-
     const std::string text = stream.str();
     return PacketBuffer(text.begin(), text.end());
 }
@@ -250,15 +250,20 @@ PacketBuffer encode_packet_binary(const OutputPacket& packet) {
 
     append_u32_le(buffer, packet.seq);
     append_u32_le(buffer, packet.timestamp_ms);
-    append_i16_le(buffer, scale_to_i16(packet.emg_ch1, kEmgScale));
-    append_i16_le(buffer, scale_to_i16(packet.emg_ch2, kEmgScale));
-    append_i16_le(buffer, scale_to_i16(packet.emg_ch3, kEmgScale));
-    append_i16_le(buffer, scale_to_i16(packet.acc_x, kAccelScale));
-    append_i16_le(buffer, scale_to_i16(packet.acc_y, kAccelScale));
-    append_i16_le(buffer, scale_to_i16(packet.acc_z, kAccelScale));
-    append_i16_le(buffer, scale_to_i16(packet.gyro_x, kGyroScale));
-    append_i16_le(buffer, scale_to_i16(packet.gyro_y, kGyroScale));
-    append_i16_le(buffer, scale_to_i16(packet.gyro_z, kGyroScale));
+
+    for (std::size_t channel = 0; channel < kEmgChannelCount; ++channel) {
+        append_i16_le(buffer, scale_to_i16(packet.emg[channel], kEmgScale));
+    }
+
+    for (std::size_t imu_index = 0; imu_index < kImuSensorCount; ++imu_index) {
+        append_i16_le(buffer, scale_to_i16(packet.imus[imu_index].accel[0], kAccelScale));
+        append_i16_le(buffer, scale_to_i16(packet.imus[imu_index].accel[1], kAccelScale));
+        append_i16_le(buffer, scale_to_i16(packet.imus[imu_index].accel[2], kAccelScale));
+        append_i16_le(buffer, scale_to_i16(packet.imus[imu_index].gyro[0], kGyroScale));
+        append_i16_le(buffer, scale_to_i16(packet.imus[imu_index].gyro[1], kGyroScale));
+        append_i16_le(buffer, scale_to_i16(packet.imus[imu_index].gyro[2], kGyroScale));
+    }
+
     append_u8(buffer, static_cast<uint8_t>(runtime_state_from_string(packet.state)));
     append_u8(buffer, static_cast<uint8_t>(packet.flags & 0xFFU));
     append_i16_le(buffer, rep_index_to_i16(packet.rep_index));
@@ -280,30 +285,22 @@ bool decode_packet_json(const uint8_t* data, std::size_t size, OutputPacket* pac
     const auto emg_ch1 = extract_number<float>(line, "emg_ch1");
     const auto emg_ch2 = extract_number<float>(line, "emg_ch2");
     const auto emg_ch3 = extract_number<float>(line, "emg_ch3");
+    const auto emg_ch4 = extract_number<float>(line, "emg_ch4");
+    const auto state = extract_string(line, "state");
+    const auto flags = extract_number<uint32_t>(line, "flags");
     const auto acc_x = extract_number<float>(line, "acc_x");
     const auto acc_y = extract_number<float>(line, "acc_y");
     const auto acc_z = extract_number<float>(line, "acc_z");
     const auto gyro_x = extract_number<float>(line, "gyro_x");
     const auto gyro_y = extract_number<float>(line, "gyro_y");
     const auto gyro_z = extract_number<float>(line, "gyro_z");
-    const auto state = extract_string(line, "state");
-    const auto flags = extract_number<uint32_t>(line, "flags");
 
     if (
-        !schema.has_value() ||
-        !seq.has_value() ||
-        !timestamp.has_value() ||
-        !emg_ch1.has_value() ||
-        !emg_ch2.has_value() ||
-        !emg_ch3.has_value() ||
-        !acc_x.has_value() ||
-        !acc_y.has_value() ||
-        !acc_z.has_value() ||
-        !gyro_x.has_value() ||
-        !gyro_y.has_value() ||
-        !gyro_z.has_value() ||
-        !state.has_value() ||
-        !flags.has_value()
+        !schema.has_value() || !seq.has_value() || !timestamp.has_value() ||
+        !emg_ch1.has_value() || !emg_ch2.has_value() || !emg_ch3.has_value() || !emg_ch4.has_value() ||
+        !state.has_value() || !flags.has_value() ||
+        !acc_x.has_value() || !acc_y.has_value() || !acc_z.has_value() ||
+        !gyro_x.has_value() || !gyro_y.has_value() || !gyro_z.has_value()
     ) {
         return false;
     }
@@ -311,15 +308,30 @@ bool decode_packet_json(const uint8_t* data, std::size_t size, OutputPacket* pac
     packet->schema = schema.value();
     packet->seq = seq.value();
     packet->timestamp_ms = timestamp.value();
-    packet->emg_ch1 = emg_ch1.value();
-    packet->emg_ch2 = emg_ch2.value();
-    packet->emg_ch3 = emg_ch3.value();
-    packet->acc_x = acc_x.value();
-    packet->acc_y = acc_y.value();
-    packet->acc_z = acc_z.value();
-    packet->gyro_x = gyro_x.value();
-    packet->gyro_y = gyro_y.value();
-    packet->gyro_z = gyro_z.value();
+    packet->emg = {emg_ch1.value(), emg_ch2.value(), emg_ch3.value(), emg_ch4.value()};
+    packet->imus[0].accel = {acc_x.value(), acc_y.value(), acc_z.value()};
+    packet->imus[0].gyro = {gyro_x.value(), gyro_y.value(), gyro_z.value()};
+
+    for (std::size_t imu_index = 0; imu_index < kImuSensorCount; ++imu_index) {
+        const std::size_t imu_id = imu_index + 1U;
+        const std::string prefix = "imu" + std::to_string(imu_id);
+        const auto imu_acc_x = extract_number<float>(line, prefix + "_acc_x");
+        const auto imu_acc_y = extract_number<float>(line, prefix + "_acc_y");
+        const auto imu_acc_z = extract_number<float>(line, prefix + "_acc_z");
+        const auto imu_gyro_x = extract_number<float>(line, prefix + "_gyro_x");
+        const auto imu_gyro_y = extract_number<float>(line, prefix + "_gyro_y");
+        const auto imu_gyro_z = extract_number<float>(line, prefix + "_gyro_z");
+        if (
+            imu_acc_x.has_value() && imu_acc_y.has_value() && imu_acc_z.has_value() &&
+            imu_gyro_x.has_value() && imu_gyro_y.has_value() && imu_gyro_z.has_value()
+        ) {
+            packet->imus[imu_index].accel = {imu_acc_x.value(), imu_acc_y.value(), imu_acc_z.value()};
+            packet->imus[imu_index].gyro = {imu_gyro_x.value(), imu_gyro_y.value(), imu_gyro_z.value()};
+        } else if (imu_index != 0) {
+            packet->imus[imu_index] = {};
+        }
+    }
+
     packet->state = state.value();
     packet->flags = flags.value();
     packet->rep_index = extract_number<int32_t>(line, "rep_index");
@@ -351,19 +363,31 @@ bool decode_packet_binary(const uint8_t* data, std::size_t size, OutputPacket* p
     packet->schema = kPacketSchemaBinaryV2;
     packet->seq = read_u32_le(data, 6);
     packet->timestamp_ms = read_u32_le(data, 10);
-    packet->emg_ch1 = unscale_i16(read_i16_le(data, 14), kEmgScale);
-    packet->emg_ch2 = unscale_i16(read_i16_le(data, 16), kEmgScale);
-    packet->emg_ch3 = unscale_i16(read_i16_le(data, 18), kEmgScale);
-    packet->acc_x = unscale_i16(read_i16_le(data, 20), kAccelScale);
-    packet->acc_y = unscale_i16(read_i16_le(data, 22), kAccelScale);
-    packet->acc_z = unscale_i16(read_i16_le(data, 24), kAccelScale);
-    packet->gyro_x = unscale_i16(read_i16_le(data, 26), kGyroScale);
-    packet->gyro_y = unscale_i16(read_i16_le(data, 28), kGyroScale);
-    packet->gyro_z = unscale_i16(read_i16_le(data, 30), kGyroScale);
-    packet->state = to_string(runtime_state_from_code(read_u8(data, 32)));
-    packet->flags = read_u8(data, 33);
 
-    const int16_t rep_index = read_i16_le(data, 34);
+    std::size_t offset = 14;
+    for (std::size_t channel = 0; channel < kEmgChannelCount; ++channel) {
+        packet->emg[channel] = unscale_i16(read_i16_le(data, offset), kEmgScale);
+        offset += 2;
+    }
+
+    for (std::size_t imu_index = 0; imu_index < kImuSensorCount; ++imu_index) {
+        packet->imus[imu_index].accel = {
+            unscale_i16(read_i16_le(data, offset), kAccelScale),
+            unscale_i16(read_i16_le(data, offset + 2), kAccelScale),
+            unscale_i16(read_i16_le(data, offset + 4), kAccelScale),
+        };
+        packet->imus[imu_index].gyro = {
+            unscale_i16(read_i16_le(data, offset + 6), kGyroScale),
+            unscale_i16(read_i16_le(data, offset + 8), kGyroScale),
+            unscale_i16(read_i16_le(data, offset + 10), kGyroScale),
+        };
+        offset += 12;
+    }
+
+    packet->state = to_string(runtime_state_from_code(read_u8(data, 58)));
+    packet->flags = read_u8(data, 59);
+
+    const int16_t rep_index = read_i16_le(data, 60);
     if (rep_index == kRepIndexMissing) {
         packet->rep_index = std::nullopt;
     } else {

@@ -12,7 +12,7 @@ void run_test_sensor_mock() {
         "mock sensor should vary EMG values over time"
     );
     expect_true(
-        active_frame.imu.gyro[1] != rest_frame.imu.gyro[1],
+        active_frame.imus[2].gyro[1] != rest_frame.imus[2].gyro[1],
         "mock sensor should vary IMU values over time"
     );
 }

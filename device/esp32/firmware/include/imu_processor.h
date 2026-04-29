@@ -13,6 +13,7 @@ class ImuProcessor {
     ImuProcessor() = default;
 
     ImuProcessingResult process(const ImuSample& sample);
+    bool gyro_bias_ready() const;
     void reset();
 
   private:

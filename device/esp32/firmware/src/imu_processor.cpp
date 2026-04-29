@@ -6,10 +6,20 @@
 #include "config.h"
 
 namespace mvp {
+namespace {
+
+float apply_deadzone(float value, float threshold) {
+    if (std::fabs(value) < threshold) {
+        return 0.0F;
+    }
+    return value;
+}
+
+}  // namespace
 
 ImuProcessingResult ImuProcessor::process(const ImuSample& sample) {
     ImuProcessingResult result;
-    ImuSample unbiased_sample = sample;
+    ImuSample stabilized_sample = sample;
 
     if (!gyro_bias_ready_) {
         // 부팅 직후 정지 상태 몇 프레임을 평균내 자이로 영점 오프셋을 추정한다.
@@ -28,21 +38,22 @@ ImuProcessingResult ImuProcessor::process(const ImuSample& sample) {
     }
 
     for (std::size_t axis = 0; axis < kAxisCount; ++axis) {
-        unbiased_sample.gyro[axis] = sample.gyro[axis] - gyro_bias_[axis];
+        stabilized_sample.gyro[axis] = apply_deadzone(sample.gyro[axis] - gyro_bias_[axis], kImuGyroDeadzoneDps);
+        stabilized_sample.accel[axis] = apply_deadzone(sample.accel[axis], kImuAccelDeadzoneG);
     }
 
     if (!initialized_) {
         // 첫 샘플은 이전 값이 없으므로 그대로 초기 smoothing 기준점으로 삼는다.
-        smoothed_ = unbiased_sample;
+        smoothed_ = stabilized_sample;
         initialized_ = true;
     } else {
         for (std::size_t axis = 0; axis < kAxisCount; ++axis) {
             // 지수이동평균(EMA) 형태로 가속도/자이로를 부드럽게 만든다.
             smoothed_.accel[axis] =
-                (unbiased_sample.accel[axis] * kImuSmoothingAlpha) +
+                (stabilized_sample.accel[axis] * kImuSmoothingAlpha) +
                 (smoothed_.accel[axis] * (1.0F - kImuSmoothingAlpha));
             smoothed_.gyro[axis] =
-                (unbiased_sample.gyro[axis] * kImuSmoothingAlpha) +
+                (stabilized_sample.gyro[axis] * kImuSmoothingAlpha) +
                 (smoothed_.gyro[axis] * (1.0F - kImuSmoothingAlpha));
         }
     }
@@ -57,6 +68,10 @@ ImuProcessingResult ImuProcessor::process(const ImuSample& sample) {
 
     result.motion_delta = motion_sum / static_cast<float>(kAxisCount);
     return result;
+}
+
+bool ImuProcessor::gyro_bias_ready() const {
+    return gyro_bias_ready_;
 }
 
 void ImuProcessor::reset() {

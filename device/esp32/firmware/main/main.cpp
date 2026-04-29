@@ -1,6 +1,7 @@
 // ESP-IDF 진입점. 초기 단계에서는 mock 파이프라인을 연속 실행해 디바이스 루프를 먼저 검증한다.
 #include <algorithm>
 #include <array>
+#include <cstdio>
 
 #include "config.h"
 #include "runtime_pipeline.h"
@@ -17,12 +18,15 @@ extern "C" void app_main(void) {
     sensor_config.source_sample_rate_hz = mvp::kAnalogEmgRecommendedSampleRateHz;
     sensor_config.samples_per_frame = mvp::kAnalogEmgSamplesPerFrame;
     sensor_config.adc_full_scale = mvp::kAnalogEmgAdcFullScale;
-    sensor_config.emg_adc_gpio = mvp::kAnalogEmgAdcGpio;
+    sensor_config.emg_adc_gpios = mvp::kAnalogEmgAdcGpios;
+    sensor_config.emg_channel_enabled = mvp::kAnalogEmgChannelEnabled;
     sensor_config.imu_i2c_port = mvp::kImuI2cPort;
     sensor_config.imu_sda_gpio = mvp::kImuI2cSdaGpio;
     sensor_config.imu_scl_gpio = mvp::kImuI2cSclGpio;
     sensor_config.imu_i2c_clock_hz = mvp::kImuI2cClockHz;
-    sensor_config.imu_address = mvp::kMpu6050Address;
+    sensor_config.imu_i2c_transaction_timeout_ms = mvp::kImuI2cTransactionTimeoutMs;
+    sensor_config.imu_addresses = mvp::kMpu6050Addresses;
+    sensor_config.imu_sensor_enabled = mvp::kImuSensorEnabled;
 
     mvp::AnalogEmgSensorSource sensor_source({}, sensor_config);
 

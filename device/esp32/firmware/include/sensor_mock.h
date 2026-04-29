@@ -8,6 +8,7 @@ namespace mvp {
 class MockSensorSource : public ISensorSource {
   public:
     bool is_mock() const override { return true; }
+    std::size_t imu_ready_count() const override { return kImuSensorCount; }
     SensorFrame read_frame(uint32_t timestamp_ms) override;
 };
 

@@ -1,7 +1,8 @@
 // 펌웨어 전체 흐름(sense -> process -> calibrate -> packet -> transport)을 묶는 오케스트레이터.
 #pragma once
 
-#include "calibration.h"
+#include <array>
+
 #include "emg_filter.h"
 #include "imu_processor.h"
 #include "sensor_source.h"
@@ -13,7 +14,7 @@ namespace mvp {
 struct PipelineTickResult {
     OutputPacket packet {};
     EmgProcessingResult emg {};
-    ImuProcessingResult imu {};
+    std::array<ImuProcessingResult, kImuSensorCount> imus {};
     RuntimeState state {RuntimeState::IDLE};
 };
 
@@ -28,15 +29,14 @@ class MockRuntimePipeline {
     OutputPacket build_packet(
         uint32_t timestamp_ms,
         const EmgProcessingResult& emg,
-        const ImuProcessingResult& imu,
+        const std::array<ImuProcessingResult, kImuSensorCount>& imus,
         RuntimeState state
     );
 
     ISensorSource& sensor_source_;
     SerialTransport& transport_;
     EmgFilter emg_filter_ {};
-    ImuProcessor imu_processor_ {};
-    CalibrationManager calibration_ {};
+    std::array<ImuProcessor, kImuSensorCount> imu_processors_ {};
     StateMachine state_machine_ {};
     uint32_t sequence_ {0};
 };

@@ -1,418 +1,187 @@
-# ESP32 센서 측정/비교 가이드
+# ESP32 센서 측정 가이드 (Current)
 
-이 문서는 EMG/IMU bring-up 과정에서 **어떤 값을 저장하고**, **어떤 기준으로 비교해야 하는지**를 정리한 문서입니다.  
-목표는 나중에 보고서에 그대로 쓸 수 있는 **측정 조건 + 수치 요약 기준**을 남기는 것입니다.
+이 문서는 **캘리브레이션 없는 ESP32 수집기** 기준 측정 절차입니다.
+캘리브레이션은 Pi/앱에서 수행합니다.
 
-## 기본 원칙
+## 현재 전제
 
-- 비교는 항상 같은 조건에서 합니다.
-- 원인 분리를 위해 `IMU`와 `EMG`를 한 번에 보지 않습니다.
-- 실센서 bring-up 중 수치 비교는 먼저 `JSON_V1`로 합니다.
-- `BINARY_V2`는 같은 처리 결과를 다른 wire format으로 보내는 것이므로, 값 검증이 끝난 뒤 전송 검증에 씁니다.
+- EMG: 4채널 (`GPIO 4/5/6/7`)
+- IMU: 3개 (`0x68/0x69/0x6A`)
+- 패킷: `BINARY_V2` 64바이트 고정
+- 샘플 주기: 20ms (50Hz)
 
-## 현재 기록해야 하는 핵심 설정값
-
-`device/esp32/firmware/include/config.h` 기준:
-
-- `kSampleIntervalMs = 20`
-- `kImuGyroBiasCalibrationSamples = 100`
-- `kImuSmoothingAlpha = 0.20`
-- `kMotionDetectionThreshold = 0.50`
-- `kMvcReferenceTopSampleCount = 8`
-- `kMvcReferenceMinimumMargin = 0.05`
-- `kEmgAttackAlpha = 0.35`
-- `kEmgReleaseAlpha = 0.08`
-- `kEmgDisplayAttackAlpha = 0.18`
-- `kEmgDisplayReleaseAlpha = 0.05`
-- `kActivationThresholdOn = 0.20`
-- `kActivationThresholdOff = 0.12`
-- `kAnalogEmgSamplesPerFrame = 10`
-- `kAnalogEmgAdcFullScale = 4095.0`
-- `kAnalogEmgAdcGpio = 4`
-- `kImuI2cSdaGpio = 8`
-- `kImuI2cSclGpio = 9`
-- `kMpu6050Address = 0x68`
-
-보고서에는 위 값들을 **측정 당시 설정값**으로 함께 적어야 합니다.
-
-## 권장 측정 시나리오
-
-### 1. IMU 정지 상태
-
-목적:
-
-- 자이로 bias 보정이 잘 되는지 확인
-- 정지 상태에서 `flags`가 과민하게 켜지는지 확인
-
-조건:
-
-- 부팅 직후 약 `2초` 동안 보드를 가만히 둠
-- 이후 보드를 책상 위에 고정한 상태로 `10초` 정도 측정
-
-기록할 것:
-
-- `acc_x`, `acc_y`, `acc_z`
-- `gyro_x`, `gyro_y`, `gyro_z`
-- `flags`
-
-판단 기준:
-
-- `gyro_*` 평균이 `0` 근처인지
-- `gyro_*` 표준편차가 작은지
-- `flags`가 대부분 `2`인지
-
-### 2. IMU 동작 상태
-
-목적:
-
-- 기울임/회전에 따라 accel, gyro가 충분히 반응하는지 확인
-
-조건:
-
-- X/Y/Z축 방향으로 천천히 기울이기
-- 손으로 회전시키기
-
-기록할 것:
-
-- `acc_x`, `acc_y`, `acc_z`
-- `gyro_x`, `gyro_y`, `gyro_z`
-- `flags`
-
-판단 기준:
-
-- 기울일 때 `acc_*`가 축 방향에 맞게 변하는지
-- 돌릴 때 `gyro_*`가 커지는지
-- 움직임 구간에서 `flags = 6`이 나오는지
-
-### 3. EMG 휴식 상태
-
-목적:
-
-- 전극 접촉과 ADC 입력이 살아 있는지 확인
-- 휴식 상태 노이즈 크기를 정량화
-
-조건:
-
-- EMG 모듈 출력은 `GPIO4`
-- 전극 부착 후 힘을 주지 않고 `10초` 측정
-
-기록할 것:
-
-- `emg_ch1`
-
-판단 기준:
-
-- 계속 `0.0000`이면 배선/전원/전극 문제 의심
-- 값이 작게 흔들리면 입력은 살아 있는 상태
-
-### 4. EMG 수축 상태
-
-목적:
-
-- 실제 근육 수축 시 `emg_ch1`가 휴식 대비 충분히 커지는지 확인
-
-조건:
-
-- 같은 자세에서 `휴식 5초 -> 수축 5초 -> 휴식 5초`
-
-기록할 것:
-
-- `emg_ch1`
-
-판단 기준:
-
-- 수축 구간 평균이 휴식 구간 평균보다 유의하게 큰지
-- 휴식/수축 구간이 분리되는지
-
-## JSON 로그 저장 방법
-
-실기기 수치 비교는 `JSON_V1`에서 먼저 수행합니다.
+## 1. 펌웨어 올리기
 
 ```bash
 cd ./device/esp32/firmware
 source ~/esp/esp-idf/export.sh
 idf.py build
-idf.py -p /dev/ttyUSB0 -b 115200 flash monitor | tee /tmp/esp32_sensor_run_01.log
+idf.py -p /dev/ttyUSB0 -b 115200 flash
 ```
 
-포트가 `ttyACM0`이면 그 값으로 바꿉니다.
-
-## 로그 통계 요약 방법
-
-저장한 JSON 로그는 아래 스크립트로 바로 요약할 수 있습니다.
+## 2. 실시간 수신 확인
 
 ```bash
-python3 ./device/esp32/scripts/summarize_json_sensor_log.py /tmp/esp32_sensor_run_01.log
-```
-
-출력 항목:
-
-- `packets`
-- `duration_ms`
-- `first_seq`, `last_seq`
-- 각 필드별
-  - `min`
-  - `max`
-  - `avg`
-  - `stddev`
-- `range`
-
-## 바이너리 검증 방법
-
-JSON 기준 수치 검증이 끝난 뒤에는 같은 처리 결과가 `BINARY_V2`에도 그대로 실리는지 확인합니다.
-
-```bash
-cd ./device/esp32/firmware
 python3 ../scripts/decode_binary_sensor_stream.py --port /dev/ttyUSB0
 ```
 
-확인 기준:
+확인 포인트:
 
-- 이완 상태에서는 `emg_ch1`가 작아야 함
-- 수축 상태에서는 `emg_ch1`가 커져야 함
-- 자세 변화 시 `acc_*`, `gyro_*`가 같이 반응해야 함
+- `emg=(ch1,ch2,ch3,ch4)` 값이 채널별로 변하는지
+- `imu1/imu2/imu3` 가속도/자이로가 자세 변화에 반응하는지
+- `flags`에서 bias 준비/모션 비트가 기대대로 바뀌는지
 
-주의:
+## 3. IMU 점검 시나리오
 
-- binary는 `float`를 그대로 보내지 않고 `1000` 배 스케일한 `int16_t`를 보냅니다.
-- EMG와 accel은 `1000` 배, gyro는 포화 방지를 위해 `100` 배 스케일을 사용합니다.
-- 예를 들어 JSON에서 `0.0002`였던 EMG 값은 binary에서 `0`으로 보일 수 있습니다.
-- 따라서 매우 작은 휴식 구간은 JSON보다 binary에서 더 계단형으로 보이는 것이 정상입니다.
+1. 부팅 후 2초 정지
+2. X/Y/Z 축으로 천천히 기울이기
+3. 손목/팔 회전
 
-## 보고서에 바로 남길 표 예시
+정상 기준:
 
-### IMU 정지 상태
+- 정지 구간에서 gyro 평균이 0 근처
+- 움직임 구간에서 gyro/accel이 축 방향으로 증가
 
-| 항목 | avg | stddev | min | max |
-| --- | --- | --- | --- | --- |
-| gyro_x |  |  |  |  |
-| gyro_y |  |  |  |  |
-| gyro_z |  |  |  |  |
-| acc_x |  |  |  |  |
-| acc_y |  |  |  |  |
-| acc_z |  |  |  |  |
+## 4. EMG 점검 시나리오
 
-### EMG 휴식/수축 비교
+1. 이완 5초
+2. 수축 5초
+3. 이완 5초
+
+정상 기준:
+
+- 이완에서 EMG가 낮고
+- 수축에서 EMG가 명확히 상승
+- 4채널 중 연결 채널에 우선 반응
 
-| 항목 | 휴식 avg | 수축 avg | 휴식 stddev | 수축 stddev |
-| --- | --- | --- | --- | --- |
-| emg_ch1 |  |  |  |  |
-
-## 1차 실측 기록
-
-측정 일시:
-
-- `2026-04-24`
-
-측정 조건:
-
-- `JSON_V1`
-- `kEnableEmgBringupPacketMode = true`
-- `emg_ch1`는 정규화값이 아니라 EMG RMS/envelope
-- EMG 입력 GPIO: `GPIO4`
-- IMU: `MPU-6050`
-
-로그 파일:
-
-- 휴식: `/tmp/emg_rest.log`
-- 수축: `/tmp/emg_contract.log`
-
-요약 결과:
-
-### EMG 휴식/수축 1차 비교
-
-| 항목 | 휴식 avg | 수축 avg | 휴식 stddev | 수축 stddev | 휴식 max | 수축 max |
-| --- | --- | --- | --- | --- | --- | --- |
-| emg_ch1 | 0.0207 | 0.0345 | 0.0189 | 0.0198 | 0.0767 | 0.0822 |
-
-해석:
-
-- 수축 평균은 휴식 평균 대비 약 `1.67배` 증가함
-- 즉, EMG 센서 입력은 실제로 들어오고 있으며 힘을 줄 때 반응함
-- 다만 `max` 차이는 크지 않아 반응 폭은 아직 제한적임
-- 수축 로그에서 IMU 흔들림이 함께 커져, 팔/보드 움직임이 섞였을 가능성이 큼
-
-## 2차 실측 기록
-
-측정 일시:
-
-- `2026-04-24`
-
-측정 조건:
-
-- `JSON_V1`
-- `kEnableEmgBringupPacketMode = true`
-- `emg_ch1`는 정규화값이 아니라 EMG RMS/envelope
-- 팔/보드 움직임을 줄이고 휴식/수축을 다시 분리 측정
-
-로그 파일:
-
-- 휴식: `/tmp/emg_rest.log`
-- 수축: `/tmp/emg_contract.log`
-
-요약 결과:
-
-### EMG 휴식/수축 2차 비교
-
-| 항목 | 휴식 avg | 수축 avg | 휴식 stddev | 수축 stddev | 휴식 max | 수축 max |
-| --- | --- | --- | --- | --- | --- | --- |
-| emg_ch1 | 0.0004 | 0.0082 | 0.0005 | 0.0038 | 0.0040 | 0.0189 |
-
-해석:
-
-- 수축 평균은 휴식 평균 대비 약 `20.5배` 증가함
-- `max`도 `0.0040 -> 0.0189`로 증가해 휴식/수축 구분이 1차보다 선명함
-- 이번 로그는 IMU 흔들림도 크지 않아, EMG 반응 확인용 성공 데이터로 사용 가능함
-
-정리:
-
-- 1차 측정: 수축 반응 확인은 됐지만 IMU 움직임이 섞여 해석이 약했음
-- 2차 측정: 휴식/수축 구분이 선명하게 확인되어 보고서 기준 데이터로 채택 가능
-- 대표 기록은 **2차 실측 기록**을 사용함
-- 이후 재측정 로그는 경로 검증 또는 조건 변경 비교용 보조 기록으로 분류함
-
-## normalized 경로 재검증 기록
-
-측정 일시:
-
-- `2026-04-24`
-
-측정 조건:
-
-- `JSON_V1`
-- `kEnableEmgBringupPacketMode = false`
-- `emg_ch1`는 최종 normalized 값
-- 팔 회전을 최소화하고 EMG만 다시 비교
-
-로그 파일:
-
-- 휴식: `/tmp/emg_rest_norm_2.log`
-- 수축: `/tmp/emg_contract_norm_2.log`
-
-요약 결과:
-
-### EMG 휴식/수축 normalized 비교
-
-| 항목 | 휴식 avg | 수축 avg | 휴식 stddev | 수축 stddev | 휴식 max | 수축 max |
-| --- | --- | --- | --- | --- | --- | --- |
-| emg_ch1 | 0.0005 | 0.0041 | 0.0017 | 0.0100 | 0.0096 | 0.0604 |
-
-해석:
-
-- 수축 평균은 휴식 평균 대비 약 `8.2배` 증가함
-- `max`도 `0.0096 -> 0.0604`로 증가해 normalized 경로에서도 휴식/수축 구분이 가능함
-- 다만 평균 기준 분리도는 2차 실측 기록(`20.5배`)보다 낮아 대표 기록으로 쓰기에는 불리함
-- 이번 로그는 **최종 normalized 경로가 실센서에서도 동작함을 확인하는 보조 검증 기록**으로 사용함
-
-## EMG 값 해석 메모
-
-- `emg_ch1`는 최종 normalized 값이라 `0.0 ~ 1.0` 범위를 사용합니다.
-- 따라서 `0.030`은 절대값이 작은 것이 아니라 **현재 MVC 기준 약 3.0% 활성도**라는 뜻입니다.
-- 최종 MVC 기준은 순간 최고값 하나가 아니라 **상위 `kMvcReferenceTopSampleCount` 샘플 평균(`mvc_reference`)** 입니다.
-- 따라서 운동 시작 순간 스파이크보다 **유지 가능한 수축 세기**를 더 잘 반영합니다.
-- 출력값은 attack/release smoothing을 거치므로, 운동보조센서처럼 힘 유지 시 수치가 너무 급하게 꺼지지 않도록 설계되어 있습니다.
-- 패킷으로 나가는 값은 여기에 display smoothing을 한 번 더 적용한 값이라, 화면 표시나 운동 강도 막대가 더 안정적으로 보입니다.
-- 활성 판정은 `kActivationThresholdOn`, `kActivationThresholdOff`의 hysteresis를 사용하므로 경계 근처에서 깜빡임이 줄어듭니다.
-- 휴식/수축 구분은 절대 숫자보다
-  - `휴식 avg`
-  - `수축 avg`
-  - `수축 시 최대값`
-  의 차이로 판단하는 것이 맞습니다.
-
-### 1차 IMU 안정 구간 요약
-
-| 항목 | avg | stddev | range |
-| --- | --- | --- | --- |
-| acc_x | -0.6444 | 0.0014 | 0.0084 |
-| acc_y | -0.7342 | 0.0011 | 0.0073 |
-| acc_z | 0.1099 | 0.0015 | 0.0074 |
-| gyro_x | -0.0059 | 0.0393 | 0.3340 |
-| gyro_y | 0.0214 | 0.0964 | 0.5383 |
-| gyro_z | -0.0122 | 0.1359 | 0.8860 |
-
-해석:
-
-- 휴식 로그 기준 IMU는 정지 상태에서 비교적 안정적임
-- 따라서 현재 재측정 우선순위는 IMU가 아니라 EMG 반응폭 개선과 측정 조건 통제임
-
-## 다시 테스트할 항목
-
-### 1. EMG 휴식/수축 재측정
-
-목적:
-
-- 휴식과 수축 구간 차이를 더 명확하게 벌리기
-
-조건:
-
-- 팔과 보드를 최대한 고정
-- 같은 근육 위치에서 전극 재부착
-- `휴식 5초 -> 수축 5초 -> 휴식 5초`
-
-확인할 것:
-
-- `emg_ch1 avg`
-- `emg_ch1 max`
-- `emg_ch1 range`
-
-성공 기준:
-
-- 수축 평균이 휴식 평균보다 확실히 큼
-- `max`와 `range`도 함께 증가
-
-### 2. 전극 위치/접촉 재조정
-
-목적:
-
-- 현재 반응폭이 작은 원인이 전극 위치나 접촉 상태인지 확인
-
-조건:
-
-- 전극 위치를 약간씩 바꿔가며 같은 테스트 반복
-- 건식 전극 접촉 상태 점검
-
-확인할 것:
-
-- 같은 자세/같은 수축 조건에서 `emg_ch1 avg` 증가 여부
-
-### 3. EMG 모듈 게인 확인
-
-목적:
-
-- 모듈 출력 폭을 조금 더 확보할 수 있는지 확인
-
-조건:
-
-- 가변저항이 있다면 아주 조금씩만 조정
-- 조정 전후 같은 휴식/수축 로그 비교
-
-주의:
-
-- 게인을 한 번에 크게 바꾸지 말 것
-- 포화되면 오히려 해석이 어려워짐
-
-### 4. normalized 경로 재검증
-
-목적:
-
-- 실센서 입력 확인이 끝난 뒤 최종 사용자 값 경로를 검증
-
-조건:
-
-- `device/esp32/firmware/include/config.h`에서 `kEnableEmgBringupPacketMode = false`
-- 다시 휴식/수축 로그 측정
-
-확인할 것:
-
-- normalized `emg_ch1`가 휴식/수축을 구분하는지
-
-현재 상태:
-
-- 확인 완료
-- 대표 측정 대비 분리도는 낮지만, normalized 경로 동작 자체는 검증됨
-
-## 해석 주의
-
-- `JSON_V1`와 `BINARY_V2`는 **처리 결과는 같고 출력 포맷만 다릅니다.**
-- 따라서 센서 품질 비교는 먼저 `JSON_V1`에서 끝내고, 이후 `BINARY_V2`는 전송 확인에 씁니다.
-- Pi에서 값이 튄다면, 먼저 ESP32 JSON 로그가 안정적인지 확인한 뒤 Pi unpack 문제를 의심해야 합니다.
+## 5. Pi팀 공유 필수 항목
+
+프로토콜 변경 시 아래를 같이 전달해야 합니다.
+
+1. 프레임 길이 (`64 bytes`)
+2. 상태 코드 정의
+3. 스케일 (`emg/accel:1000`, `gyro:100`)
+4. flags 비트 의미
+
+참고:
+
+- `shared/protocol/esp32_pi_packet_format.md`
+
+## 6. EMG 튜닝 이력 정리
+
+이 프로젝트의 EMG 튜닝 목표는 "의료용 절대 측정"이 아니라 "운동보조용 실시간 게이지"에 가깝다.
+
+최종 의도:
+
+- 부착 후 휴식 상태는 `0.000`
+- 힘을 주면 값 상승
+- 힘 유지 중에는 값이 급락하지 않음
+- 힘을 빼면 자연스럽게 감소
+- 센서 탈착 시 `1.000` 경고
+- 일반 힘 게이지는 `0.900` 상한
+
+### 초기 방식 vs 현재 방식
+
+| 항목 | 초기 적용/실험 방식 | 현재 방식 |
+| --- | --- | --- |
+| 상태머신 | ESP32 내부 캘리브레이션 단계 존재 | 캘리브레이션 제거, 즉시 `STREAMING` |
+| EMG 해석 | band-pass, 정규화, MVC 성격 실험 | 부착 직후 baseline 대비 raw 변화량 envelope |
+| 표시 목표 | 신호가 보이는지 우선 확인 | 운동보조용 게이지처럼 보이게 튜닝 |
+| 탈착 처리 | 실험 단계별 편차 큼 | 탈착 경고 `1.000` 고정 |
+| 일반 게이지 상한 | `1.000`까지 사용 | 일반 EMG는 `0.900`, 탈착만 `1.000` |
+| 실행 | 긴 수신 명령 직접 입력 | `./stream` 래퍼 사용 가능 |
+
+### 현재 핵심 수치
+
+파일 기준: `device/esp32/firmware/include/config.h`
+
+| 항목 | 값 | 의미 |
+| --- | --- | --- |
+| `kSampleIntervalMs` | `20` | 송신 주기 20ms, 50Hz |
+| `kEmgMovingAverageWindow` | `16` | 표시 안정화를 위한 평균 창 |
+| `kEmgRmsWindow` | `16` | RMS 계산 창 |
+| `kEmgHistoryWindow` | `40` | 표시 히스토리 길이 |
+| `kEmgDisplayAttackAlpha` | `0.12` | 상승 반응 속도 |
+| `kEmgDisplayReleaseAlpha` | `0.99` | 하강 반응 속도 |
+| `kEmgDisplayZeroReleaseAlpha` | `0.040` | 0 복귀 구간 하강 속도 |
+| `kEmgDisplayHoldFrames` | `18` | 유지 중 급락 완화 프레임 수 |
+| `kEmgRestDisplayThreshold` | `0.010` | 휴식으로 보고 0에 붙이는 기준 |
+| `kActivationThresholdOn` | `0.011` | 힘 신호로 보는 on 기준 |
+| `kEmgDisplayGain` | `20.00` | 게이지 증폭 계수 |
+| `kEmgDisplaySignalMax` | `0.900` | 일반 근육 게이지 최대치 |
+| `kEmgDisplayMax` | `1.000` | 탈착 포함 전체 표시 최대치 |
+| `kAnalogEmgRestBaselineSamples` | `100` | baseline 수집 raw 샘플 수 |
+| `kAnalogEmgFrameNoiseFloor` | `0.001` | 프레임 노이즈 하한 |
+| `kAnalogEmgDetachedMagnitudeThreshold` | `0.42` | 탈착 후보로 보는 크기 |
+| `kAnalogEmgReattachMagnitudeThreshold` | `0.08` | 재부착 안정 범위 |
+| `kAnalogEmgReattachConsecutiveFrames` | `5` | 재부착 인정 연속 프레임 수 |
+
+### 포트폴리오용 요약 문장 예시
+
+- ESP32 펌웨어에서 EMG/IMU 수집 파이프라인을 재설계하고, 캘리브레이션 없는 즉시 스트리밍 구조로 단순화했다.
+- EMG는 baseline 대비 envelope 기반으로 재해석하고, 운동보조용 게이지에 맞춰 휴식 `0.000`, 탈착 `1.000`, 일반 수축 상한 `0.900`으로 튜닝했다.
+- USB Serial 기준 `BINARY_V2` 64바이트 고정 프레임을 정의하고, Pi 수신 디코더와 테스트 스크립트를 함께 정리했다.
+
+## 7. 트러블슈팅 기록
+
+### 7-1. IMU2가 보드에 연결되어 있는데도 0으로만 보임
+
+- 증상:
+  - `imu2_acc`, `imu2_gyro`가 계속 `0.000`
+- 확인:
+  - I2C scan에서는 `0x68`, `0x69` 둘 다 검출
+  - 추가로 `WHO_AM_I`, wake, sample read를 직접 확인
+- 원인:
+  - 단순 probe 성공과 실제 스트리밍 준비 완료는 다름
+  - 준비 상태 비트와 채널별 read 경로를 분리 확인해야 했음
+- 대응:
+  - `WHO_AM_I` 확인 로직 추가
+  - `0x68`, `0x69`만 활성화하고 `0x6A`는 예비 슬롯으로 유지
+
+### 7-2. 바이너리 디코더가 중간에 끊기거나 이상한 문자 출력
+
+- 증상:
+  - `decode_binary_sensor_stream.py` 실행 시 깨진 문자 출력
+  - 로그가 멈추거나 프레임 decode 실패 반복
+- 원인:
+  - 텍스트 로그와 바이너리 프레임이 같은 serial에 섞임
+  - `idf.py monitor`와 decoder 동시 사용
+- 대응:
+  - `kEnableImuInitTextLog = false`
+  - monitor 종료 후 decoder만 단독 실행
+
+### 7-3. EMG가 탈착 후 재부착해도 기준값이 이상하게 남음
+
+- 증상:
+  - 다시 붙였는데 `0.000`으로 바로 안 돌아감
+  - 특정 값에서 시작해 그 주변만 증감
+- 원인:
+  - 재부착 후에도 이전 baseline이 영향
+  - 탈착 판정과 재부착 인정 기준이 접촉 조건 변화에 민감
+- 대응:
+  - baseline reset, reattach frame 수, magnitude threshold를 여러 차례 실험
+  - 현재는 최종 커밋 기준 안정값으로 되돌려 보존
+
+### 7-4. 힘 유지 중 EMG 값이 많이 흔들림
+
+- 증상:
+  - 최대/최소 편차가 큼
+  - 힘을 유지해도 값이 급락
+- 원인:
+  - raw EMG 자체가 간헐적으로 떨어짐
+  - 표시값 smoothing이 약하면 dip가 그대로 게이지에 반영
+- 대응:
+  - moving average / RMS / hold / release alpha를 반복 튜닝
+  - 현재는 "운동보조 게이지처럼 보이는지"를 우선 기준으로 유지
+
+### 7-5. 손으로 눌러야 EMG가 잘 인식됨
+
+- 증상:
+  - 그냥 붙이면 반응이 약함
+  - 눌러주면 신호가 살아남
+- 원인:
+  - 코드 문제만이 아니라 전극 접촉 저항, 부착 위치, 피부 상태 영향이 큼
+- 대응:
+  - 전극 접촉/위치 안정화 우선
+  - baseline은 힘을 뺀 상태에서 시작
+  - 코드 튜닝은 그 다음 단계
