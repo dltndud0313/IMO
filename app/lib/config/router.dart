@@ -9,6 +9,7 @@ import '../ui/home/view_model/home_viewmodel.dart';
 import '../ui/home/widgets/home_screen.dart';
 import '../ui/mypage/widgets/mypage_screen.dart';
 import '../ui/mypage/widgets/profile_edit_screen.dart';
+import '../ui/mypage/widgets/wearable_settings_screen.dart';
 import '../ui/onboarding/widgets/onboarding_screen.dart';
 import '../ui/session_result/widgets/session_result_screen.dart';
 import '../ui/stats/widgets/stats_screen.dart';
@@ -102,6 +103,10 @@ GoRouter buildRouter() {
       GoRoute(
         path: '/profile-edit',
         builder: (context, state) => const ProfileEditScreen(),
+      ),
+      GoRoute(
+        path: '/wearable-settings',
+        builder: (context, state) => const WearableSettingsScreen(),
       ),
     ],
   );

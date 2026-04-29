@@ -30,7 +30,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
           const SizedBox(height: AppSpacing.sectionGap),
           Text('Devices', style: AppTextStyles.sectionTitle),
           const SizedBox(height: AppSpacing.sm),
-          const _DeviceStatusCard(),
+          _DeviceStatusCard(onTap: () => context.go('/wearable-settings')),
           const SizedBox(height: AppSpacing.sectionGap),
           Text('App settings', style: AppTextStyles.sectionTitle),
           const SizedBox(height: AppSpacing.sm),
@@ -182,19 +182,46 @@ class _ProfileCard extends StatelessWidget {
 }
 
 class _DeviceStatusCard extends StatelessWidget {
-  const _DeviceStatusCard();
+  const _DeviceStatusCard({required this.onTap});
+
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return ImoCard(
       paddingSize: ImoCardPadding.lg,
-      child: const Wrap(
-        spacing: AppSpacing.xs,
-        runSpacing: AppSpacing.xs,
+      interactive: true,
+      onTap: onTap,
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          StatusBadge(label: 'Pi standby', variant: StatusVariant.info),
-          StatusBadge(label: 'ESP32 pending', variant: StatusVariant.neutral),
-          StatusBadge(label: 'Glass pending', variant: StatusVariant.neutral),
+          Row(
+            children: [
+              Expanded(
+                child: Text('Wearable devices', style: AppTextStyles.label),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.textTertiary,
+              ),
+            ],
+          ),
+          SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: AppSpacing.xs,
+            runSpacing: AppSpacing.xs,
+            children: [
+              StatusBadge(label: 'Pi standby', variant: StatusVariant.info),
+              StatusBadge(
+                label: 'ESP32 pending',
+                variant: StatusVariant.neutral,
+              ),
+              StatusBadge(
+                label: 'Glass pending',
+                variant: StatusVariant.neutral,
+              ),
+            ],
+          ),
         ],
       ),
     );
