@@ -39,7 +39,7 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
   Widget build(BuildContext context) {
     return AppScaffold(
       title: _exerciseTitle,
-      subtitle: 'Calibration',
+      subtitle: '캘리브레이션',
       showBackButton: _stage != _CalibrationStage.measuring,
       scrollable: true,
       bottom: _buildBottom(context),
@@ -63,25 +63,25 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
     switch (_stage) {
       case _CalibrationStage.ready:
         return ImoButton(
-          label: 'Start calibration',
+          label: '캘리브레이션 시작',
           rightIcon: const Icon(Icons.play_arrow_rounded),
           onPressed: _startCalibration,
         );
       case _CalibrationStage.measuring:
         return const ImoButton(
-          label: 'Measuring baseline...',
+          label: '기준값 측정 중...',
           loading: true,
           disabled: true,
         );
       case _CalibrationStage.success:
         return ImoButton(
-          label: 'Start workout',
+          label: '운동 시작',
           rightIcon: const Icon(Icons.arrow_forward_rounded),
           onPressed: () => context.go('/workout'),
         );
       case _CalibrationStage.failed:
         return ImoButton(
-          label: 'Retry calibration',
+          label: '다시 측정',
           leftIcon: const Icon(Icons.refresh_rounded),
           onPressed: _startCalibration,
         );
@@ -176,14 +176,14 @@ class _GlassStatusCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Glass display', style: AppTextStyles.label),
+                Text('스마트 글래스', style: AppTextStyles.label),
                 const SizedBox(height: AppSpacing.xxs),
                 Text(
                   measuring
-                      ? 'Baseline status is being prepared.'
+                      ? '기준값 상태를 준비하고 있습니다.'
                       : ready
-                          ? 'Ready to show workout cues.'
-                          : 'Waiting for calibration.',
+                          ? '운동 안내를 표시할 준비가 되었습니다.'
+                          : '캘리브레이션을 기다리는 중입니다.',
                   style: AppTextStyles.caption,
                 ),
               ],
@@ -191,10 +191,10 @@ class _GlassStatusCard extends StatelessWidget {
           ),
           StatusBadge(
             label: ready
-                ? 'Ready'
+                ? '준비됨'
                 : measuring
-                    ? 'Syncing'
-                    : 'Standby',
+                    ? '동기화 중'
+                    : '대기',
             variant: ready
                 ? StatusVariant.success
                 : measuring
@@ -223,20 +223,20 @@ class _CalibrationChecklist extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('During calibration', style: AppTextStyles.label),
+          Text('측정 중 확인', style: AppTextStyles.label),
           const SizedBox(height: AppSpacing.md),
           _ChecklistLine(
-            text: 'Stand still and keep the sensors attached.',
+            text: '자세를 유지하고 센서가 떨어지지 않게 합니다.',
             done: measuring || success,
           ),
           const SizedBox(height: AppSpacing.xs),
           _ChecklistLine(
-            text: 'Follow the baseline movement guide from Pi.',
+            text: 'Pi의 기준 동작 안내를 따릅니다.',
             done: success,
           ),
           const SizedBox(height: AppSpacing.xs),
           _ChecklistLine(
-            text: 'Wait until the app shows calibration success.',
+            text: '앱에 캘리브레이션 성공이 표시될 때까지 기다립니다.',
             done: success,
           ),
         ],
@@ -257,15 +257,15 @@ class _CalibrationRetryGuide extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Before retrying',
+            '다시 시도하기 전',
             style: AppTextStyles.label.copyWith(color: AppColors.warning),
           ),
           const SizedBox(height: AppSpacing.md),
-          const _RetryLine('Check whether every sensor is attached firmly.'),
+          const _RetryLine('모든 센서가 단단히 부착되었는지 확인합니다.'),
           const SizedBox(height: AppSpacing.xs),
-          const _RetryLine('Avoid moving while the baseline is measured.'),
+          const _RetryLine('기준값 측정 중에는 불필요하게 움직이지 않습니다.'),
           const SizedBox(height: AppSpacing.xs),
-          const _RetryLine('Restart calibration after checking Pi status.'),
+          const _RetryLine('Pi 상태를 확인한 뒤 캘리브레이션을 다시 시작합니다.'),
         ],
       ),
     );
@@ -333,36 +333,36 @@ class _CalibrationPalette {
     switch (stage) {
       case _CalibrationStage.ready:
         return const _CalibrationPalette(
-          title: 'Ready to calibrate',
-          description: 'Start baseline measurement before the workout.',
-          badgeLabel: 'Ready',
+          title: '캘리브레이션 준비',
+          description: '운동 전에 기준값 측정을 시작합니다.',
+          badgeLabel: '준비',
           badgeVariant: StatusVariant.neutral,
           icon: Icons.play_arrow_rounded,
           gradient: [AppColors.primary, AppColors.primaryStrong],
         );
       case _CalibrationStage.measuring:
         return const _CalibrationPalette(
-          title: 'Measuring baseline',
-          description: 'Keep the posture stable while Pi measures baseline data.',
-          badgeLabel: 'Measuring',
+          title: '기준값 측정 중',
+          description: 'Pi가 기준 데이터를 측정하는 동안 자세를 유지합니다.',
+          badgeLabel: '측정 중',
           badgeVariant: StatusVariant.info,
           icon: Icons.autorenew_rounded,
           gradient: [AppColors.primary, AppColors.primaryStrong],
         );
       case _CalibrationStage.success:
         return const _CalibrationPalette(
-          title: 'Calibration complete',
-          description: 'The baseline is ready. You can start the workout.',
-          badgeLabel: 'Success',
+          title: '캘리브레이션 완료',
+          description: '기준값 준비가 끝났습니다. 운동을 시작할 수 있습니다.',
+          badgeLabel: '성공',
           badgeVariant: StatusVariant.success,
           icon: Icons.check_rounded,
           gradient: [AppColors.secondary, Color(0xFF5DC447)],
         );
       case _CalibrationStage.failed:
         return const _CalibrationPalette(
-          title: 'Calibration failed',
-          description: 'Check sensor placement and try calibration again.',
-          badgeLabel: 'Retry',
+          title: '캘리브레이션 실패',
+          description: '센서 부착 상태를 확인하고 다시 시도해 주세요.',
+          badgeLabel: '재시도',
           badgeVariant: StatusVariant.warning,
           icon: Icons.warning_amber_rounded,
           gradient: [Color(0xFFFFB371), AppColors.warning],
@@ -379,7 +379,7 @@ class _CalibrationPalette {
 }
 
 const _exerciseNames = {
-  'pushup': 'Push-up',
-  'lateral_raise': 'Lateral raise',
-  'bicep_curl': 'Bicep curl',
+  'pushup': '푸시업',
+  'lateral_raise': '사이드 레터럴 레이즈',
+  'bicep_curl': '바이셉 컬',
 };
