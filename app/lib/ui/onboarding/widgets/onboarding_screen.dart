@@ -66,7 +66,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ),
               const SizedBox(height: AppSpacing.xl),
               ImoButton(
-                label: _isLastSlide ? 'Start IMO' : 'Next',
+                label: _isLastSlide ? 'IMO 시작하기' : '다음',
                 rightIcon: Icon(
                   _isLastSlide
                       ? Icons.check_rounded
@@ -106,7 +106,7 @@ class _OnboardingHeader extends StatelessWidget {
           const Spacer(),
           if (showSkip)
             ImoButton(
-              label: 'Skip',
+              label: '건너뛰기',
               variant: ImoButtonVariant.ghost,
               size: ImoButtonSize.sm,
               fullWidth: false,
@@ -229,20 +229,20 @@ class _OnboardingSlide {
 const _slides = [
   _OnboardingSlide(
     icon: Icons.sensors_rounded,
-    title: 'Prepare your movement',
+    title: '운동을 준비해요',
     description:
-        'Connect the wearable sensors and check the setup before each workout.',
+        '운동 전 웨어러블 센서를 연결하고 부착 상태를 확인합니다.',
   ),
   _OnboardingSlide(
     icon: Icons.fitness_center_rounded,
-    title: 'Train with guidance',
+    title: '안내에 맞춰 운동해요',
     description:
-        'Follow set goals while IMO tracks workout status and key events.',
+        '설정한 목표에 맞춰 운동하고 IMO가 주요 상태 이벤트를 기록합니다.',
   ),
   _OnboardingSlide(
     icon: Icons.analytics_rounded,
-    title: 'Review your results',
+    title: '결과를 확인해요',
     description:
-        'Check session summaries, muscle balance, and progress after training.',
+        '운동 후 세션 요약, 근육 활성도, 변화 추이를 확인합니다.',
   ),
 ];
