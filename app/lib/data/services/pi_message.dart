@@ -1,37 +1,50 @@
 import '../../domain/models/workout_session.dart';
 
-// ═══════════════════════════════════════════════════════════
-//  Pi → App 메시지 파싱 (1페이지 요약본 기준)
-// ═══════════════════════════════════════════════════════════
-
-/// 모든 Pi 수신 메시지의 부모 클래스
 sealed class PiMessage {
+  const PiMessage({
+    required this.type,
+  });
+
   final String type;
+  Map<String, dynamic> get payload;
 
-  const PiMessage({required this.type});
+  Map<String, dynamic> toJson() => {
+        'type': type,
+        'payload': payload,
+      };
 
-  /// JSON 객체에서 type과 payload를 분석하여 알맞은 구체 클래스 반환
   static PiMessage? tryParse(Map<String, dynamic> json) {
-    final type = json['type'] as String?;
-    if (type == null) return null;
-    
-    final payload = json['payload'] as Map<String, dynamic>? ?? {};
+    final type = json['type'];
+    if (type is! String || type.isEmpty) {
+      return null;
+    }
+
+    final rawPayload = json['payload'];
+    final payload = rawPayload is Map<String, dynamic>
+        ? rawPayload
+        : <String, dynamic>{};
 
     try {
       return switch (type) {
-        'connection_status' => ConnectionStatusMsg.fromJson(payload),
-        'plan_ack' => PlanAckMsg.fromJson(payload),
-        'calibration_status' => CalibrationStatusMsg.fromJson(payload),
-        'workout_started' => WorkoutStartedMsg.fromJson(payload),
-        'workout_paused' => WorkoutPausedMsg.fromJson(payload),
-        'workout_resumed' => WorkoutResumedMsg.fromJson(payload),
-        'set_completed' => SetCompletedMsg.fromJson(payload),
-        'rest_started' => RestStartedMsg.fromJson(payload),
-        'rest_finished' => RestFinishedMsg.fromJson(payload),
-        'workout_completed' => WorkoutCompletedMsg.fromJson(payload),
-        'session_result' => SessionResultMsg.fromJson(payload),
-        'error' => ErrorMsg.fromJson(payload),
-        _ => null,
+        PiMessageType.connectionStatus =>
+          ConnectionStatusMessage.fromPayload(payload),
+        PiMessageType.planAck => PlanAckMessage.fromPayload(payload),
+        PiMessageType.calibrationStatus =>
+          CalibrationStatusMessage.fromPayload(payload),
+        PiMessageType.workoutPaused => WorkoutPausedMessage.fromPayload(payload),
+        PiMessageType.workoutResumed =>
+          WorkoutResumedMessage.fromPayload(payload),
+        PiMessageType.workoutStarted =>
+          WorkoutStartedMessage.fromPayload(payload),
+        PiMessageType.setCompleted => SetCompletedMessage.fromPayload(payload),
+        PiMessageType.restStarted => RestStartedMessage.fromPayload(payload),
+        PiMessageType.restFinished => RestFinishedMessage.fromPayload(payload),
+        PiMessageType.workoutCompleted =>
+          WorkoutCompletedMessage.fromPayload(payload),
+        PiMessageType.sessionResult =>
+          SessionResultMessage.fromPayload(payload),
+        PiMessageType.error => PiErrorMessage.fromPayload(payload),
+        _ => UnknownPiMessage(type: type, payload: payload),
       };
     } catch (_) {
       return null;
@@ -39,238 +52,371 @@ sealed class PiMessage {
   }
 }
 
-// ─── 4-1. 연결 상태 ───
-class ConnectionStatusMsg extends PiMessage {
+abstract final class PiMessageType {
+  static const submitWorkoutPlan = 'submit_workout_plan';
+  static const startCalibration = 'start_calibration';
+  static const emergencyStop = 'emergency_stop';
+  static const stopWorkout = 'stop_workout';
+  static const pauseWorkout = 'pause_workout';
+  static const resumeWorkout = 'resume_workout';
+
+  static const connectionStatus = 'connection_status';
+  static const planAck = 'plan_ack';
+  static const calibrationStatus = 'calibration_status';
+  static const workoutPaused = 'workout_paused';
+  static const workoutResumed = 'workout_resumed';
+  static const workoutStarted = 'workout_started';
+  static const setCompleted = 'set_completed';
+  static const restStarted = 'rest_started';
+  static const restFinished = 'rest_finished';
+  static const workoutCompleted = 'workout_completed';
+  static const sessionResult = 'session_result';
+  static const error = 'error';
+}
+
+class OutgoingPiMessage extends PiMessage {
+  const OutgoingPiMessage({
+    required super.type,
+    required Map<String, dynamic> payload,
+  }) : _payload = payload;
+
+  final Map<String, dynamic> _payload;
+
+  @override
+  Map<String, dynamic> get payload => _payload;
+}
+
+class UnknownPiMessage extends PiMessage {
+  const UnknownPiMessage({
+    required super.type,
+    required Map<String, dynamic> payload,
+  }) : _payload = payload;
+
+  final Map<String, dynamic> _payload;
+
+  @override
+  Map<String, dynamic> get payload => _payload;
+}
+
+class ConnectionStatusMessage extends PiMessage {
+  const ConnectionStatusMessage({
+    required this.piConnected,
+    required this.esp32Connected,
+    required this.glassConnected,
+  }) : super(type: PiMessageType.connectionStatus);
+
   final bool piConnected;
   final bool esp32Connected;
   final bool glassConnected;
 
-  const ConnectionStatusMsg({
-    required this.piConnected,
-    required this.esp32Connected,
-    required this.glassConnected,
-  }) : super(type: 'connection_status');
+  factory ConnectionStatusMessage.fromPayload(Map<String, dynamic> payload) {
+    return ConnectionStatusMessage(
+      piConnected: payload['pi_connected'] as bool? ?? false,
+      esp32Connected: payload['esp32_connected'] as bool? ?? false,
+      glassConnected: payload['glass_connected'] as bool? ?? false,
+    );
+  }
 
-  factory ConnectionStatusMsg.fromJson(Map<String, dynamic> data) =>
-      ConnectionStatusMsg(
-        piConnected: data['pi_connected'] as bool? ?? false,
-        esp32Connected: data['esp32_connected'] as bool? ?? false,
-        glassConnected: data['glass_connected'] as bool? ?? false,
-      );
+  @override
+  Map<String, dynamic> get payload => {
+        'pi_connected': piConnected,
+        'esp32_connected': esp32Connected,
+        'glass_connected': glassConnected,
+      };
 }
 
-// ─── 4-2. 운동 계획 수신 결과 ───
-class PlanAckMsg extends PiMessage {
-  final bool accepted;
-  final String exerciseType;
-  final int setCount;
-  final List<String>? validationErrors;
-
-  const PlanAckMsg({
+class PlanAckMessage extends PiMessage {
+  const PlanAckMessage({
     required this.accepted,
     required this.exerciseType,
     required this.setCount,
-    this.validationErrors,
-  }) : super(type: 'plan_ack');
+    this.validationErrors = const [],
+  }) : super(type: PiMessageType.planAck);
 
-  factory PlanAckMsg.fromJson(Map<String, dynamic> data) => PlanAckMsg(
-        accepted: data['accepted'] as bool,
-        exerciseType: data['exercise_type'] as String,
-        setCount: data['set_count'] as int,
-        validationErrors: (data['validation_errors'] as List?)?.cast<String>(),
-      );
+  final bool accepted;
+  final String exerciseType;
+  final int setCount;
+  final List<String> validationErrors;
+
+  factory PlanAckMessage.fromPayload(Map<String, dynamic> payload) {
+    return PlanAckMessage(
+      accepted: payload['accepted'] as bool? ?? false,
+      exerciseType: payload['exercise_type'] as String? ?? '',
+      setCount: payload['set_count'] as int? ?? 0,
+      validationErrors:
+          (payload['validation_errors'] as List?)?.cast<String>() ?? const [],
+    );
+  }
+
+  @override
+  Map<String, dynamic> get payload => {
+        'accepted': accepted,
+        'exercise_type': exerciseType,
+        'set_count': setCount,
+        if (validationErrors.isNotEmpty) 'validation_errors': validationErrors,
+      };
 }
 
-// ─── 4-3. 캘리브레이션 상태 ───
-class CalibrationStatusMsg extends PiMessage {
-  final String status; // started, success, failed
-  final String message;
-  final CalibrationSummary? calibrationSummary;
-  final bool? glassModeActive;
-
-  const CalibrationStatusMsg({
+class CalibrationStatusMessage extends PiMessage {
+  const CalibrationStatusMessage({
     required this.status,
     required this.message,
     this.calibrationSummary,
     this.glassModeActive,
-  }) : super(type: 'calibration_status');
+  }) : super(type: PiMessageType.calibrationStatus);
 
-  factory CalibrationStatusMsg.fromJson(Map<String, dynamic> data) =>
-      CalibrationStatusMsg(
-        status: data['status'] as String,
-        message: data['message'] as String,
-        calibrationSummary: data['calibration_summary'] != null
-            ? CalibrationSummary.fromJson(
-                data['calibration_summary'] as Map<String, dynamic>)
-            : null,
-        glassModeActive: data['glass_mode_active'] as bool?,
-      );
+  final String status;
+  final String message;
+  final CalibrationSummary? calibrationSummary;
+  final bool? glassModeActive;
+
+  bool get isStarted => status == 'started';
+  bool get isSuccess => status == 'success';
+  bool get isFailed => status == 'failed';
+
+  factory CalibrationStatusMessage.fromPayload(Map<String, dynamic> payload) {
+    final summary = payload['calibration_summary'];
+    return CalibrationStatusMessage(
+      status: payload['status'] as String? ?? 'started',
+      message: payload['message'] as String? ?? '',
+      calibrationSummary: summary is Map<String, dynamic>
+          ? CalibrationSummary.fromJson(summary)
+          : null,
+      glassModeActive: payload['glass_mode_active'] as bool?,
+    );
+  }
+
+  @override
+  Map<String, dynamic> get payload => {
+        'status': status,
+        'message': message,
+        if (calibrationSummary != null)
+          'calibration_summary': calibrationSummary!.toJson(),
+        if (glassModeActive != null) 'glass_mode_active': glassModeActive,
+      };
 }
 
-// ─── 4-4. 운동 시작 ───
-class WorkoutStartedMsg extends PiMessage {
-  final String exerciseType;
-  final String startedAt;
+class WorkoutPausedMessage extends PiMessage {
+  const WorkoutPausedMessage({
+    required this.setIndex,
+    required this.currentRep,
+    required this.pausedAt,
+  }) : super(type: PiMessageType.workoutPaused);
 
-  const WorkoutStartedMsg({
-    required this.exerciseType,
-    required this.startedAt,
-  }) : super(type: 'workout_started');
-
-  factory WorkoutStartedMsg.fromJson(Map<String, dynamic> data) =>
-      WorkoutStartedMsg(
-        exerciseType: data['exercise_type'] as String,
-        startedAt: data['started_at'] as String,
-      );
-}
-
-// ─── 일시정지 ───
-class WorkoutPausedMsg extends PiMessage {
   final int setIndex;
   final int currentRep;
   final String pausedAt;
 
-  const WorkoutPausedMsg({
-    required this.setIndex,
-    required this.currentRep,
-    required this.pausedAt,
-  }) : super(type: 'workout_paused');
+  factory WorkoutPausedMessage.fromPayload(Map<String, dynamic> payload) {
+    return WorkoutPausedMessage(
+      setIndex: payload['set_index'] as int? ?? 0,
+      currentRep: payload['current_rep'] as int? ?? 0,
+      pausedAt: payload['paused_at'] as String? ?? '',
+    );
+  }
 
-  factory WorkoutPausedMsg.fromJson(Map<String, dynamic> data) =>
-      WorkoutPausedMsg(
-        setIndex: data['set_index'] as int,
-        currentRep: data['current_rep'] as int,
-        pausedAt: data['paused_at'] as String,
-      );
+  @override
+  Map<String, dynamic> get payload => {
+        'set_index': setIndex,
+        'current_rep': currentRep,
+        'paused_at': pausedAt,
+      };
 }
 
-// ─── 재개 ───
-class WorkoutResumedMsg extends PiMessage {
+class WorkoutResumedMessage extends PiMessage {
+  const WorkoutResumedMessage({
+    required this.setIndex,
+    required this.currentRep,
+    required this.resumedAt,
+  }) : super(type: PiMessageType.workoutResumed);
+
   final int setIndex;
   final int currentRep;
   final String resumedAt;
 
-  const WorkoutResumedMsg({
-    required this.setIndex,
-    required this.currentRep,
-    required this.resumedAt,
-  }) : super(type: 'workout_resumed');
+  factory WorkoutResumedMessage.fromPayload(Map<String, dynamic> payload) {
+    return WorkoutResumedMessage(
+      setIndex: payload['set_index'] as int? ?? 0,
+      currentRep: payload['current_rep'] as int? ?? 0,
+      resumedAt: payload['resumed_at'] as String? ?? '',
+    );
+  }
 
-  factory WorkoutResumedMsg.fromJson(Map<String, dynamic> data) =>
-      WorkoutResumedMsg(
-        setIndex: data['set_index'] as int,
-        currentRep: data['current_rep'] as int,
-        resumedAt: data['resumed_at'] as String,
-      );
+  @override
+  Map<String, dynamic> get payload => {
+        'set_index': setIndex,
+        'current_rep': currentRep,
+        'resumed_at': resumedAt,
+      };
 }
 
-// ─── 4-5. 세트 완료 ───
-class SetCompletedMsg extends PiMessage {
+class WorkoutStartedMessage extends PiMessage {
+  const WorkoutStartedMessage({
+    required this.exerciseType,
+    required this.startedAt,
+  }) : super(type: PiMessageType.workoutStarted);
+
+  final String exerciseType;
+  final String startedAt;
+
+  factory WorkoutStartedMessage.fromPayload(Map<String, dynamic> payload) {
+    return WorkoutStartedMessage(
+      exerciseType: payload['exercise_type'] as String? ?? '',
+      startedAt: payload['started_at'] as String? ?? '',
+    );
+  }
+
+  @override
+  Map<String, dynamic> get payload => {
+        'exercise_type': exerciseType,
+        'started_at': startedAt,
+      };
+}
+
+class SetCompletedMessage extends PiMessage {
+  const SetCompletedMessage({
+    required this.setIndex,
+    required this.targetReps,
+    required this.actualReps,
+    required this.completedAt,
+  }) : super(type: PiMessageType.setCompleted);
+
   final int setIndex;
   final int targetReps;
   final int actualReps;
   final String completedAt;
 
-  const SetCompletedMsg({
-    required this.setIndex,
-    required this.targetReps,
-    required this.actualReps,
-    required this.completedAt,
-  }) : super(type: 'set_completed');
+  factory SetCompletedMessage.fromPayload(Map<String, dynamic> payload) {
+    return SetCompletedMessage(
+      setIndex: payload['set_index'] as int? ?? 0,
+      targetReps: payload['target_reps'] as int? ?? 0,
+      actualReps: payload['actual_reps'] as int? ?? 0,
+      completedAt: payload['completed_at'] as String? ?? '',
+    );
+  }
 
-  factory SetCompletedMsg.fromJson(Map<String, dynamic> data) =>
-      SetCompletedMsg(
-        setIndex: data['set_index'] as int,
-        targetReps: data['target_reps'] as int,
-        actualReps: data['actual_reps'] as int,
-        completedAt: data['completed_at'] as String,
-      );
+  @override
+  Map<String, dynamic> get payload => {
+        'set_index': setIndex,
+        'target_reps': targetReps,
+        'actual_reps': actualReps,
+        'completed_at': completedAt,
+      };
 }
 
-// ─── 4-6. 휴식 시작 ───
-class RestStartedMsg extends PiMessage {
+class RestStartedMessage extends PiMessage {
+  const RestStartedMessage({
+    required this.afterSetIndex,
+    required this.restSec,
+    required this.startedAt,
+  }) : super(type: PiMessageType.restStarted);
+
   final int afterSetIndex;
   final int restSec;
   final String startedAt;
 
-  const RestStartedMsg({
-    required this.afterSetIndex,
-    required this.restSec,
-    required this.startedAt,
-  }) : super(type: 'rest_started');
+  factory RestStartedMessage.fromPayload(Map<String, dynamic> payload) {
+    return RestStartedMessage(
+      afterSetIndex: payload['after_set_index'] as int? ?? 0,
+      restSec: payload['rest_sec'] as int? ?? 0,
+      startedAt: payload['started_at'] as String? ?? '',
+    );
+  }
 
-  factory RestStartedMsg.fromJson(Map<String, dynamic> data) =>
-      RestStartedMsg(
-        afterSetIndex: data['after_set_index'] as int,
-        restSec: data['rest_sec'] as int,
-        startedAt: data['started_at'] as String,
-      );
+  @override
+  Map<String, dynamic> get payload => {
+        'after_set_index': afterSetIndex,
+        'rest_sec': restSec,
+        'started_at': startedAt,
+      };
 }
 
-// ─── 4-7. 휴식 종료 ───
-class RestFinishedMsg extends PiMessage {
+class RestFinishedMessage extends PiMessage {
+  const RestFinishedMessage({
+    required this.nextSetIndex,
+    required this.finishedAt,
+  }) : super(type: PiMessageType.restFinished);
+
   final int nextSetIndex;
   final String finishedAt;
 
-  const RestFinishedMsg({
-    required this.nextSetIndex,
-    required this.finishedAt,
-  }) : super(type: 'rest_finished');
+  factory RestFinishedMessage.fromPayload(Map<String, dynamic> payload) {
+    return RestFinishedMessage(
+      nextSetIndex: payload['next_set_index'] as int? ?? 0,
+      finishedAt: payload['finished_at'] as String? ?? '',
+    );
+  }
 
-  factory RestFinishedMsg.fromJson(Map<String, dynamic> data) =>
-      RestFinishedMsg(
-        nextSetIndex: data['next_set_index'] as int,
-        finishedAt: data['finished_at'] as String,
-      );
+  @override
+  Map<String, dynamic> get payload => {
+        'next_set_index': nextSetIndex,
+        'finished_at': finishedAt,
+      };
 }
 
-// ─── 4-8. 운동 종료 ───
-class WorkoutCompletedMsg extends PiMessage {
+class WorkoutCompletedMessage extends PiMessage {
+  const WorkoutCompletedMessage({
+    required this.endedAt,
+    required this.status,
+    required this.endReason,
+  }) : super(type: PiMessageType.workoutCompleted);
+
   final String endedAt;
   final String status;
   final String endReason;
 
-  const WorkoutCompletedMsg({
-    required this.endedAt,
-    required this.status,
-    required this.endReason,
-  }) : super(type: 'workout_completed');
-
-  factory WorkoutCompletedMsg.fromJson(Map<String, dynamic> data) =>
-      WorkoutCompletedMsg(
-        endedAt: data['ended_at'] as String,
-        status: data['status'] as String,
-        endReason: data['end_reason'] as String,
-      );
-}
-
-// ─── 4-9. 최종 세션 결과 ───
-class SessionResultMsg extends PiMessage {
-  final WorkoutSession session;
-
-  const SessionResultMsg({
-    required this.session,
-  }) : super(type: 'session_result');
-
-  factory SessionResultMsg.fromJson(Map<String, dynamic> data) {
-    return SessionResultMsg(
-      session: WorkoutSession.fromJson(data),
+  factory WorkoutCompletedMessage.fromPayload(Map<String, dynamic> payload) {
+    return WorkoutCompletedMessage(
+      endedAt: payload['ended_at'] as String? ?? '',
+      status: payload['status'] as String? ?? '',
+      endReason: payload['end_reason'] as String? ?? '',
     );
   }
+
+  @override
+  Map<String, dynamic> get payload => {
+        'ended_at': endedAt,
+        'status': status,
+        'end_reason': endReason,
+      };
 }
 
-// ─── 4-10. 오류 ───
-class ErrorMsg extends PiMessage {
+class SessionResultMessage extends PiMessage {
+  const SessionResultMessage({
+    required this.session,
+  }) : super(type: PiMessageType.sessionResult);
+
+  final WorkoutSession session;
+
+  factory SessionResultMessage.fromPayload(Map<String, dynamic> payload) {
+    return SessionResultMessage(
+      session: WorkoutSession.fromJson(payload),
+    );
+  }
+
+  @override
+  Map<String, dynamic> get payload => session.toJson();
+}
+
+class PiErrorMessage extends PiMessage {
+  const PiErrorMessage({
+    required this.code,
+    required this.message,
+  }) : super(type: PiMessageType.error);
+
   final String code;
   final String message;
 
-  const ErrorMsg({
-    required this.code,
-    required this.message,
-  }) : super(type: 'error');
+  factory PiErrorMessage.fromPayload(Map<String, dynamic> payload) {
+    return PiErrorMessage(
+      code: payload['code'] as String? ?? 'UNKNOWN',
+      message: payload['message'] as String? ?? '',
+    );
+  }
 
-  factory ErrorMsg.fromJson(Map<String, dynamic> data) => ErrorMsg(
-        code: data['code'] as String,
-        message: data['message'] as String,
-      );
+  @override
+  Map<String, dynamic> get payload => {
+        'code': code,
+        'message': message,
+      };
 }
