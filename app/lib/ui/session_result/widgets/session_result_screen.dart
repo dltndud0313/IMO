@@ -11,19 +11,19 @@ class SessionResultScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
-      title: 'Session Result',
-      subtitle: 'Push-up completed',
+      title: '운동 결과',
+      subtitle: '푸시업 완료',
       scrollable: true,
       bottom: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           ImoButton(
-            label: 'Back home',
+            label: '홈으로 돌아가기',
             onPressed: () => context.go('/home'),
           ),
           const SizedBox(height: AppSpacing.xs),
           ImoButton(
-            label: 'View history',
+            label: '기록 보기',
             variant: ImoButtonVariant.outline,
             onPressed: () => context.go('/history'),
           ),
@@ -82,10 +82,10 @@ class _ResultHeroCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
-          Text('Workout complete', style: AppTextStyles.title),
+          Text('운동 완료', style: AppTextStyles.title),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'Session result is ready to save and review.',
+            '운동 결과가 저장되었어요. 기록에서 다시 확인할 수 있습니다.',
             textAlign: TextAlign.center,
             style: AppTextStyles.body,
           ),
@@ -96,12 +96,12 @@ class _ResultHeroCard extends StatelessWidget {
             alignment: WrapAlignment.center,
             children: [
               StatusBadge(
-                label: 'completed',
+                label: '정상 완료',
                 variant: StatusVariant.success,
                 size: StatusBadgeSize.md,
               ),
               StatusBadge(
-                label: 'auto_completed',
+                label: '자동 종료',
                 variant: StatusVariant.info,
                 size: StatusBadgeSize.md,
               ),
@@ -128,25 +128,25 @@ class _ResultMetricGrid extends StatelessWidget {
       children: const [
         _MetricTile(
           icon: Icons.fitness_center_rounded,
-          label: 'Total reps',
+          label: '총 횟수',
           value: '33',
           tint: AppColors.primary,
         ),
         _MetricTile(
           icon: Icons.check_circle_rounded,
-          label: 'Valid reps',
+          label: '유효 횟수',
           value: '31',
           tint: AppColors.success,
         ),
         _MetricTile(
           icon: Icons.timer_rounded,
-          label: 'Duration',
-          value: '7m 12s',
+          label: '운동 시간',
+          value: '7분 12초',
           tint: AppColors.warning,
         ),
         _MetricTile(
           icon: Icons.warning_amber_rounded,
-          label: 'Compensation',
+          label: '보상동작',
           value: '4',
           tint: AppColors.error,
         ),
@@ -209,7 +209,7 @@ class _SetResultsCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Set results', style: AppTextStyles.label),
+          Text('세트별 결과', style: AppTextStyles.label),
           const SizedBox(height: AppSpacing.md),
           for (final result in _setResults) ...[
             _SetResultRow(result: result),
@@ -256,17 +256,17 @@ class _SetResultRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Set ${result.index}', style: AppTextStyles.label),
+                Text('${result.index}세트', style: AppTextStyles.label),
                 const SizedBox(height: AppSpacing.xxs),
                 Text(
-                  '${result.actualReps}/${result.targetReps} reps · ${result.speed}',
+                  '${result.actualReps}/${result.targetReps}회 · ${result.speed}',
                   style: AppTextStyles.caption,
                 ),
               ],
             ),
           ),
           StatusBadge(
-            label: completed ? 'Complete' : 'Short',
+            label: completed ? '완료' : '미달',
             variant: completed ? StatusVariant.success : StatusVariant.warning,
           ),
         ],
@@ -293,9 +293,9 @@ class _MuscleMapCard extends StatelessWidget {
                 size: 18,
               ),
               const SizedBox(width: AppSpacing.xs),
-              Text('Muscle map', style: AppTextStyles.label),
+              Text('근육 활성 지도', style: AppTextStyles.label),
               const Spacer(),
-              const StatusBadge(label: 'placeholder', variant: StatusVariant.neutral),
+              const StatusBadge(label: '예시', variant: StatusVariant.neutral),
             ],
           ),
           const SizedBox(height: AppSpacing.md),
@@ -314,10 +314,30 @@ class _MuscleMapCard extends StatelessWidget {
                     color: AppColors.heatmapInactive,
                   ),
                 ),
-                _HeatPoint(label: 'Chest 68%', top: 54, left: 92, color: AppColors.heatmapHigh),
-                _HeatPoint(label: 'L shoulder 42%', top: 72, left: 42, color: AppColors.heatmapNormal),
-                _HeatPoint(label: 'R shoulder 39%', top: 72, right: 42, color: AppColors.heatmapNormal),
-                _HeatPoint(label: 'Triceps 54%', top: 118, right: 56, color: AppColors.heatmapHigh),
+                _HeatPoint(
+                  label: '가슴 68%',
+                  top: 54,
+                  left: 92,
+                  color: AppColors.heatmapHigh,
+                ),
+                _HeatPoint(
+                  label: '왼쪽 어깨 42%',
+                  top: 72,
+                  left: 42,
+                  color: AppColors.heatmapNormal,
+                ),
+                _HeatPoint(
+                  label: '오른쪽 어깨 39%',
+                  top: 72,
+                  right: 42,
+                  color: AppColors.heatmapNormal,
+                ),
+                _HeatPoint(
+                  label: '삼두 54%',
+                  top: 118,
+                  right: 56,
+                  color: AppColors.heatmapHigh,
+                ),
               ],
             ),
           ),
@@ -392,10 +412,10 @@ class _SessionCommentCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Session comment', style: AppTextStyles.label),
+                Text('세션 코멘트', style: AppTextStyles.label),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  'Compensation increased in the last set. Keep the body line stable on the next session.',
+                  '마지막 세트에서 보상동작이 증가했어요. 다음 운동에서는 몸의 중심선을 조금 더 안정적으로 유지해 보세요.',
                   style: AppTextStyles.bodySmall,
                 ),
               ],
@@ -422,7 +442,7 @@ class _SetResult {
 }
 
 const _setResults = [
-  _SetResult(index: 1, targetReps: 12, actualReps: 12, speed: 'normal'),
-  _SetResult(index: 2, targetReps: 12, actualReps: 12, speed: 'normal'),
-  _SetResult(index: 3, targetReps: 10, actualReps: 9, speed: 'slow'),
+  _SetResult(index: 1, targetReps: 12, actualReps: 12, speed: '보통'),
+  _SetResult(index: 2, targetReps: 12, actualReps: 12, speed: '보통'),
+  _SetResult(index: 3, targetReps: 10, actualReps: 9, speed: '느림'),
 ];
