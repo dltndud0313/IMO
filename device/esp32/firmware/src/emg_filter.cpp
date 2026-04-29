@@ -47,83 +47,109 @@ float compute_rms(const std::deque<float>& samples, std::size_t window) {
     return std::sqrt(sum_squares / static_cast<float>(active_window));
 }
 
-float apply_baseline(float value, float baseline) {
-    return std::max(0.0F, value - baseline);
-}
-
-float normalize_activation(float value, float min_value, float max_value) {
-    if (max_value <= min_value) {
-        return 0.0F;
-    }
-
-    // rest~MVC 구간을 0~1로 맞춰 채널/사용자마다 비교하기 쉬운 값으로 바꾼다.
-    const float normalized = (value - min_value) / (max_value - min_value);
-    return std::clamp(normalized, 0.0F, 1.0F);
-}
-
-float smooth_activation(float current_value, float previous_value, float attack_alpha, float release_alpha) {
+float smooth_display(float current_value, float previous_value, float attack_alpha, float release_alpha) {
     const float alpha = current_value >= previous_value ? attack_alpha : release_alpha;
     return (current_value * alpha) + (previous_value * (1.0F - alpha));
 }
 
 bool threshold_active(
-    float normalized_value,
+    float value,
     bool was_active,
     float threshold_on,
     float threshold_off
 ) {
     if (was_active) {
-        return normalized_value >= threshold_off;
+        return value >= threshold_off;
     }
 
-    return normalized_value >= threshold_on;
+    return value >= threshold_on;
 }
 
 EmgProcessingResult EmgFilter::process(
-    const std::array<float, kEmgChannelCount>& raw,
-    const CalibrationProfile& calibration_profile
+    const std::array<float, kEmgChannelCount>& raw
 ) {
     EmgProcessingResult result;
 
     for (std::size_t channel = 0; channel < kEmgChannelCount; ++channel) {
-        // 채널별로 원시값 -> smoothing -> RMS -> baseline 보정 -> 정규화 순서로 처리한다.
+        if (raw[channel] >= kEmgDetachInputThreshold) {
+            sample_history_[channel].clear();
+            result.moving_average[channel] = raw[channel];
+            result.rms[channel] = raw[channel];
+            result.display[channel] = kEmgDisplayMax;
+            result.active[channel] = true;
+            display_history_[channel] = 0.0F;
+            display_hold_count_[channel] = 0U;
+            active_state_[channel] = false;
+            detached_state_[channel] = true;
+            continue;
+        }
+
+        if (detached_state_[channel]) {
+            sample_history_[channel].clear();
+            display_history_[channel] = 0.0F;
+            display_hold_count_[channel] = 0U;
+            active_state_[channel] = false;
+            detached_state_[channel] = false;
+        }
+
+        // ESP32에서는 신호 세기(RMS)와 표시 안정화만 담당하고 캘리브레이션은 Pi로 위임한다.
         sample_history_[channel].push_back(raw[channel]);
         trim_history(&sample_history_[channel]);
 
         result.moving_average[channel] =
             compute_moving_average(sample_history_[channel], kEmgMovingAverageWindow);
         result.rms[channel] = compute_rms(sample_history_[channel], kEmgRmsWindow);
-        result.baseline_corrected[channel] = apply_baseline(
-            result.rms[channel],
-            calibration_profile.rest_baseline[channel]
-        );
 
-        const float reference_max = calibration_profile.mvc_ready
-            ? calibration_profile.mvc_reference[channel]
-            : 1.0F;
-        // MVC가 아직 없으면 1.0을 임시 상한으로 써서 mock 단계에서도 파이프라인을 유지한다.
-        result.normalized_instant[channel] = normalize_activation(
-            result.rms[channel],
-            calibration_profile.rest_baseline[channel],
-            reference_max
+        // 센서 소스가 이미 양수 envelope를 만든다. 표시값은 RMS보다 이동평균을 써서
+        // 유지 중 작은 흔들림이 과하게 튀지 않게 한다.
+        float display_base = result.moving_average[channel] - kEmgDisplayNoiseFloor;
+        if (display_base < 0.0F) {
+            display_base = 0.0F;
+        }
+        display_base *= kEmgDisplayGain;
+        display_base = std::clamp(display_base, 0.0F, kEmgDisplayMax);
+        if (display_base < kEmgDisplayZeroClamp) {
+            display_base = 0.0F;
+        }
+
+        const float instant_display = std::clamp(
+            raw[channel] * kEmgDisplayGain,
+            0.0F,
+            kEmgDisplayMax
         );
-        result.normalized[channel] = smooth_activation(
-            result.normalized_instant[channel],
-            activation_history_[channel],
-            kEmgAttackAlpha,
-            kEmgReleaseAlpha
-        );
-        activation_history_[channel] = result.normalized[channel];
-        // 패킷/화면 표시는 한 번 더 완만하게 만들어 운동 유지 상태가 덜 요동치게 본다.
-        result.normalized_display[channel] = smooth_activation(
-            result.normalized[channel],
+        if (instant_display >= kActivationThresholdOn) {
+            display_hold_count_[channel] = kEmgDisplayHoldFrames;
+        } else if (display_hold_count_[channel] > 0U) {
+            --display_hold_count_[channel];
+        }
+
+        if (
+            display_hold_count_[channel] > 0U &&
+            display_base < display_history_[channel] &&
+            display_history_[channel] >= kActivationThresholdOn
+        ) {
+            // EMG는 유지 수축 중에도 짧게 꺼지는 구간이 있어 게이지가 바로 꺼지지 않게 한다.
+            display_base = display_history_[channel];
+        }
+
+        const float release_alpha = display_base == 0.0F
+            ? kEmgDisplayZeroReleaseAlpha
+            : kEmgDisplayReleaseAlpha;
+        result.display[channel] = smooth_display(
+            display_base,
             display_history_[channel],
             kEmgDisplayAttackAlpha,
-            kEmgDisplayReleaseAlpha
+            release_alpha
         );
-        display_history_[channel] = result.normalized_display[channel];
+        if (display_base == 0.0F && result.display[channel] < kEmgDisplayZeroClamp) {
+            result.display[channel] = 0.0F;
+        }
+        display_history_[channel] = result.display[channel];
+        const float active_value = result.display[channel] <= kEmgRestDisplayThreshold
+            ? 0.0F
+            : result.display[channel];
         result.active[channel] = threshold_active(
-            result.normalized[channel],
+            active_value,
             active_state_[channel],
             kActivationThresholdOn,
             kActivationThresholdOff
@@ -138,9 +164,10 @@ void EmgFilter::reset() {
     for (auto& history : sample_history_) {
         history.clear();
     }
-    activation_history_.fill(0.0F);
     display_history_.fill(0.0F);
+    display_hold_count_.fill(0U);
     active_state_.fill(false);
+    detached_state_.fill(false);
 }
 
 }  // namespace mvp

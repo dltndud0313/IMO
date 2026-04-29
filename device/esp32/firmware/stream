@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PORT="${1:-${ESP32_PORT:-/dev/ttyUSB0}}"
+
+python3 "$SCRIPT_DIR/../scripts/decode_binary_sensor_stream.py" \
+  --port "$PORT" \
+  --baud "${ESP32_BAUD:-115200}" \
+  --show-gaps

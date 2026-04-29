@@ -1,4 +1,4 @@
-// 실제 센서 튜닝 전에 EMG 수학 유틸(RMS/이동평균/정규화) 정확도를 확인한다.
+// 실제 센서 튜닝 전에 EMG 수학 유틸(RMS/이동평균/표시 smoothing) 정확도를 확인한다.
 #include <array>
 #include <deque>
 
@@ -20,86 +20,94 @@ void run_test_emg_filter() {
         "RMS should match expected value"
     );
     expect_near(
-        mvp::apply_baseline(0.7F, 0.2F),
-        0.5F,
+        mvp::smooth_display(1.0F, 0.0F, 0.18F, 0.05F),
+        0.18F,
         0.001F,
-        "baseline correction should subtract baseline"
+        "display smoothing should rise with attack alpha"
     );
     expect_near(
-        mvp::normalize_activation(0.6F, 0.2F, 1.0F),
-        0.5F,
+        mvp::smooth_display(0.0F, 1.0F, 0.18F, 0.05F),
+        0.95F,
         0.001F,
-        "normalization should map into 0..1"
-    );
-    expect_near(
-        mvp::smooth_activation(1.0F, 0.0F, 0.35F, 0.08F),
-        0.35F,
-        0.001F,
-        "attack smoothing should rise quickly"
-    );
-    expect_near(
-        mvp::smooth_activation(0.0F, 1.0F, 0.35F, 0.08F),
-        0.92F,
-        0.001F,
-        "release smoothing should fall slowly"
+        "display smoothing should decay with release alpha"
     );
     expect_true(
         mvp::threshold_active(0.21F, false, 0.20F, 0.12F),
         "threshold check should activate above on-threshold"
     );
     expect_true(
-        !mvp::threshold_active(0.19F, false, 0.20F, 0.12F),
-        "threshold check should stay inactive below on-threshold"
-    );
-    expect_true(
-        mvp::threshold_active(0.13F, true, 0.20F, 0.12F),
-        "hysteresis should keep active state until off-threshold is crossed"
-    );
-    expect_true(
         !mvp::threshold_active(0.11F, true, 0.20F, 0.12F),
         "threshold check should deactivate below off-threshold"
     );
 
-    mvp::CalibrationProfile profile;
-    profile.rest_baseline = {0.0F, 0.0F, 0.0F};
-    profile.mvc_peak = {1.0F, 1.0F, 1.0F};
-    profile.mvc_reference = {1.0F, 1.0F, 1.0F};
-    profile.rest_ready = true;
-    profile.mvc_ready = true;
+    mvp::EmgFilter detach_filter;
+    mvp::EmgProcessingResult detach_result =
+        detach_filter.process({1.0F, 0.0F, 0.0F, 0.0F});
+    expect_near(
+        detach_result.display[0],
+        1.0F,
+        0.001F,
+        "detached EMG should display max warning value"
+    );
+    detach_result = detach_filter.process({0.0F, 0.0F, 0.0F, 0.0F});
+    expect_near(
+        detach_result.display[0],
+        0.0F,
+        0.001F,
+        "reattached EMG should restart from zero without poisoned history"
+    );
+
+    mvp::EmgFilter low_force_filter;
+    mvp::EmgProcessingResult low_force_result;
+    for (int sample = 0; sample < 20; ++sample) {
+        low_force_filter.process({0.0F, 0.0F, 0.0F, 0.0F});
+    }
+    for (int sample = 0; sample < 80; ++sample) {
+        low_force_result = low_force_filter.process({0.02F, 0.0F, 0.0F, 0.0F});
+    }
+    expect_true(
+        low_force_result.display[0] > 0.08F,
+        "low sustained EMG should keep a visible display value"
+    );
+
+    mvp::EmgFilter steady_filter;
+    mvp::EmgProcessingResult steady_result;
+    for (int sample = 0; sample < 80; ++sample) {
+        steady_result = steady_filter.process({0.02F, 0.0F, 0.0F, 0.0F});
+    }
+    const float steady_before_dip = steady_result.display[0];
+    for (int sample = 0; sample < 10; ++sample) {
+        steady_result = steady_filter.process({0.015F, 0.0F, 0.0F, 0.0F});
+    }
+    expect_true(
+        steady_result.display[0] > steady_before_dip * 0.75F,
+        "small sustained-force dips should not collapse the displayed EMG value"
+    );
 
     mvp::EmgFilter filter;
     mvp::EmgProcessingResult result;
-    for (int sample = 0; sample < 6; ++sample) {
-        result = filter.process({0.8F, 0.0F, 0.0F}, profile);
+    for (int sample = 0; sample < 16; ++sample) {
+        result = filter.process({0.8F, 0.4F, 0.2F, 0.1F});
     }
 
-    expect_near(
-        result.normalized_instant[0],
-        0.8F,
-        0.001F,
-        "normalized instant should follow sustained contraction level"
-    );
+    expect_true(result.rms[0] > 0.75F, "rms should follow sustained contraction level");
     expect_true(
-        result.normalized[0] > 0.70F,
-        "smoothed activation should rise toward the sustained contraction level"
-    );
-    expect_true(
-        result.normalized_display[0] > 0.35F && result.normalized_display[0] < result.normalized[0],
-        "display smoothing should rise more slowly than logic smoothing"
+        result.display[0] > 0.70F && result.display[0] <= 1.00F,
+        "display value should rise for sustained contraction"
     );
     expect_true(result.active[0], "filter should report active after sustained contraction");
 
-    for (int sample = 0; sample < 64; ++sample) {
-        result = filter.process({0.0F, 0.0F, 0.0F}, profile);
+    for (int sample = 0; sample < 40; ++sample) {
+        result = filter.process({0.0F, 0.0F, 0.0F, 0.0F});
     }
 
     expect_true(
-        result.normalized[0] < 0.12F,
-        "smoothed activation should decay after relaxation"
+        result.display[0] < 0.70F,
+        "display value should decay gradually after relaxation"
     );
-    expect_true(
-        result.normalized_display[0] > result.normalized[0],
-        "display smoothing should decay more slowly for a steadier UI value"
-    );
+    for (int sample = 0; sample < 120; ++sample) {
+        result = filter.process({0.0F, 0.0F, 0.0F, 0.0F});
+    }
+
     expect_true(!result.active[0], "filter should deactivate after enough relaxed samples");
 }

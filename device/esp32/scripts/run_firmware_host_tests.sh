@@ -11,7 +11,6 @@ g++ -std=c++17 \
   "${ROOT_DIR}/firmware/src/packet.cpp" \
   "${ROOT_DIR}/firmware/src/emg_filter.cpp" \
   "${ROOT_DIR}/firmware/src/imu_processor.cpp" \
-  "${ROOT_DIR}/firmware/src/calibration.cpp" \
   "${ROOT_DIR}/firmware/src/state_machine.cpp" \
   "${ROOT_DIR}/firmware/src/sensor_mock.cpp" \
   "${ROOT_DIR}/firmware/src/sensor_analog_emg.cpp" \
@@ -21,7 +20,6 @@ g++ -std=c++17 \
   "${ROOT_DIR}/firmware/tests/test_packet.cpp" \
   "${ROOT_DIR}/firmware/tests/test_emg_filter.cpp" \
   "${ROOT_DIR}/firmware/tests/test_imu_processor.cpp" \
-  "${ROOT_DIR}/firmware/tests/test_calibration.cpp" \
   "${ROOT_DIR}/firmware/tests/test_state_machine.cpp" \
   "${ROOT_DIR}/firmware/tests/test_sensor_mock.cpp" \
   "${ROOT_DIR}/firmware/tests/test_sensor_analog_emg.cpp" \

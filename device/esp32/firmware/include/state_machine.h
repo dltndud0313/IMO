@@ -1,4 +1,4 @@
-// 캘리브레이션 단계와 스트리밍 단계를 명확히 관리하는 상태머신 인터페이스.
+// ESP32는 수집/전송 장치로 단순화하고, 상태머신은 스트리밍/오류 전이만 관리한다.
 #pragma once
 
 #include "types.h"
@@ -12,7 +12,7 @@ class StateMachine {
     void reset();
 
   private:
-    RuntimeState state_ {RuntimeState::IDLE};
+    RuntimeState state_ {RuntimeState::STREAMING};
 };
 
 }  // namespace mvp

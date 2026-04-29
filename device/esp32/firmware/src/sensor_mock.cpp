@@ -44,18 +44,26 @@ SensorFrame MockSensorSource::read_frame(uint32_t timestamp_ms) {
         0.06F + envelope * (0.60F + 0.25F * fast_wave),
         0.05F + envelope * (0.52F + 0.18F * slow_wave),
         0.04F + envelope * (0.38F + 0.10F * fast_wave),
+        0.03F + envelope * (0.32F + 0.12F * slow_wave),
     };
 
-    frame.imu.accel = {
-        0.08F * slow_wave,
-        0.20F * envelope,
-        1.00F + 0.04F * fast_wave,
-    };
-    frame.imu.gyro = {
-        0.18F * fast_wave,
-        0.26F * slow_wave,
-        0.12F * envelope,
-    };
+    for (std::size_t imu_index = 0; imu_index < kImuSensorCount; ++imu_index) {
+        const float imu_offset = static_cast<float>(imu_index) * 0.12F;
+        const float imu_phase = phase + imu_offset;
+        const float imu_fast_wave = oscillation(imu_phase, 7.0F);
+        const float imu_slow_wave = oscillation(imu_phase, 2.5F);
+
+        frame.imus[imu_index].accel = {
+            0.10F * imu_slow_wave,
+            0.22F * envelope,
+            1.00F + 0.05F * imu_fast_wave,
+        };
+        frame.imus[imu_index].gyro = {
+            0.22F * imu_fast_wave,
+            0.24F * imu_slow_wave,
+            0.15F * envelope,
+        };
+    }
 
     return frame;
 }

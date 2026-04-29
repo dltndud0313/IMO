@@ -1,6 +1,7 @@
 // SZH-GJD001 계열 단일 아날로그 EMG 센서를 ESP32 파이프라인에 연결하기 위한 어댑터 선언.
 #pragma once
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -16,14 +17,18 @@ struct AnalogEmgSensorConfig {
     std::size_t samples_per_frame {10};
     // ESP32 ADC를 12bit 기준으로 가정한 기본 full-scale 값이다.
     float adc_full_scale {4095.0F};
-    // EMG 모듈 아날로그 출력을 읽는 ESP32 ADC GPIO.
-    int emg_adc_gpio {4};
-    // MPU-6050 기본 I2C 주소와 버스 설정.
+    // EMG 모듈 아날로그 출력을 읽는 ESP32 ADC GPIO들.
+    std::array<int, kEmgChannelCount> emg_adc_gpios {4, 5, 6, 7};
+    // false인 채널은 읽지 않고 0으로 고정한다(미연결 채널 노이즈 방지).
+    std::array<bool, kEmgChannelCount> emg_channel_enabled {true, false, false, false};
+    // MPU-6050 I2C 주소와 버스 설정.
     int imu_i2c_port {0};
     int imu_sda_gpio {8};
     int imu_scl_gpio {9};
-    uint32_t imu_i2c_clock_hz {400000};
-    uint8_t imu_address {0x68};
+    uint32_t imu_i2c_clock_hz {100000};
+    int imu_i2c_transaction_timeout_ms {20};
+    std::array<uint8_t, kImuSensorCount> imu_addresses {0x68, 0x69, 0x6A};
+    std::array<bool, kImuSensorCount> imu_sensor_enabled {true, true, false};
 };
 
 class ButterworthBandPassFilter {
@@ -53,22 +58,33 @@ class AnalogEmgSensorSource : public ISensorSource {
     );
 
     SensorFrame read_frame(uint32_t timestamp_ms) override;
+    std::size_t imu_ready_count() const override;
+    std::size_t imu_expected_count() const override;
     float read_debug_raw_emg_sample();
     void reset();
 
   private:
     // 실제 장착 후에는 이 함수 내부가 adc_oneshot_read 같은 ESP-IDF 호출로 바뀐다.
-    float read_raw_sample();
-    ImuSample read_imu_sample();
+    float read_raw_sample(std::size_t channel_index);
+    ImuSample read_imu_sample(std::size_t imu_index);
     bool ensure_imu_ready();
     bool ensure_emg_ready();
 
     RawSampleReader raw_reader_ {};
     AnalogEmgSensorConfig config_ {};
-    // 채널 1용 band-pass 필터 상태를 소유한다.
-    ButterworthBandPassFilter band_pass_filter_ {};
+    std::array<float, kEmgChannelCount> emg_rest_baseline_raw_ {};
+    std::array<float, kEmgChannelCount> emg_rest_noise_m2_ {};
+    std::array<float, kEmgChannelCount> emg_rest_noise_floor_ {};
+    std::array<std::size_t, kEmgChannelCount> emg_rest_baseline_count_ {};
+    std::array<bool, kEmgChannelCount> emg_rest_baseline_ready_ {};
+    std::array<std::size_t, kEmgChannelCount> emg_detach_frame_count_ {};
+    std::array<std::size_t, kEmgChannelCount> emg_reattach_frame_count_ {};
+    std::array<bool, kEmgChannelCount> emg_detached_ {};
+    std::array<bool, kEmgChannelCount> emg_channel_ready_ {};
     bool emg_ready_ {false};
     bool emg_init_failed_ {false};
+    std::size_t imu_ready_count_ {0};
+    std::array<bool, kImuSensorCount> imu_channel_ready_ {};
     bool imu_ready_ {false};
     bool imu_init_failed_ {false};
     bool imu_read_error_logged_ {false};
