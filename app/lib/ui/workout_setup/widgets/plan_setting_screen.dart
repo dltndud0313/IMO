@@ -71,7 +71,7 @@ class _PlanSettingScreenState extends State<PlanSettingScreen> {
       bottom: ImoButton(
         label: 'Continue',
         rightIcon: const Icon(Icons.arrow_forward_rounded),
-        onPressed: () => context.go('/workout'),
+        onPressed: () => context.go('/sensor-guide?exercise=${widget.exerciseId}'),
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

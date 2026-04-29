@@ -14,6 +14,8 @@ import '../ui/workout/widgets/workout_screen.dart';
 import '../ui/workout_setup/widgets/exercise_guide_screen.dart';
 import '../ui/workout_setup/widgets/exercise_select_screen.dart';
 import '../ui/workout_setup/widgets/plan_setting_screen.dart';
+import '../ui/workout_setup/widgets/calibration_screen.dart';
+import '../ui/workout_setup/widgets/sensor_guide_screen.dart';
 import 'dependencies.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -66,6 +68,18 @@ GoRouter buildRouter() {
       GoRoute(
         path: '/workout-plan',
         builder: (context, state) => PlanSettingScreen(
+          exerciseId: state.uri.queryParameters['exercise'] ?? 'pushup',
+        ),
+      ),
+      GoRoute(
+        path: '/sensor-guide',
+        builder: (context, state) => SensorGuideScreen(
+          exerciseId: state.uri.queryParameters['exercise'] ?? 'pushup',
+        ),
+      ),
+      GoRoute(
+        path: '/workout-calibration',
+        builder: (context, state) => CalibrationScreen(
           exerciseId: state.uri.queryParameters['exercise'] ?? 'pushup',
         ),
       ),
