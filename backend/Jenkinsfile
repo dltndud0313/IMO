@@ -2,7 +2,29 @@
 // - GitLab develop 브랜치 변경 시 트리거 (수동 + webhook 둘 다 가능)
 // - 같은 EC2 위에서 docker compose 재기동
 // - 운영용 .env 는 ${BACKEND_DIR}/.env 에 미리 두고 compose 가 자동 로드
-// - Mattermost 알림은 Phase 7 에서 mm-webhook-c203 credential 추가 후 활성화
+// - Mattermost 알림 포맷은 C206 운영 패턴 (이모지 + 커밋 정보 + 빌드 보기 링크)
+
+import groovy.json.JsonOutput
+
+def notifyMattermost(String emoji, String title) {
+    // Pull develop 단계에서 capture 한 커밋 정보 사용. 그 단계 전에 죽으면 '-'.
+    def hash   = env.DEPLOY_HASH   ?: '-'
+    def msg    = env.DEPLOY_MSG    ?: '-'
+    def author = env.DEPLOY_AUTHOR ?: '-'
+
+    def text = "${emoji} **${title}**\n" +
+               "**브랜치**: develop\n" +
+               "**커밋**: `${hash}` ${msg} _by ${author}_\n" +
+               "[#${env.BUILD_NUMBER} 빌드 보기](${env.BUILD_URL})"
+
+    // JsonOutput.toJson 으로 escape 안전 처리 (한글/특수문자/줄바꿈 모두 OK)
+    def json = JsonOutput.toJson([text: text])
+    writeFile file: 'mm-payload.json', text: json
+
+    withCredentials([string(credentialsId: 'mm-webhook-c203', variable: 'MM_URL')]) {
+        sh 'curl -sS -X POST "$MM_URL" -H "Content-Type: application/json; charset=utf-8" -d @mm-payload.json'
+    }
+}
 
 pipeline {
     agent any
@@ -12,7 +34,6 @@ pipeline {
         BACKEND_DIR  = '/home/ubuntu/S14P31C203/backend'
         COMPOSE_FILE = 'docker-compose.ec2.yml'
         HEALTH_URL   = 'http://127.0.0.1:8000/'
-        GIT_REPO_URL = 'lab.ssafy.com/s14-final/S14P31C203.git'
     }
 
     options {
@@ -43,6 +64,12 @@ pipeline {
                         echo "==> 배포 대상 커밋:"
                         git log --oneline -1
                     '''
+                }
+                // 알림용 커밋 정보 capture
+                script {
+                    env.DEPLOY_HASH   = sh(returnStdout: true, script: "cd $DEPLOY_DIR && git log --format='%h' -1").trim()
+                    env.DEPLOY_MSG    = sh(returnStdout: true, script: "cd $DEPLOY_DIR && git log --format='%s' -1").trim()
+                    env.DEPLOY_AUTHOR = sh(returnStdout: true, script: "cd $DEPLOY_DIR && git log --format='%an' -1").trim()
                 }
             }
         }
@@ -90,29 +117,15 @@ pipeline {
 
     post {
         always {
-            // 오래된 dangling 이미지 정리 (디스크 공간 관리)
             sh 'docker image prune -f --filter "until=24h" 2>/dev/null || true'
         }
         success {
             echo '배포 성공'
-            // Phase 7: 아래 주석 해제 + mm-webhook-c203 credential 등록
-            // withCredentials([string(credentialsId: 'mm-webhook-c203', variable: 'MM_URL')]) {
-            //     sh '''
-            //         curl -sS -X POST "$MM_URL" \\
-            //           -H "Content-Type: application/json" \\
-            //           -d "{\\"text\\":\\":jenkins7: 백엔드 배포 성공 — ${BUILD_URL}\\"}"
-            //     '''
-            // }
+            script { notifyMattermost(':jenkins7:', 'Deploy 성공') }
         }
         failure {
             echo '배포 실패'
-            // withCredentials([string(credentialsId: 'mm-webhook-c203', variable: 'MM_URL')]) {
-            //     sh '''
-            //         curl -sS -X POST "$MM_URL" \\
-            //           -H "Content-Type: application/json" \\
-            //           -d "{\\"text\\":\\":angry_jenkins: 백엔드 배포 실패 — ${BUILD_URL}\\"}"
-            //     '''
-            // }
+            script { notifyMattermost(':angry_jenkins:', 'Build 실패') }
         }
     }
 }
