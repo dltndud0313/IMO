@@ -2,6 +2,8 @@
 .env
 .env.local
 .env.*.local
+.env.production
+# 단, 템플릿(.env.production.example)은 커밋 — 위 패턴이 example 까지 잡지 않음을 확인
 
 # 로컬 DB / 로그
 *.db
