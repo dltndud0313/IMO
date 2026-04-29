@@ -11,7 +11,9 @@ import '../ui/onboarding/widgets/onboarding_screen.dart';
 import '../ui/session_result/widgets/session_result_screen.dart';
 import '../ui/stats/widgets/stats_screen.dart';
 import '../ui/workout/widgets/workout_screen.dart';
+import '../ui/workout_setup/widgets/exercise_guide_screen.dart';
 import '../ui/workout_setup/widgets/exercise_select_screen.dart';
+import '../ui/workout_setup/widgets/plan_setting_screen.dart';
 import 'dependencies.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -54,6 +56,18 @@ GoRouter buildRouter() {
       GoRoute(
         path: '/workout-setup',
         builder: (context, state) => const ExerciseSelectScreen(),
+      ),
+      GoRoute(
+        path: '/workout-guide',
+        builder: (context, state) => ExerciseGuideScreen(
+          exerciseId: state.uri.queryParameters['exercise'] ?? 'pushup',
+        ),
+      ),
+      GoRoute(
+        path: '/workout-plan',
+        builder: (context, state) => PlanSettingScreen(
+          exerciseId: state.uri.queryParameters['exercise'] ?? 'pushup',
+        ),
       ),
       GoRoute(
         path: '/workout',
