@@ -13,8 +13,10 @@ services:
       - CORS_ORIGINS=${CORS_ORIGINS:-*}
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
       - REFRESH_TOKEN_EXPIRE_DAYS=${REFRESH_TOKEN_EXPIRE_DAYS:-14}
+      - REDIS_URL=redis://redis:6379/0
     depends_on:
       - db
+      - redis
     networks:
       - imo_net
 
@@ -30,8 +32,18 @@ services:
     networks:
       - imo_net
 
+  # Redis 캐시 — 외부 미노출, imo_net 내부 통신만
+  redis:
+    image: redis:7-alpine
+    restart: always
+    volumes:
+      - redis_data:/data
+    networks:
+      - imo_net
+
 volumes:
   postgres_data:
+  redis_data:
 
 networks:
   imo_net:

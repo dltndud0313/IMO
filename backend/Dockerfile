@@ -11,8 +11,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 소스코드 복사
 COPY . .
 
-# entrypoint 실행 권한 부여
-RUN chmod +x /app/entrypoint.sh
+# entrypoint 실행 권한 + CRLF 제거 (Windows 에디터에서 저장된 경우 대비)
+RUN sed -i 's/\r$//' /app/entrypoint.sh && chmod +x /app/entrypoint.sh
 
 # 컨테이너 시작 시 마이그레이션 → uvicorn
 CMD ["/app/entrypoint.sh"]
