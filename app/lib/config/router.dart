@@ -101,6 +101,7 @@ GoRouter buildRouter() {
         path: '/workout-calibration',
         builder: (context, state) => CalibrationScreen(
           exerciseId: state.uri.queryParameters['exercise'] ?? 'pushup',
+          autoStart: state.uri.queryParameters['autoStart'] == 'true',
         ),
       ),
       GoRoute(
