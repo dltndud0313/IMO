@@ -6,10 +6,7 @@ import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
 
 class SensorGuideScreen extends StatefulWidget {
-  const SensorGuideScreen({
-    super.key,
-    this.exerciseId = 'pushup',
-  });
+  const SensorGuideScreen({super.key, this.exerciseId = 'pushup'});
 
   final String exerciseId;
 
@@ -40,15 +37,16 @@ class _SensorGuideScreenState extends State<SensorGuideScreen> {
   Widget build(BuildContext context) {
     return AppScaffold(
       title: _config.title,
-      subtitle: 'Sensor placement',
+      subtitle: '센서 부착 안내',
       showBackButton: true,
       scrollable: true,
       bottom: ImoButton(
-        label: _allChecked ? 'Start calibration' : 'Check all sensors',
+        label: _allChecked ? '캘리브레이션 시작' : '부착 확인 필요',
         disabled: !_allChecked,
-        rightIcon: const Icon(Icons.arrow_forward_rounded),
         onPressed: _allChecked
-            ? () => context.go('/workout-calibration?exercise=${widget.exerciseId}')
+            ? () => context.go(
+                '/workout-calibration?exercise=${widget.exerciseId}',
+              )
             : null,
       ),
       body: Column(
@@ -56,7 +54,7 @@ class _SensorGuideScreenState extends State<SensorGuideScreen> {
         children: [
           _SensorMapCard(config: _config),
           const SizedBox(height: AppSpacing.sectionGap),
-          Text('Placement checklist', style: AppTextStyles.sectionTitle),
+          Text('부착 확인', style: AppTextStyles.sectionTitle),
           const SizedBox(height: AppSpacing.sm),
           for (final sensor in _config.sensors) ...[
             _SensorCheckTile(
@@ -95,24 +93,20 @@ class _SensorMapCard extends StatelessWidget {
                 size: 18,
               ),
               const SizedBox(width: AppSpacing.xs),
-              Text('Attachment map', style: AppTextStyles.label),
+              Text('센서 부착 위치', style: AppTextStyles.label),
               const Spacer(),
               StatusBadge(
-                label: '${config.sensors.length} sensors',
+                label: '${config.sensors.length}개 센서',
                 variant: StatusVariant.info,
               ),
             ],
           ),
           const SizedBox(height: AppSpacing.lg),
           Container(
-            height: 260,
+            height: 360,
             width: double.infinity,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Color(0xFFEAF5FF), AppColors.background],
-              ),
+              color: const Color(0xFFEAF5FF),
               borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
               border: Border.all(color: AppColors.border),
             ),
@@ -121,8 +115,8 @@ class _SensorMapCard extends StatelessWidget {
                 Center(
                   child: Icon(
                     Icons.accessibility_new_rounded,
-                    size: 132,
-                    color: AppColors.primary.withValues(alpha: 0.12),
+                    size: 142,
+                    color: AppColors.primary.withValues(alpha: 0.16),
                   ),
                 ),
                 for (var index = 0; index < config.sensors.length; index++)
@@ -140,10 +134,7 @@ class _SensorMapCard extends StatelessWidget {
 }
 
 class _SensorMapMarker extends StatelessWidget {
-  const _SensorMapMarker({
-    required this.index,
-    required this.sensor,
-  });
+  const _SensorMapMarker({required this.index, required this.sensor});
 
   final int index;
   final _SensorInfo sensor;
@@ -158,46 +149,41 @@ class _SensorMapMarker extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 14,
-            height: 14,
+            width: 20,
+            height: 20,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: AppColors.primary,
+              color: AppColors.primary.withValues(alpha: 0.45),
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.primary.withValues(alpha: 0.28),
+                  color: AppColors.primary.withValues(alpha: 0.18),
                   blurRadius: 0,
-                  spreadRadius: 6,
+                  spreadRadius: 8,
                 ),
               ],
-            ),
-            child: Text(
-              '$index',
-              style: const TextStyle(
-                color: AppColors.card,
-                fontSize: 8,
-                fontWeight: FontWeight.w700,
-              ),
             ),
           ),
           const SizedBox(width: AppSpacing.xs),
           Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.xs,
-              vertical: 3,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
               color: AppColors.card,
               borderRadius: BorderRadius.circular(AppSpacing.pillRadius),
               border: Border.all(color: AppColors.border),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.heatmapBg.withValues(alpha: 0.08),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             child: Text(
-              sensor.position,
+              '$index. ${sensor.position}',
               style: AppTextStyles.caption.copyWith(
                 color: AppColors.textPrimary,
-                fontWeight: FontWeight.w600,
-                fontSize: 10,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
@@ -224,16 +210,16 @@ class _SensorCheckTile extends StatelessWidget {
       interactive: true,
       onTap: onTap,
       variant: checked ? ImoCardVariant.subtle : ImoCardVariant.defaultCard,
-      paddingSize: ImoCardPadding.md,
+      paddingSize: ImoCardPadding.lg,
       child: Row(
         children: [
           AnimatedContainer(
             duration: const Duration(milliseconds: 140),
-            width: 28,
-            height: 28,
+            width: 32,
+            height: 32,
             decoration: BoxDecoration(
               color: checked ? AppColors.primary : Colors.transparent,
-              borderRadius: BorderRadius.circular(AppSpacing.xs),
+              shape: BoxShape.circle,
               border: Border.all(
                 color: checked ? AppColors.primary : AppColors.border,
                 width: 2,
@@ -243,24 +229,20 @@ class _SensorCheckTile extends StatelessWidget {
                 ? const Icon(
                     Icons.check_rounded,
                     color: AppColors.card,
-                    size: 18,
+                    size: 20,
                   )
                 : null,
           ),
-          const SizedBox(width: AppSpacing.sm),
+          const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(sensor.position, style: AppTextStyles.label),
+                Text(sensor.position, style: AppTextStyles.sectionTitle),
                 const SizedBox(height: AppSpacing.xxs),
-                Text(sensor.label, style: AppTextStyles.caption),
+                Text(sensor.label, style: AppTextStyles.body),
               ],
             ),
-          ),
-          StatusBadge(
-            label: checked ? 'Checked' : 'Pending',
-            variant: checked ? StatusVariant.success : StatusVariant.neutral,
           ),
         ],
       ),
@@ -287,15 +269,15 @@ class _SensorNoticeCard extends StatelessWidget {
                 color: AppColors.primaryStrong,
               ),
               const SizedBox(width: AppSpacing.xs),
-              Text('Before calibration', style: AppTextStyles.label),
+              Text('부착 전 주의사항', style: AppTextStyles.label),
             ],
           ),
           const SizedBox(height: AppSpacing.md),
-          const _NoticeLine('Attach sensors firmly to clean, dry skin.'),
+          const _NoticeLine('센서가 피부에 잘 밀착되었는지 확인하세요.'),
           const SizedBox(height: AppSpacing.xs),
-          const _NoticeLine('Keep the sensor order consistent with the map.'),
+          const _NoticeLine('운동 중 센서가 흔들리지 않도록 고정하세요.'),
           const SizedBox(height: AppSpacing.xs),
-          const _NoticeLine('Check that the IMU is stable before moving on.'),
+          const _NoticeLine('스마트글래스와 Pi 연결 상태를 확인하세요.'),
         ],
       ),
     );
@@ -313,21 +295,18 @@ class _NoticeLine extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Padding(
-          padding: EdgeInsets.only(top: 6),
-          child: Icon(Icons.circle, size: 6, color: AppColors.primaryStrong),
+          padding: EdgeInsets.only(top: 7),
+          child: Icon(Icons.circle, size: 5, color: AppColors.primaryStrong),
         ),
         const SizedBox(width: AppSpacing.xs),
-        Expanded(child: Text(text, style: AppTextStyles.bodySmall)),
+        Expanded(child: Text(text, style: AppTextStyles.body)),
       ],
     );
   }
 }
 
 class _SensorConfig {
-  const _SensorConfig({
-    required this.title,
-    required this.sensors,
-  });
+  const _SensorConfig({required this.title, required this.sensors});
 
   final String title;
   final List<_SensorInfo> sensors;
@@ -353,100 +332,100 @@ class _SensorInfo {
 
 const _sensorConfigs = {
   'pushup': _SensorConfig(
-    title: 'Push-up',
+    title: '푸시업',
     sensors: [
       _SensorInfo(
         id: 'emg_1',
         label: 'EMG 1',
-        position: 'Chest',
-        top: 72,
-        left: 92,
+        position: '대흉근',
+        top: 104,
+        left: 96,
       ),
       _SensorInfo(
         id: 'emg_2',
         label: 'EMG 2',
-        position: 'Shoulder',
-        top: 96,
-        right: 54,
+        position: '삼두근',
+        top: 142,
+        right: 42,
       ),
       _SensorInfo(
         id: 'emg_3',
         label: 'EMG 3',
-        position: 'Triceps',
-        top: 56,
-        right: 86,
+        position: '전면 삼각근',
+        top: 82,
+        left: 134,
       ),
       _SensorInfo(
         id: 'imu_1',
         label: 'IMU',
-        position: 'Upper back',
-        top: 132,
-        left: 112,
+        position: '등 중앙',
+        top: 172,
+        right: 64,
       ),
     ],
   ),
   'lateral_raise': _SensorConfig(
-    title: 'Lateral raise',
+    title: '싸레레',
     sensors: [
       _SensorInfo(
         id: 'emg_1',
         label: 'EMG 1',
-        position: 'Side deltoid',
-        top: 64,
+        position: '측면 삼각근',
+        top: 92,
         right: 56,
       ),
       _SensorInfo(
         id: 'emg_2',
         label: 'EMG 2',
-        position: 'Upper trapezius',
-        top: 44,
-        left: 108,
+        position: '승모근',
+        top: 62,
+        left: 114,
       ),
       _SensorInfo(
         id: 'emg_3',
         label: 'EMG 3',
-        position: 'Rear shoulder',
-        top: 72,
-        left: 64,
+        position: '전면 삼각근',
+        top: 128,
+        left: 60,
       ),
       _SensorInfo(
         id: 'imu_1',
         label: 'IMU',
-        position: 'Wrist',
-        top: 148,
-        right: 42,
+        position: '손목',
+        top: 192,
+        right: 46,
       ),
     ],
   ),
   'bicep_curl': _SensorConfig(
-    title: 'Bicep curl',
+    title: '이두컬',
     sensors: [
       _SensorInfo(
         id: 'emg_1',
         label: 'EMG 1',
-        position: 'Biceps',
-        top: 104,
+        position: '이두근',
+        top: 136,
         left: 54,
       ),
       _SensorInfo(
         id: 'emg_2',
         label: 'EMG 2',
-        position: 'Forearm',
-        top: 148,
-        left: 46,
+        position: '전완근',
+        top: 186,
+        left: 48,
       ),
       _SensorInfo(
         id: 'emg_3',
         label: 'EMG 3',
-        position: 'Shoulder',
-        top: 80,
+        position: '삼두근',
+        top: 112,
         right: 58,
       ),
       _SensorInfo(
         id: 'imu_1',
         label: 'IMU',
-        position: 'Wrist',
-        top: 150,
+        position: '손목',
+        top: 206,
         right: 46,
       ),
     ],

@@ -1,67 +1,59 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:provider/provider.dart';
 
 import '../../core/layouts/app_scaffold.dart';
 import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
-import '../view_model/home_viewmodel.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final viewModel = context.watch<HomeViewModel>();
-
     return AppScaffold(
-      title: 'IMO',
-      subtitle: viewModel.statusLabel,
+      title: '홈',
       scrollable: true,
-      heroSlot: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Build today with better movement.',
-            style: AppTextStyles.caption,
-          ),
-          const SizedBox(height: AppSpacing.xxs),
-          Text(
-            'Ready for your next session?',
-            style: AppTextStyles.sectionTitle,
-          ),
-        ],
-      ),
+      heroSlot: const _HomeGreeting(),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const _TodaySummaryCard(),
           const SizedBox(height: AppSpacing.sectionGap),
-          Text('Start', style: AppTextStyles.sectionTitle),
+          Text('오늘도 득근!', style: AppTextStyles.sectionTitle),
           const SizedBox(height: AppSpacing.sm),
           _HomeActionCard(
-            title: 'Workout mode',
-            description: 'Set exercise, reps, and rest time before connecting Pi.',
+            title: '운동하기',
+            description: '근력 트레이닝 · EMG-IMU 분석',
             icon: Icons.fitness_center_rounded,
-            gradient: const [
-              AppColors.primary,
-              AppColors.primaryStrong,
-            ],
+            gradient: const [AppColors.primary, AppColors.primaryStrong],
             onTap: () => context.go('/workout-setup'),
           ),
           const SizedBox(height: AppSpacing.md),
           _HomeActionCard(
-            title: 'Recovery mode',
-            description: 'Use the same flow for guided light movement sessions.',
+            title: '재활하기',
+            description: '회복 운동 · 저강도 가동범위',
             icon: Icons.monitor_heart_rounded,
-            gradient: const [
-              AppColors.secondary,
-              Color(0xFF5DC447),
-            ],
+            gradient: const [AppColors.secondary, Color(0xFF5DC447)],
             onTap: () => context.go('/workout-setup'),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _HomeGreeting extends StatelessWidget {
+  const _HomeGreeting();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('꾸준함이 결국 답입니다', style: AppTextStyles.body),
+        const SizedBox(height: AppSpacing.xxs),
+        Text('사용자님, 안녕하세요!', style: AppTextStyles.title.copyWith(fontSize: 24)),
+      ],
     );
   }
 }
@@ -80,30 +72,25 @@ class _TodaySummaryCard extends StatelessWidget {
           Row(
             children: [
               const Icon(
-                Icons.local_fire_department_rounded,
-                color: AppColors.primaryStrong,
-                size: 18,
+                Icons.water_drop_outlined,
+                color: AppColors.primary,
+                size: 20,
               ),
               const SizedBox(width: AppSpacing.xs),
-              Text('Today summary', style: AppTextStyles.label),
-              const Spacer(),
-              const StatusBadge(
-                label: 'Ready',
-                variant: StatusVariant.info,
-              ),
+              Text('오늘의 운동', style: AppTextStyles.sectionTitle),
             ],
           ),
           const SizedBox(height: AppSpacing.lg),
           const Row(
             children: [
               Expanded(
-                child: _SummaryMetric(label: 'Sessions', value: '0', unit: ''),
+                child: _SummaryMetric(label: '세션', value: '0', unit: '회'),
               ),
               Expanded(
-                child: _SummaryMetric(label: 'Reps', value: '0', unit: ''),
+                child: _SummaryMetric(label: '총 횟수', value: '0', unit: '회'),
               ),
               Expanded(
-                child: _SummaryMetric(label: 'Minutes', value: '0', unit: 'min'),
+                child: _SummaryMetric(label: '시간', value: '0', unit: '분'),
               ),
             ],
           ),
@@ -129,19 +116,17 @@ class _SummaryMetric extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: AppTextStyles.caption),
+        Text(label, style: AppTextStyles.bodySmall),
         const SizedBox(height: AppSpacing.xxs),
         Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text(value, style: AppTextStyles.metric),
-            if (unit.isNotEmpty) ...[
-              const SizedBox(width: AppSpacing.xxs),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Text(unit, style: AppTextStyles.caption),
-              ),
-            ],
+            const SizedBox(width: AppSpacing.xxs),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text(unit, style: AppTextStyles.caption),
+            ),
           ],
         ),
       ],
@@ -197,7 +182,9 @@ class _HomeActionCard extends StatelessWidget {
                   height: 52,
                   decoration: BoxDecoration(
                     color: AppColors.card.withValues(alpha: 0.22),
-                    borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
+                    borderRadius: BorderRadius.circular(
+                      AppSpacing.buttonRadius,
+                    ),
                   ),
                   child: Icon(icon, color: AppColors.card, size: 24),
                 ),
@@ -208,10 +195,8 @@ class _HomeActionCard extends StatelessWidget {
                     children: [
                       Text(
                         title,
-                        style: AppTextStyles.label.copyWith(
+                        style: AppTextStyles.sectionTitle.copyWith(
                           color: AppColors.card,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
                         ),
                       ),
                       const SizedBox(height: AppSpacing.xxs),
@@ -219,8 +204,8 @@ class _HomeActionCard extends StatelessWidget {
                         description,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: AppTextStyles.caption.copyWith(
-                          color: AppColors.card.withValues(alpha: 0.86),
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.card.withValues(alpha: 0.9),
                         ),
                       ),
                     ],
@@ -230,7 +215,7 @@ class _HomeActionCard extends StatelessWidget {
                 const Icon(
                   Icons.arrow_forward_rounded,
                   color: AppColors.card,
-                  size: 20,
+                  size: 24,
                 ),
               ],
             ),

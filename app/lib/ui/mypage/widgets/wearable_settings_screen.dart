@@ -10,38 +10,38 @@ class WearableSettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
-      title: 'Wearable Settings',
-      subtitle: 'Device connection overview',
+      title: '웨어러블 설정',
+      subtitle: '기기 연결 상태',
       showBackButton: true,
       scrollable: true,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Connection status', style: AppTextStyles.sectionTitle),
+          Text('연결 상태', style: AppTextStyles.sectionTitle),
           const SizedBox(height: AppSpacing.sm),
           const _DeviceConnectionCard(
             icon: Icons.memory_rounded,
             title: 'Raspberry Pi',
-            description: 'WebSocket server for workout events',
-            badge: StatusBadge(label: 'Standby', variant: StatusVariant.info),
+            description: '운동 이벤트를 주고받는 WebSocket 서버',
+            badge: StatusBadge(label: '대기 중', variant: StatusVariant.info),
           ),
           const SizedBox(height: AppSpacing.sm),
           const _DeviceConnectionCard(
             icon: Icons.sensors_rounded,
-            title: 'ESP32 sensors',
-            description: 'EMG and IMU sensor bridge',
+            title: 'ESP32 센서',
+            description: 'EMG 및 IMU 센서 브리지',
             badge: StatusBadge(
-              label: 'Pending',
+              label: '대기',
               variant: StatusVariant.neutral,
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
           const _DeviceConnectionCard(
             icon: Icons.visibility_rounded,
-            title: 'Smart glass',
-            description: 'Workout guide display device',
+            title: '스마트 글래스',
+            description: '운동 안내를 표시하는 기기',
             badge: StatusBadge(
-              label: 'Pending',
+              label: '대기',
               variant: StatusVariant.neutral,
             ),
           ),
@@ -53,7 +53,7 @@ class WearableSettingsScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Default endpoint', style: AppTextStyles.label),
+                Text('기본 엔드포인트', style: AppTextStyles.label),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   'ws://192.168.0.100:8765',
@@ -64,7 +64,7 @@ class WearableSettingsScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.md),
                 Text(
-                  'Actual connect, retry, and status sync will be handled by the Pi WebSocket service branch.',
+                  '실제 연결, 재시도, 상태 동기화는 Pi WebSocket 서비스 작업에서 연결합니다.',
                   style: AppTextStyles.bodySmall,
                 ),
               ],
@@ -72,7 +72,7 @@ class WearableSettingsScreen extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.sectionGap),
           ImoButton(
-            label: 'Reconnect devices',
+            label: '기기 다시 연결',
             variant: ImoButtonVariant.outline,
             icon: Icons.refresh_rounded,
             onPressed: () {},
