@@ -6,6 +6,8 @@ from sqlalchemy import Date, cast, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
+from core.cache import cache_get, cache_set, stats_key
+from core.config import settings
 from core.database import get_db
 from core.deps import get_current_user
 from core.exceptions import InvalidRequest
@@ -100,6 +102,12 @@ async def get_weekly_summary(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    # ---- read-through 캐시 ----
+    cache_key = stats_key("weekly", current_user.id, weekStart, exerciseType)
+    cached = await cache_get(cache_key)
+    if cached is not None:
+        return success_response(cached)
+
     week_start_d, week_end_d = _parse_week_start(weekStart)
     start_dt = datetime.combine(week_start_d, datetime.min.time())
     end_dt = datetime.combine(week_end_d, datetime.max.time())
@@ -231,7 +239,9 @@ async def get_weekly_summary(
         daily_breakdown=daily_breakdown,
         trends=trends,
     )
-    return success_response(payload.model_dump(by_alias=True, mode="json"))
+    response_dict = payload.model_dump(by_alias=True, mode="json")
+    await cache_set(cache_key, response_dict, ttl=settings.STATS_CACHE_TTL)
+    return success_response(response_dict)
 
 
 # ============================================================
@@ -244,6 +254,11 @@ async def get_weekly_heatmap(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    cache_key = stats_key("heatmap", current_user.id, weekStart, exerciseType)
+    cached = await cache_get(cache_key)
+    if cached is not None:
+        return success_response(cached)
+
     week_start_d, week_end_d = _parse_week_start(weekStart)
     start_dt = datetime.combine(week_start_d, datetime.min.time())
     end_dt = datetime.combine(week_end_d, datetime.max.time())
@@ -267,7 +282,9 @@ async def get_weekly_heatmap(
             week_end=week_end_d.isoformat(),
             muscles=[],
         )
-        return success_response(empty.model_dump(by_alias=True, mode="json"))
+        empty_dict = empty.model_dump(by_alias=True, mode="json")
+        await cache_set(cache_key, empty_dict, ttl=settings.STATS_CACHE_TTL)
+        return success_response(empty_dict)
 
     # 근육 평균 + 출현 세션 카운트
     rows = (
@@ -305,7 +322,9 @@ async def get_weekly_heatmap(
         week_end=week_end_d.isoformat(),
         muscles=muscles,
     )
-    return success_response(payload.model_dump(by_alias=True, mode="json"))
+    response_dict = payload.model_dump(by_alias=True, mode="json")
+    await cache_set(cache_key, response_dict, ttl=settings.STATS_CACHE_TTL)
+    return success_response(response_dict)
 
 
 # ============================================================
@@ -318,6 +337,11 @@ async def get_weekly_balance(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    cache_key = stats_key("balance", current_user.id, weekStart, exerciseType)
+    cached = await cache_get(cache_key)
+    if cached is not None:
+        return success_response(cached)
+
     week_start_d, week_end_d = _parse_week_start(weekStart)
     start_dt = datetime.combine(week_start_d, datetime.min.time())
     end_dt = datetime.combine(week_end_d, datetime.max.time())
@@ -340,7 +364,9 @@ async def get_weekly_balance(
             week_end=week_end_d.isoformat(),
             balance_pairs=[],
         )
-        return success_response(empty.model_dump(by_alias=True, mode="json"))
+        empty_dict = empty.model_dump(by_alias=True, mode="json")
+        await cache_set(cache_key, empty_dict, ttl=settings.STATS_CACHE_TTL)
+        return success_response(empty_dict)
 
     # 근육별 평균/최대/최소 활성도 (좌/우 분리)
     rows = (
@@ -401,4 +427,6 @@ async def get_weekly_balance(
         week_end=week_end_d.isoformat(),
         balance_pairs=pairs,
     )
-    return success_response(payload.model_dump(by_alias=True, mode="json"))
+    response_dict = payload.model_dump(by_alias=True, mode="json")
+    await cache_set(cache_key, response_dict, ttl=settings.STATS_CACHE_TTL)
+    return success_response(response_dict)
