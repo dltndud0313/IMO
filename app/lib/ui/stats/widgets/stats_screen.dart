@@ -16,6 +16,7 @@ class StatsScreen extends StatefulWidget {
 
 class _StatsScreenState extends State<StatsScreen> {
   StatsTab _selectedTab = StatsTab.heatmap;
+  int _weekOffset = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +26,11 @@ class _StatsScreenState extends State<StatsScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _StatsPeriodHeader(),
+          _StatsPeriodHeader(
+            weekOffset: _weekOffset,
+            onPrevious: () => setState(() => _weekOffset--),
+            onNext: _weekOffset < 0 ? () => setState(() => _weekOffset++) : null,
+          ),
           const SizedBox(height: AppSpacing.lg),
           StatsTabBar(
             selectedTab: _selectedTab,
@@ -47,7 +52,15 @@ class _StatsScreenState extends State<StatsScreen> {
 }
 
 class _StatsPeriodHeader extends StatelessWidget {
-  const _StatsPeriodHeader();
+  const _StatsPeriodHeader({
+    required this.weekOffset,
+    required this.onPrevious,
+    this.onNext,
+  });
+
+  final int weekOffset;
+  final VoidCallback onPrevious;
+  final VoidCallback? onNext;
 
   @override
   Widget build(BuildContext context) {
@@ -56,17 +69,21 @@ class _StatsPeriodHeader extends StatelessWidget {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('4월 5주차', style: AppTextStyles.title),
+            Text('4월 ${5 + weekOffset}주차', style: AppTextStyles.title),
             const SizedBox(height: AppSpacing.xxs),
             Text('4월 27일 (월) - 5월 3일 (일)', style: AppTextStyles.body),
           ],
         ),
         const Spacer(),
-        const _RoundNavButton(icon: Icons.chevron_left_rounded),
+        _RoundNavButton(
+          icon: Icons.chevron_left_rounded,
+          onTap: onPrevious,
+        ),
         const SizedBox(width: AppSpacing.xs),
-        const _RoundNavButton(
+        _RoundNavButton(
           icon: Icons.chevron_right_rounded,
-          disabled: true,
+          disabled: onNext == null,
+          onTap: onNext,
         ),
       ],
     );
@@ -74,10 +91,15 @@ class _StatsPeriodHeader extends StatelessWidget {
 }
 
 class _RoundNavButton extends StatelessWidget {
-  const _RoundNavButton({required this.icon, this.disabled = false});
+  const _RoundNavButton({
+    required this.icon,
+    this.disabled = false,
+    this.onTap,
+  });
 
   final IconData icon;
   final bool disabled;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -86,10 +108,14 @@ class _RoundNavButton extends StatelessWidget {
       child: Material(
         color: AppColors.card,
         shape: const CircleBorder(side: BorderSide(color: AppColors.border)),
-        child: SizedBox(
-          width: 40,
-          height: 40,
-          child: Icon(icon, color: AppColors.textPrimary),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: disabled ? null : onTap,
+          child: SizedBox(
+            width: 40,
+            height: 40,
+            child: Icon(icon, color: AppColors.textPrimary),
+          ),
         ),
       ),
     );

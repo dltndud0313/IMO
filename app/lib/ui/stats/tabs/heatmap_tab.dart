@@ -3,8 +3,15 @@ import 'package:flutter/material.dart';
 import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
 
-class HeatmapTab extends StatelessWidget {
+class HeatmapTab extends StatefulWidget {
   const HeatmapTab({super.key});
+
+  @override
+  State<HeatmapTab> createState() => _HeatmapTabState();
+}
+
+class _HeatmapTabState extends State<HeatmapTab> {
+  bool _frontSelected = true;
 
   @override
   Widget build(BuildContext context) {
@@ -16,9 +23,9 @@ class HeatmapTab extends StatelessWidget {
         children: [
           Text('근활성도를 한 눈에 확인하세요!', style: AppTextStyles.body),
           const SizedBox(height: AppSpacing.md),
-          const _MiniSegmentedControl(left: '전면', right: '후면'),
+          _MiniSegmentedControl(left: '전면', right: '후면', leftSelected: _frontSelected, onLeftTap: () => setState(() => _frontSelected = true), onRightTap: () => setState(() => _frontSelected = false)),
           const SizedBox(height: AppSpacing.lg),
-          const SizedBox(
+          SizedBox(
             height: 390,
             child: Stack(
               children: [
@@ -26,7 +33,9 @@ class HeatmapTab extends StatelessWidget {
                   child: Icon(
                     Icons.accessibility_new_rounded,
                     size: 168,
-                    color: Color(0x22EF4444),
+                    color: _frontSelected
+                        ? Color(0x22EF4444)
+                        : Color(0x222563EB),
                   ),
                 ),
                 _MuscleLabel(label: '어깨\n7%\n2일 전', top: 56, left: 8),
@@ -57,10 +66,19 @@ class HeatmapTab extends StatelessWidget {
 }
 
 class _MiniSegmentedControl extends StatelessWidget {
-  const _MiniSegmentedControl({required this.left, required this.right});
+  const _MiniSegmentedControl({
+    required this.left,
+    required this.right,
+    required this.leftSelected,
+    required this.onLeftTap,
+    required this.onRightTap,
+  });
 
   final String left;
   final String right;
+  final bool leftSelected;
+  final VoidCallback onLeftTap;
+  final VoidCallback onRightTap;
 
   @override
   Widget build(BuildContext context) {
@@ -73,8 +91,20 @@ class _MiniSegmentedControl extends StatelessWidget {
         padding: const EdgeInsets.all(AppSpacing.xxs),
         child: Row(
           children: [
-            Expanded(child: _MiniSegment(label: left, selected: true)),
-            Expanded(child: _MiniSegment(label: right)),
+            Expanded(
+              child: _MiniSegment(
+                label: left,
+                selected: leftSelected,
+                onTap: onLeftTap,
+              ),
+            ),
+            Expanded(
+              child: _MiniSegment(
+                label: right,
+                selected: !leftSelected,
+                onTap: onRightTap,
+              ),
+            ),
           ],
         ),
       ),
@@ -83,30 +113,38 @@ class _MiniSegmentedControl extends StatelessWidget {
 }
 
 class _MiniSegment extends StatelessWidget {
-  const _MiniSegment({required this.label, this.selected = false});
+  const _MiniSegment({
+    required this.label,
+    required this.onTap,
+    this.selected = false,
+  });
 
   final String label;
+  final VoidCallback onTap;
   final bool selected;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 44,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: selected ? AppColors.card : Colors.transparent,
-        borderRadius: BorderRadius.circular(AppSpacing.pillRadius),
-        boxShadow: selected
-            ? [
-                BoxShadow(
-                  color: AppColors.heatmapBg.withValues(alpha: 0.08),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ]
-            : null,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 44,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: selected ? AppColors.card : Colors.transparent,
+          borderRadius: BorderRadius.circular(AppSpacing.pillRadius),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: AppColors.heatmapBg.withValues(alpha: 0.08),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Text(label, style: AppTextStyles.label),
       ),
-      child: Text(label, style: AppTextStyles.label),
     );
   }
 }
