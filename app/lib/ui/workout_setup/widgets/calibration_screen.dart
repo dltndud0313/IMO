@@ -8,9 +8,14 @@ import '../../core/widgets/common_widgets.dart';
 enum _CalibrationStage { ready, measuring, success, failed }
 
 class CalibrationScreen extends StatefulWidget {
-  const CalibrationScreen({super.key, this.exerciseId = 'pushup'});
+  const CalibrationScreen({
+    super.key,
+    this.exerciseId = 'pushup',
+    this.autoStart = false,
+  });
 
   final String exerciseId;
+  final bool autoStart;
 
   @override
   State<CalibrationScreen> createState() => _CalibrationScreenState();
@@ -21,6 +26,14 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
 
   String get _exerciseTitle =>
       _exerciseNames[widget.exerciseId] ?? _exerciseNames['pushup']!;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.autoStart) {
+      _startCalibration();
+    }
+  }
 
   void _startCalibration() {
     setState(() => _stage = _CalibrationStage.measuring);
@@ -38,6 +51,7 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
       title: _exerciseTitle,
       subtitle: '캘리브레이션',
       showBackButton: _stage != _CalibrationStage.measuring,
+      onBack: () => context.go('/sensor-guide?exercise=${widget.exerciseId}'),
       scrollable: true,
       bottom: _buildBottom(context),
       body: Column(

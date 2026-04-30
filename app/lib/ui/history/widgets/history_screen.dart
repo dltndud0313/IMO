@@ -5,8 +5,25 @@ import '../../core/layouts/app_scaffold.dart';
 import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
 
-class HistoryScreen extends StatelessWidget {
+class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
+
+  @override
+  State<HistoryScreen> createState() => _HistoryScreenState();
+}
+
+class _HistoryScreenState extends State<HistoryScreen> {
+  DateTime _visibleMonth = DateTime(2026, 4);
+  int _selectedDay = 29;
+
+  void _moveMonth(int delta) {
+    setState(() {
+      _visibleMonth = DateTime(_visibleMonth.year, _visibleMonth.month + delta);
+      final lastDay =
+          DateUtils.getDaysInMonth(_visibleMonth.year, _visibleMonth.month);
+      _selectedDay = _selectedDay.clamp(1, lastDay);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -16,9 +33,17 @@ class HistoryScreen extends StatelessWidget {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _MonthSelector(),
+          _MonthSelector(
+            visibleMonth: _visibleMonth,
+            onPrevious: () => _moveMonth(-1),
+            onNext: () => _moveMonth(1),
+          ),
           const SizedBox(height: AppSpacing.md),
-          const _CalendarCard(),
+          _CalendarCard(
+            visibleMonth: _visibleMonth,
+            selectedDay: _selectedDay,
+            onDateSelected: (date) => setState(() => _selectedDay = date),
+          ),
           const SizedBox(height: AppSpacing.lg),
           Text('2026-4-29 요약', style: AppTextStyles.sectionTitle),
           const SizedBox(height: AppSpacing.sm),
@@ -33,14 +58,22 @@ class HistoryScreen extends StatelessWidget {
 }
 
 class _MonthSelector extends StatelessWidget {
-  const _MonthSelector();
+  const _MonthSelector({
+    required this.visibleMonth,
+    required this.onPrevious,
+    required this.onNext,
+  });
+
+  final DateTime visibleMonth;
+  final VoidCallback onPrevious;
+  final VoidCallback onNext;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        _CircleIconButton(icon: Icons.chevron_left_rounded, onTap: () {}),
+        _CircleIconButton(icon: Icons.chevron_left_rounded, onTap: onPrevious),
         const SizedBox(width: AppSpacing.xs),
         Container(
           height: 40,
@@ -51,10 +84,10 @@ class _MonthSelector extends StatelessWidget {
             borderRadius: BorderRadius.circular(AppSpacing.pillRadius),
             border: Border.all(color: AppColors.border),
           ),
-          child: Text('2026년 4월', style: AppTextStyles.sectionTitle),
+          child: Text('${visibleMonth.year}-${visibleMonth.month}', style: AppTextStyles.sectionTitle),
         ),
         const SizedBox(width: AppSpacing.xs),
-        _CircleIconButton(icon: Icons.chevron_right_rounded, onTap: () {}),
+        _CircleIconButton(icon: Icons.chevron_right_rounded, onTap: onNext),
       ],
     );
   }
@@ -85,13 +118,25 @@ class _CircleIconButton extends StatelessWidget {
 }
 
 class _CalendarCard extends StatelessWidget {
-  const _CalendarCard();
+  const _CalendarCard({
+    required this.visibleMonth,
+    required this.selectedDay,
+    required this.onDateSelected,
+  });
+
+  final DateTime visibleMonth;
+  final int selectedDay;
+  final ValueChanged<int> onDateSelected;
 
   @override
   Widget build(BuildContext context) {
     const days = ['일', '월', '화', '수', '목', '금', '토'];
-    final dates =
-        List<int?>.filled(3, null) + List<int>.generate(30, (i) => i + 1);
+    final leadingBlank =
+        DateTime(visibleMonth.year, visibleMonth.month).weekday % 7;
+    final daysInMonth =
+        DateUtils.getDaysInMonth(visibleMonth.year, visibleMonth.month);
+    final dates = List<int?>.filled(leadingBlank, null) +
+        List<int>.generate(daysInMonth, (i) => i + 1);
 
     return ImoCard(
       variant: ImoCardVariant.hero,
@@ -122,7 +167,13 @@ class _CalendarCard extends StatelessWidget {
                 Center(
                   child: date == null
                       ? const SizedBox.shrink()
-                      : _DateCell(date: date),
+                      : GestureDetector(
+                          onTap: () => onDateSelected(date),
+                          child: _DateCell(
+                            date: date,
+                            selected: date == selectedDay,
+                          ),
+                        ),
                 ),
             ],
           ),
@@ -133,13 +184,16 @@ class _CalendarCard extends StatelessWidget {
 }
 
 class _DateCell extends StatelessWidget {
-  const _DateCell({required this.date});
+  const _DateCell({
+    required this.date,
+    required this.selected,
+  });
 
   final int date;
+  final bool selected;
 
   @override
   Widget build(BuildContext context) {
-    final selected = date == 29;
     return Container(
       width: selected ? 52 : 36,
       height: selected ? 52 : 36,

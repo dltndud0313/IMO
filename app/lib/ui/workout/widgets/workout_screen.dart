@@ -55,12 +55,24 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     });
   }
 
-  void _finishWorkout() {
-    context.go('/session-result');
+  Future<void> _finishWorkout() async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => ImoConfirmDialog(
+        message: '운동을 정지하시겠습니까?',
+        confirmLabel: '정지',
+        cancelLabel: '계속',
+        danger: true,
+        onConfirm: () {
+          Navigator.of(dialogContext).pop();
+          context.go('/session-result?status=stopped');
+        },
+      ),
+    );
   }
 
   void _emergencyStop() {
-    context.go('/home');
+    context.go('/session-result?status=emergency_stopped');
   }
 
   String get _timeLabel {

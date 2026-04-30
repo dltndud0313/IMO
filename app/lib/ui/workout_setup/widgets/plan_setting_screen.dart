@@ -33,6 +33,7 @@ class _PlanSettingScreenState extends State<PlanSettingScreen> {
       title: _exerciseTitle,
       subtitle: '운동 계획 설정',
       showBackButton: true,
+      onBack: () => context.go('/workout-guide?exercise=${widget.exerciseId}'),
       scrollable: true,
       bottom: ImoButton(
         label: '다음',

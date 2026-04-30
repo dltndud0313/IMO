@@ -39,13 +39,14 @@ class _SensorGuideScreenState extends State<SensorGuideScreen> {
       title: _config.title,
       subtitle: '센서 부착 안내',
       showBackButton: true,
+      onBack: () => context.go('/workout-plan?exercise=${widget.exerciseId}'),
       scrollable: true,
       bottom: ImoButton(
         label: _allChecked ? '캘리브레이션 시작' : '부착 확인 필요',
         disabled: !_allChecked,
         onPressed: _allChecked
             ? () => context.go(
-                '/workout-calibration?exercise=${widget.exerciseId}',
+                '/workout-calibration?exercise=${widget.exerciseId}&autoStart=true',
               )
             : null,
       ),

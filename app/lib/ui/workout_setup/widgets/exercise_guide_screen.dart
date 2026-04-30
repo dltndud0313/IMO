@@ -18,6 +18,7 @@ class ExerciseGuideScreen extends StatelessWidget {
       title: guide.title,
       subtitle: '자세 가이드',
       showBackButton: true,
+      onBack: () => context.go('/workout-setup'),
       scrollable: true,
       bottom: ImoButton(
         label: '다음',
