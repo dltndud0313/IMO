@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../themes/design_tokens.dart';
 
@@ -73,8 +74,10 @@ class AppScaffold extends StatelessWidget {
           )
         : content;
 
+    final theme = Theme.of(context);
+
     return Scaffold(
-      backgroundColor: background ?? AppColors.background,
+      backgroundColor: background ?? theme.scaffoldBackgroundColor,
       extendBody: true,
       appBar: _buildAppBar(context),
       body: safeArea ? SafeArea(top: false, child: bodyContent) : bodyContent,
@@ -96,7 +99,7 @@ class AppScaffold extends StatelessWidget {
           filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: AppColors.card.withValues(alpha: 0.86),
+              color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.86),
               border: Border(
                 bottom: BorderSide(
                   color: AppColors.border.withValues(alpha: 0.8),
@@ -122,7 +125,14 @@ class AppScaffold extends StatelessWidget {
             width: 56,
             child: showBackButton
                 ? IconButton(
-                    onPressed: onBack ?? () => Navigator.of(context).maybePop(),
+                    onPressed: onBack ??
+                        () {
+                          if (context.canPop()) {
+                            context.pop();
+                          } else {
+                            context.go('/home');
+                          }
+                        },
                     icon: const Icon(
                       Icons.chevron_left,
                       color: AppColors.textPrimary,
@@ -171,12 +181,16 @@ class AppScaffold extends StatelessWidget {
       return null;
     }
 
-    return ClipRect(
+    return Builder(
+      builder: (context) {
+        final surface = Theme.of(context).colorScheme.surface;
+
+        return ClipRect(
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: AppColors.card.withValues(alpha: 0.9),
+            color: surface.withValues(alpha: 0.9),
             border: Border(
               top: BorderSide(
                 color: AppColors.border.withValues(alpha: 0.7),
@@ -197,6 +211,8 @@ class AppScaffold extends StatelessWidget {
           ),
         ),
       ),
+        );
+      },
     );
   }
 }

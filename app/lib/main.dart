@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'config/app_settings.dart';
 import 'config/dependencies.dart';
 import 'config/router.dart';
 import 'config/theme.dart';
@@ -15,11 +16,18 @@ class ImoApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp.router(
-      title: 'IMO',
-      theme: buildAppTheme(),
-      routerConfig: buildRouter(),
-      debugShowCheckedModeBanner: false,
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: appThemeMode,
+      builder: (context, themeMode, _) {
+        return MaterialApp.router(
+          title: 'IMO',
+          theme: buildAppTheme(),
+          darkTheme: buildDarkAppTheme(),
+          themeMode: themeMode,
+          routerConfig: buildRouter(),
+          debugShowCheckedModeBanner: false,
+        );
+      },
     );
   }
 }
