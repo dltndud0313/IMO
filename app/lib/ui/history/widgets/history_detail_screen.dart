@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/layouts/app_scaffold.dart';
 import '../../core/themes/design_tokens.dart';
@@ -15,6 +16,7 @@ class HistoryDetailScreen extends StatelessWidget {
       title: '2026-4-29',
       subtitle: '하루 운동 분석',
       showBackButton: true,
+      onBack: () => context.go('/history'),
       scrollable: true,
       body: const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
