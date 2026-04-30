@@ -25,6 +25,13 @@ class Settings(BaseSettings):
     # CORS — 콤마로 구분된 화이트리스트. 미설정 시 와일드카드(개발 편의용)
     CORS_ORIGINS_RAW: str = os.getenv("CORS_ORIGINS", "*")
 
+    # Redis — 통계 read-through 캐시. 컨테이너 외부에서 띄울 땐 ENV 로 덮어쓴다.
+    REDIS_URL: str = os.getenv("REDIS_URL", "redis://redis:6379/0")
+    # 통계 캐시 기본 TTL (초)
+    STATS_CACHE_TTL: int = int(os.getenv("STATS_CACHE_TTL", "300"))
+    # 캐시 사용 여부. false 면 cache_get/set/invalidate 모두 no-op (Before/After 비교 측정용).
+    CACHE_ENABLED: bool = os.getenv("CACHE_ENABLED", "true").lower() in ("true", "1", "yes")
+
     @property
     def CORS_ORIGINS(self) -> List[str]:
         if self.CORS_ORIGINS_RAW.strip() == "*":
