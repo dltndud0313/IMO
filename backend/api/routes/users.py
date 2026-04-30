@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
+from core.cache import invalidate_user_stats
 from core.database import get_db
 from core.deps import get_current_user
 from core.exceptions import UserNotFound, ValidationError
@@ -177,6 +178,8 @@ async def reset_user_data(
         )
     )
     await db.commit()
+
+    await invalidate_user_stats(current_user.id)
 
     return success_response(
         {

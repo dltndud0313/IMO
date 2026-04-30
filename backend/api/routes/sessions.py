@@ -7,6 +7,7 @@ from sqlalchemy import Date, cast, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
+from core.cache import invalidate_user_stats
 from core.database import get_db
 from core.deps import get_current_user
 from core.exceptions import InvalidRequest, SessionNotFound
@@ -125,6 +126,9 @@ async def create_session(
 
     await db.commit()
     await db.refresh(db_session)
+
+    # 새 세션이 통계에 반영되도록 해당 유저 통계 캐시 일괄 무효화
+    await invalidate_user_stats(current_user.id)
 
     return success_response(
         {
@@ -390,5 +394,7 @@ async def delete_session(
 
     await db.delete(session)  # FK CASCADE 로 자식 테이블 동시 삭제
     await db.commit()
+
+    await invalidate_user_stats(current_user.id)
 
     return success_response({"deletedSessionId": session_id})
