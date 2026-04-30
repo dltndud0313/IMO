@@ -35,6 +35,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     return AppScaffold(
       title: '프로필 수정',
       showBackButton: true,
+      onBack: () => context.go('/mypage'),
       scrollable: true,
       bottom: Row(
         children: [
