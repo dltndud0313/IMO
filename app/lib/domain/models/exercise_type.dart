@@ -9,12 +9,17 @@ enum ExerciseType {
   final String label; // UI 표시용 한글명
   const ExerciseType(this.wire, this.label);
 
-  static ExerciseType fromWire(String s) => switch (s) {
-        'PUSH_UP' => pushUp,
-        'LATERAL_RAISE' => lateralRaise,
-        'BICEP_CURL' => bicepCurl,
-        _ => throw FormatException('unknown exerciseType: $s'),
-      };
+  static ExerciseType fromWire(String s) {
+    final normalized = s.trim().toUpperCase().replaceAll('-', '_');
+    final compact = normalized.replaceAll('_', '');
+
+    return switch (compact) {
+      'PUSHUP' => pushUp,
+      'LATERALRAISE' => lateralRaise,
+      'BICEPCURL' => bicepCurl,
+      _ => throw FormatException('unknown exerciseType: $s'),
+    };
+  }
 }
 
 /// 센서 부착 위치 (API-16, WS-04)

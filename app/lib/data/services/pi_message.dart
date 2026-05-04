@@ -1,4 +1,5 @@
 import '../../domain/models/workout_session.dart';
+import '../dto/session_result_dto.dart';
 
 sealed class PiMessage {
   const PiMessage({
@@ -389,8 +390,13 @@ class SessionResultMessage extends PiMessage {
   final WorkoutSession session;
 
   factory SessionResultMessage.fromPayload(Map<String, dynamic> payload) {
+    final sessionResult = payload['sessionResult'];
+    final resultPayload = sessionResult is Map<String, dynamic>
+        ? sessionResult
+        : payload;
+
     return SessionResultMessage(
-      session: WorkoutSession.fromJson(payload),
+      session: SessionResultDto.fromJson(resultPayload).toDomain(),
     );
   }
 
