@@ -58,8 +58,16 @@ def decode_access_token(token: str) -> dict:
     return payload
 
 
-def decode_refresh_token(token: str) -> dict:
-    """refresh 시크릿으로 디코드 + type=refresh 검증."""
+async def decode_refresh_token(token: str) -> dict:
+    """refresh 시크릿으로 디코드 + type=refresh 검증 + blacklist 체크."""
+    # 순환 import 회피: 함수 안에서 import
+    from core.cache import is_refresh_token_blacklisted
+
+    # 1) blacklist 먼저 — 만료된 JWT 전에 차단 (만료 후에도 blacklist 유효해야 함)
+    if await is_refresh_token_blacklisted(token):
+        raise Unauthorized("Refresh token has been revoked")
+
+    # 2) 기존 JWT 검증
     try:
         payload = jwt.decode(
             token, settings.REFRESH_SECRET_KEY, algorithms=[ALGORITHM]
