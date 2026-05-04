@@ -36,6 +36,10 @@ class WorkoutRepository {
         return message.session;
       });
 
+  Future<void> connect() {
+    return _socket.connect();
+  }
+
   void submitWorkoutPlan({
     required String exerciseType,
     required int setCount,
