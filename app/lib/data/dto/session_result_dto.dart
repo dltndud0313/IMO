@@ -1,3 +1,7 @@
+import '../../domain/models/exercise_type.dart';
+import '../../domain/models/set_result.dart';
+import '../../domain/models/workout_session.dart';
+
 class SessionResultDto {
   const SessionResultDto({
     required this.sessionId,
@@ -117,6 +121,35 @@ class SessionResultDto {
         if (balanceSummary != null) 'balance_summary': balanceSummary!.toJson(),
         'set_results': setResults.map((set) => set.toJson()).toList(),
       };
+
+  WorkoutSession toDomain() {
+    return WorkoutSession(
+      sessionId: sessionId,
+      exerciseType: _toExerciseType(exerciseType),
+      status: status,
+      endReason: endReason,
+      startedAt: DateTime.parse(startedAt),
+      endedAt: DateTime.parse(endedAt),
+      durationSec: durationSec,
+      setCount: setCount,
+      targetRepsPerSet: targetRepsPerSet,
+      actualRepsPerSet: actualRepsPerSet,
+      restSec: restSec,
+      totalReps: totalReps,
+      validReps: validReps,
+      avgTargetMuscle: avgTargetMuscle,
+      avgAssistMuscle: avgAssistMuscle,
+      avgCompensator: avgCompensator,
+      compensationCount: compensationCount,
+      fatigueOnsetSet: fatigueOnsetSet,
+      fatigueOnsetRep: fatigueOnsetRep,
+      comment: comment,
+      calibrationSummary: calibrationSummary?.toDomain(),
+      muscleMap: _toDomainMuscleMap(muscleMap),
+      balanceSummary: balanceSummary?.toDomain(),
+      setResults: setResults.map((set) => set.toDomain()).toList(),
+    );
+  }
 }
 
 class SessionResultCalibrationSummaryDto {
@@ -145,6 +178,14 @@ class SessionResultCalibrationSummaryDto {
         'ch2_mvc': ch2Mvc,
         'ch3_mvc': ch3Mvc,
       };
+
+  CalibrationSummary toDomain() {
+    return CalibrationSummary(
+      ch1Mvc: ch1Mvc,
+      ch2Mvc: ch2Mvc,
+      ch3Mvc: ch3Mvc,
+    );
+  }
 }
 
 class SessionResultBalanceSummaryDto {
@@ -183,6 +224,17 @@ class SessionResultBalanceSummaryDto {
         if (diffValue != null) 'diff_value': diffValue,
         if (balanceLabel != null) 'balance_label': balanceLabel,
       };
+
+  BalanceSummary toDomain() {
+    return BalanceSummary(
+      enabled: enabled,
+      reason: reason ?? '',
+      leftValue: leftValue,
+      rightValue: rightValue,
+      diffValue: diffValue,
+      balanceLabel: balanceLabel,
+    );
+  }
 }
 
 class SessionResultSetDto {
@@ -225,6 +277,18 @@ class SessionResultSetDto {
         'started_at': startedAt,
         'ended_at': endedAt,
       };
+
+  SetResult toDomain() {
+    return SetResult(
+      setIndex: setIndex,
+      targetReps: targetReps,
+      actualReps: actualReps,
+      compensationCount: compensationCount,
+      avgSpeed: avgSpeed,
+      startedAt: DateTime.parse(startedAt),
+      endedAt: DateTime.parse(endedAt),
+    );
+  }
 }
 
 String _asString(Object? value) => value?.toString() ?? '';
@@ -277,4 +341,37 @@ List<T> _asObjectList<T>(
       .whereType<Map>()
       .map((item) => fromJson(Map<String, dynamic>.from(item)))
       .toList();
+}
+
+ExerciseType _toExerciseType(String value) {
+  return switch (value.toLowerCase()) {
+    'pushup' || 'push_up' => ExerciseType.pushUp,
+    'bicep_curl' || 'bicepcurl' => ExerciseType.bicepCurl,
+    'lateral_raise' || 'lateralraise' => ExerciseType.lateralRaise,
+    _ => ExerciseType.fromWire(value),
+  };
+}
+
+MuscleMap? _toDomainMuscleMap(Map<String, double> map) {
+  final chest = map['chest'];
+  final leftShoulder = map['left_shoulder'];
+  final rightShoulder = map['right_shoulder'];
+  final leftTriceps = map['left_triceps'];
+  final rightTriceps = map['right_triceps'];
+
+  if (chest == null ||
+      leftShoulder == null ||
+      rightShoulder == null ||
+      leftTriceps == null ||
+      rightTriceps == null) {
+    return null;
+  }
+
+  return MuscleMap(
+    chest: chest,
+    leftShoulder: leftShoulder,
+    rightShoulder: rightShoulder,
+    leftTriceps: leftTriceps,
+    rightTriceps: rightTriceps,
+  );
 }
