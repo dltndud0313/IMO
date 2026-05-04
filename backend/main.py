@@ -97,6 +97,7 @@ def _http_status_to_code(status_code: int) -> str:
         404: "NOT_FOUND",
         409: "CONFLICT",
         422: "VALIDATION_ERROR",
+        429: "TOO_MANY_REQUESTS",
         500: "INTERNAL_ERROR",
     }.get(status_code, "INTERNAL_ERROR")
 
