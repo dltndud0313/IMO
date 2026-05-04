@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../config/dependencies.dart';
+import '../../../data/repositories/calibration_repository.dart';
 import '../../core/layouts/app_scaffold.dart';
 import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
@@ -23,6 +27,7 @@ class CalibrationScreen extends StatefulWidget {
 
 class _CalibrationScreenState extends State<CalibrationScreen> {
   _CalibrationStage _stage = _CalibrationStage.ready;
+  StreamSubscription? _statusSubscription;
 
   String get _exerciseTitle =>
       _exerciseNames[widget.exerciseId] ?? _exerciseNames['pushup']!;
@@ -30,19 +35,41 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
   @override
   void initState() {
     super.initState();
+    _statusSubscription =
+        getIt<CalibrationRepository>().status.listen(_handleCalibrationStatus);
     if (widget.autoStart) {
-      _startCalibration();
+      _startCalibration(sendToPi: false);
     }
   }
 
-  void _startCalibration() {
-    setState(() => _stage = _CalibrationStage.measuring);
-    Future<void>.delayed(const Duration(seconds: 2), () {
-      if (!mounted || _stage != _CalibrationStage.measuring) {
-        return;
-      }
+  @override
+  void dispose() {
+    _statusSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _handleCalibrationStatus(dynamic status) {
+    if (!mounted) {
+      return;
+    }
+    if (status.isStarted) {
+      setState(() => _stage = _CalibrationStage.measuring);
+    } else if (status.isSuccess) {
       setState(() => _stage = _CalibrationStage.success);
-    });
+    } else if (status.isFailed) {
+      setState(() => _stage = _CalibrationStage.failed);
+    }
+  }
+
+  void _startCalibration({bool sendToPi = true}) {
+    if (sendToPi) {
+      unawaited(() async {
+        final repo = getIt<CalibrationRepository>();
+        await repo.connect();
+        repo.startCalibration(exerciseType: widget.exerciseId);
+      }());
+    }
+    setState(() => _stage = _CalibrationStage.measuring);
   }
 
   @override

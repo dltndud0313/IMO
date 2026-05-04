@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../config/dependencies.dart';
+import '../../../data/repositories/device_connection_repository.dart';
+import '../../../data/repositories/workout_repository.dart';
 import '../../core/layouts/app_scaffold.dart';
 import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
@@ -18,23 +21,48 @@ class WorkoutScreen extends StatefulWidget {
 
 class _WorkoutScreenState extends State<WorkoutScreen> {
   Timer? _timer;
+  StreamSubscription? _connectionSubscription;
+  StreamSubscription? _pausedSubscription;
+  StreamSubscription? _resumedSubscription;
   _WorkoutState _state = _WorkoutState.running;
+  bool _piConnected = false;
+  bool _esp32Connected = false;
+  bool _glassConnected = false;
   int _elapsedSeconds = 0;
-  final int _currentSet = 1;
-  int _currentRep = 0;
-
-  final int _setCount = 3;
-  final List<int> _targetRepsPerSet = const [10, 10, 10];
 
   @override
   void initState() {
     super.initState();
+    final repo = getIt<WorkoutRepository>();
+    _connectionSubscription =
+        getIt<DeviceConnectionRepository>().systemStatus.listen((status) {
+      if (mounted) {
+        setState(() {
+          _piConnected = status.piConnected;
+          _esp32Connected = status.esp32Connected;
+          _glassConnected = status.glassConnected;
+        });
+      }
+    });
+    _pausedSubscription = repo.workoutPaused.listen((_) {
+      if (mounted) {
+        setState(() => _state = _WorkoutState.paused);
+      }
+    });
+    _resumedSubscription = repo.workoutResumed.listen((_) {
+      if (mounted) {
+        setState(() => _state = _WorkoutState.running);
+      }
+    });
     _startTimer();
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _connectionSubscription?.cancel();
+    _pausedSubscription?.cancel();
+    _resumedSubscription?.cancel();
     super.dispose();
   }
 
@@ -49,6 +77,14 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   }
 
   void _togglePause() {
+    final repo = getIt<WorkoutRepository>();
+    try {
+      if (_state == _WorkoutState.paused) {
+        repo.resumeWorkout();
+      } else {
+        repo.pauseWorkout();
+      }
+    } catch (_) {}
     setState(() {
       _state =
           _state == _WorkoutState.paused ? _WorkoutState.running : _WorkoutState.paused;
@@ -64,6 +100,9 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
         cancelLabel: '계속',
         danger: true,
         onConfirm: () {
+          try {
+            getIt<WorkoutRepository>().stopWorkout();
+          } catch (_) {}
           Navigator.of(dialogContext).pop();
           context.go('/session-result?status=stopped');
         },
@@ -72,6 +111,9 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   }
 
   void _emergencyStop() {
+    try {
+      getIt<WorkoutRepository>().emergencyStop();
+    } catch (_) {}
     context.go('/session-result?status=emergency_stopped');
   }
 
@@ -156,30 +198,13 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
             timeLabel: _timeLabel,
             stateLabel: _stateLabel,
             stateVariant: _stateVariant,
-            currentSet: _currentSet,
-            setCount: _setCount,
           ),
           const SizedBox(height: AppSpacing.sectionGap),
-          _CurrentRepCard(
-            currentRep: _currentRep,
-            targetRep: _targetRepsPerSet[_currentSet - 1],
-            onIncrement: () {
-              setState(() {
-                final target = _targetRepsPerSet[_currentSet - 1];
-                if (_currentRep < target) {
-                  _currentRep++;
-                }
-              });
-            },
+          _ConnectionStatusCard(
+            piConnected: _piConnected,
+            esp32Connected: _esp32Connected,
+            glassConnected: _glassConnected,
           ),
-          const SizedBox(height: AppSpacing.md),
-          _SetProgressCard(
-            currentSet: _currentSet,
-            currentRep: _currentRep,
-            targets: _targetRepsPerSet,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          const _ConnectionStatusCard(),
           const SizedBox(height: AppSpacing.md),
           const _WorkoutNoticeCard(),
         ],
@@ -193,15 +218,11 @@ class _WorkoutHeroCard extends StatelessWidget {
     required this.timeLabel,
     required this.stateLabel,
     required this.stateVariant,
-    required this.currentSet,
-    required this.setCount,
   });
 
   final String timeLabel;
   final String stateLabel;
   final StatusVariant stateVariant;
-  final int currentSet;
-  final int setCount;
 
   @override
   Widget build(BuildContext context) {
@@ -262,7 +283,7 @@ class _WorkoutHeroCard extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.md),
               Text(
-                '$currentSet세트 / $setCount세트',
+                'Pi가 운동 진행과 반복 수를 처리합니다.',
                 style: AppTextStyles.bodySmall.copyWith(
                   color: AppColors.card.withValues(alpha: 0.9),
                   fontWeight: FontWeight.w600,
@@ -425,7 +446,15 @@ class _SetProgressRow extends StatelessWidget {
 }
 
 class _ConnectionStatusCard extends StatelessWidget {
-  const _ConnectionStatusCard();
+  const _ConnectionStatusCard({
+    required this.piConnected,
+    required this.esp32Connected,
+    required this.glassConnected,
+  });
+
+  final bool piConnected;
+  final bool esp32Connected;
+  final bool glassConnected;
 
   @override
   Widget build(BuildContext context) {
@@ -437,13 +466,13 @@ class _ConnectionStatusCard extends StatelessWidget {
         children: [
           Text('기기 상태', style: AppTextStyles.label),
           const SizedBox(height: AppSpacing.md),
-          const Wrap(
+          Wrap(
             spacing: AppSpacing.xs,
             runSpacing: AppSpacing.xs,
             children: [
-              StatusBadge(label: 'Pi 연결됨', variant: StatusVariant.success),
-              StatusBadge(label: 'ESP32 연결됨', variant: StatusVariant.success),
-              StatusBadge(label: '글래스 준비됨', variant: StatusVariant.info),
+              StatusBadge(label: piConnected ? 'Pi connected' : 'Pi waiting', variant: piConnected ? StatusVariant.success : StatusVariant.warning),
+              StatusBadge(label: esp32Connected ? 'ESP32 connected' : 'ESP32 waiting', variant: esp32Connected ? StatusVariant.success : StatusVariant.warning),
+              StatusBadge(label: glassConnected ? 'Glass ready' : 'Glass waiting', variant: glassConnected ? StatusVariant.info : StatusVariant.warning),
             ],
           ),
         ],
