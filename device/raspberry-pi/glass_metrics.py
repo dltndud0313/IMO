@@ -1,0 +1,362 @@
+"""Exercise-specific heuristics for glass HUD rendering."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Any, Optional
+
+from esp32_serial_receiver import DecodedFrame
+
+
+SENSOR_CONFIGS = {
+    "pushup": [
+        ("EMG 1", "Left chest"),
+        ("EMG 2", "Right chest"),
+        ("EMG 3", "Left triceps"),
+        ("EMG 4", "Right triceps"),
+        ("IMU 1", "Left upper arm"),
+        ("IMU 2", "Right upper arm"),
+        ("IMU 3", "Upper torso"),
+    ],
+    "lateral_raise": [
+        ("EMG 1", "Left side deltoid"),
+        ("EMG 2", "Right side deltoid"),
+        ("EMG 3", "Left upper trapezius"),
+        ("EMG 4", "Right upper trapezius"),
+        ("IMU 1", "Left forearm"),
+        ("IMU 2", "Right forearm"),
+        ("IMU 3", "Upper torso"),
+    ],
+    "bicep_curl": [
+        ("EMG 1", "Left biceps"),
+        ("EMG 2", "Right biceps"),
+        ("EMG 3", "Left forearm"),
+        ("EMG 4", "Right forearm"),
+        ("IMU 1", "Left forearm"),
+        ("IMU 2", "Right forearm"),
+        ("IMU 3", "Upper torso"),
+    ],
+}
+
+
+@dataclass(frozen=True)
+class HeuristicResult:
+    activation_percent: int
+    activation_level: str
+    usage_text: str
+    usage_tone: str
+    pose_badge: str
+    pose_title: str
+    pose_detail: str
+    pose_tone: str
+
+
+@dataclass(frozen=True)
+class FrameFeatures:
+    left_primary: float
+    right_primary: float
+    left_secondary: float
+    right_secondary: float
+    primary_avg: float
+    secondary_avg: float
+    primary_gap: float
+    secondary_gap: float
+    left_arm_motion: float
+    right_arm_motion: float
+    arm_motion_gap: float
+    torso_motion: float
+    torso_tilt: float
+    motion_detected: bool
+
+
+def _activation_level(level: float) -> str:
+    if level >= 0.55:
+        return "HIGH"
+    if level >= 0.22:
+        return "MEDIUM"
+    return "LOW"
+
+
+def _clamp01(value: float) -> float:
+    return max(0.0, min(1.0, value))
+
+
+def _gyro_norm(gyro: tuple[float, float, float]) -> float:
+    return abs(gyro[0]) + abs(gyro[1]) + abs(gyro[2])
+
+
+def _extract_features(frame: DecodedFrame, calibration: Optional[Any]) -> FrameFeatures:
+    emg = frame.emg
+    imu_gyros = list(frame.imu_gyros)
+    imu_accels = list(frame.imu_accels)
+
+    zero_vec = (0.0, 0.0, 0.0)
+    while len(imu_gyros) < 3:
+        imu_gyros.append(zero_vec)
+    while len(imu_accels) < 3:
+        imu_accels.append(zero_vec)
+
+    emg_baseline = [0.0, 0.0, 0.0, 0.0]
+    imu_accel_baseline = [[0.0, 0.0, 0.0] for _ in range(3)]
+    imu_gyro_baseline = [[0.0, 0.0, 0.0] for _ in range(3)]
+    if calibration is not None and getattr(calibration, "ready", False):
+        emg_baseline = list(calibration.emg_rest_baseline)
+        imu_accel_baseline = [list(v) for v in calibration.imu_rest_accel]
+        imu_gyro_baseline = [list(v) for v in calibration.imu_rest_gyro]
+
+    left_primary = max(0.0, emg[0] - emg_baseline[0])
+    right_primary = max(0.0, emg[1] - emg_baseline[1])
+    left_secondary = max(0.0, emg[2] - emg_baseline[2])
+    right_secondary = max(0.0, emg[3] - emg_baseline[3])
+    primary_avg = (left_primary + right_primary) / 2.0
+    secondary_avg = (left_secondary + right_secondary) / 2.0
+
+    adj_imu_accels = []
+    adj_imu_gyros = []
+    for imu_index in range(3):
+        adj_imu_accels.append(
+            (
+                imu_accels[imu_index][0] - imu_accel_baseline[imu_index][0],
+                imu_accels[imu_index][1] - imu_accel_baseline[imu_index][1],
+                imu_accels[imu_index][2] - imu_accel_baseline[imu_index][2],
+            )
+        )
+        adj_imu_gyros.append(
+            (
+                imu_gyros[imu_index][0] - imu_gyro_baseline[imu_index][0],
+                imu_gyros[imu_index][1] - imu_gyro_baseline[imu_index][1],
+                imu_gyros[imu_index][2] - imu_gyro_baseline[imu_index][2],
+            )
+        )
+
+    left_arm_motion = _gyro_norm(adj_imu_gyros[0])
+    right_arm_motion = _gyro_norm(adj_imu_gyros[1])
+    torso_motion = _gyro_norm(adj_imu_gyros[2])
+
+    return FrameFeatures(
+        left_primary=left_primary,
+        right_primary=right_primary,
+        left_secondary=left_secondary,
+        right_secondary=right_secondary,
+        primary_avg=primary_avg,
+        secondary_avg=secondary_avg,
+        primary_gap=abs(left_primary - right_primary),
+        secondary_gap=abs(left_secondary - right_secondary),
+        left_arm_motion=left_arm_motion,
+        right_arm_motion=right_arm_motion,
+        arm_motion_gap=abs(left_arm_motion - right_arm_motion),
+        torso_motion=torso_motion,
+        torso_tilt=abs(adj_imu_accels[2][0]) + abs(adj_imu_accels[2][1]),
+        motion_detected=bool(frame.flags & 0x04),
+    )
+
+
+def build_waiting_result() -> HeuristicResult:
+    return HeuristicResult(
+        activation_percent=0,
+        activation_level="LOW",
+        usage_text="운동 선택 후 근활성 판단이 시작됩니다.",
+        usage_tone="neutral",
+        pose_badge="System",
+        pose_title="앱에서 운동을 선택하세요",
+        pose_detail="센서 위치 안내를 확인한 뒤 부착 완료와 캘리브레이션을 진행하세요.",
+        pose_tone="neutral",
+    )
+
+
+def build_phase_result(phase: str) -> Optional[HeuristicResult]:
+    if phase == "ready_for_calibration":
+        return HeuristicResult(
+            activation_percent=0,
+            activation_level="LOW",
+            usage_text="센서 부착 완료를 기다리는 중입니다.",
+            usage_tone="warn",
+            pose_badge="Ready",
+            pose_title="센서 부착 확인",
+            pose_detail="앱에서 센서 부착 완료를 누른 뒤 캘리브레이션을 시작하세요.",
+            pose_tone="warn",
+        )
+    if phase == "sensors_ready":
+        return HeuristicResult(
+            activation_percent=0,
+            activation_level="LOW",
+            usage_text="센서 위치 확인 완료. 기준값 측정 준비가 됐습니다.",
+            usage_tone="good",
+            pose_badge="Ready",
+            pose_title="캘리브레이션 준비",
+            pose_detail="움직이기 전에 기준값 측정을 시작하세요.",
+            pose_tone="good",
+        )
+    if phase == "calibrating":
+        return HeuristicResult(
+            activation_percent=0,
+            activation_level="LOW",
+            usage_text="캘리브레이션 중에는 최대한 같은 자세를 유지하세요.",
+            usage_tone="warn",
+            pose_badge="Calibrating",
+            pose_title="기준값 측정 중",
+            pose_detail="움직임을 최소화하고 센서가 흔들리지 않도록 유지하세요.",
+            pose_tone="warn",
+        )
+    if phase == "resting":
+        return HeuristicResult(
+            activation_percent=0,
+            activation_level="LOW",
+            usage_text="세트가 끝났습니다. 다음 세트를 위해 호흡을 정리하세요.",
+            usage_tone="good",
+            pose_badge="Rest",
+            pose_title="세트 간 휴식 중",
+            pose_detail="휴식이 끝나면 자동으로 다음 세트 측정이 다시 시작됩니다.",
+            pose_tone="good",
+        )
+    if phase == "paused":
+        return HeuristicResult(
+            activation_percent=0,
+            activation_level="LOW",
+            usage_text="운동이 일시정지되었습니다.",
+            usage_tone="neutral",
+            pose_badge="Paused",
+            pose_title="운동 일시정지",
+            pose_detail="앱에서 운동 재개를 누르면 다시 측정과 카운팅이 시작됩니다.",
+            pose_tone="neutral",
+        )
+    if phase == "completed":
+        return HeuristicResult(
+            activation_percent=0,
+            activation_level="LOW",
+            usage_text="운동이 종료되었습니다.",
+            usage_tone="neutral",
+            pose_badge="Done",
+            pose_title="세션 종료",
+            pose_detail="앱에서 결과를 확인하거나 다음 운동을 준비하세요.",
+            pose_tone="good",
+        )
+    return None
+
+
+def _analyze_pushup(features: FrameFeatures) -> HeuristicResult:
+    level = max(features.primary_avg, features.secondary_avg * 0.85)
+
+    if features.primary_avg < 0.05:
+        usage_text = "좌우 대흉근 활성도가 아직 낮습니다."
+        usage_tone = "warn"
+    elif features.primary_gap > 0.18:
+        usage_text = "좌우 가슴 사용 균형이 무너집니다."
+        usage_tone = "danger"
+    elif features.secondary_gap > 0.20:
+        usage_text = "좌우 삼두 사용 차이가 큽니다."
+        usage_tone = "warn"
+    else:
+        usage_text = "가슴과 삼두 사용 균형이 양호합니다."
+        usage_tone = "good"
+
+    if features.torso_tilt > 0.65:
+        pose = ("Posture", "상체 정렬 주의", "몸통 기울어짐이 큽니다. 머리부터 발끝까지 일직선을 유지하세요.", "danger")
+    elif features.torso_motion > 10.0:
+        pose = ("Control", "몸통 흔들림 감지", "코어를 더 단단히 고정하고 반동을 줄여보세요.", "warn")
+    elif features.arm_motion_gap > 7.0:
+        pose = ("Balance", "좌우 팔 속도 차이", "양팔이 같은 속도로 밀어내는지 확인하세요.", "warn")
+    else:
+        pose = ("Posture", "자세 안정적", "몸통 정렬과 좌우 팔 밸런스가 안정적입니다.", "good")
+
+    return HeuristicResult(
+        activation_percent=int(round(_clamp01(level) * 100.0)),
+        activation_level=_activation_level(level),
+        usage_text=usage_text,
+        usage_tone=usage_tone,
+        pose_badge=pose[0],
+        pose_title=pose[1],
+        pose_detail=pose[2],
+        pose_tone=pose[3],
+    )
+
+
+def _analyze_bicep_curl(features: FrameFeatures) -> HeuristicResult:
+    level = features.primary_avg
+
+    if features.primary_avg < 0.05:
+        usage_text = "좌우 이두근 활성도가 아직 낮습니다."
+        usage_tone = "warn"
+    elif features.secondary_avg > features.primary_avg * 1.05:
+        usage_text = "전완 개입이 더 큽니다. 손목 힘보다 이두 수축에 집중하세요."
+        usage_tone = "danger"
+    elif features.primary_gap > 0.16:
+        usage_text = "좌우 이두 사용 차이가 큽니다."
+        usage_tone = "warn"
+    else:
+        usage_text = "이두근 중심 사용이 양호합니다."
+        usage_tone = "good"
+
+    if features.torso_motion > 8.0:
+        pose = ("Control", "몸통 반동 주의", "몸통을 고정하고 팔꿈치를 축으로 컬 동작을 유지하세요.", "danger")
+    elif features.arm_motion_gap > 6.0:
+        pose = ("Balance", "좌우 컬 속도 차이", "양팔 컬 속도와 리듬을 맞춰보세요.", "warn")
+    elif not features.motion_detected and features.primary_avg > 0.08:
+        pose = ("Range", "수축 유지 중", "정점 수축은 좋습니다. 천천히 내려오며 장력을 유지하세요.", "good")
+    else:
+        pose = ("Posture", "컬 자세 양호", "팔꿈치 고정과 이두 수축이 안정적입니다.", "good")
+
+    return HeuristicResult(
+        activation_percent=int(round(_clamp01(level) * 100.0)),
+        activation_level=_activation_level(level),
+        usage_text=usage_text,
+        usage_tone=usage_tone,
+        pose_badge=pose[0],
+        pose_title=pose[1],
+        pose_detail=pose[2],
+        pose_tone=pose[3],
+    )
+
+
+def _analyze_lateral_raise(features: FrameFeatures) -> HeuristicResult:
+    level = features.primary_avg
+
+    if features.primary_avg < 0.05:
+        usage_text = "좌우 측면 삼각근 활성도가 아직 낮습니다."
+        usage_tone = "warn"
+    elif features.secondary_avg > features.primary_avg * 0.90:
+        usage_text = "승모근 보상이 큽니다. 어깨를 끌어올리지 않도록 주의하세요."
+        usage_tone = "danger"
+    elif features.primary_gap > 0.16:
+        usage_text = "좌우 삼각근 사용 차이가 큽니다."
+        usage_tone = "warn"
+    else:
+        usage_text = "삼각근 중심 사용이 안정적입니다."
+        usage_tone = "good"
+
+    if features.torso_motion > 8.0:
+        pose = ("Tempo", "몸통 반동 감지", "몸통 반동을 줄이고 팔을 부드럽게 들어 올리세요.", "danger")
+    elif features.arm_motion_gap > 5.0:
+        pose = ("Balance", "좌우 높이 차이 주의", "양팔이 같은 속도와 각도로 올라가는지 확인하세요.", "warn")
+    elif features.secondary_gap > 0.14:
+        pose = ("Control", "좌우 승모 보상 차이", "한쪽 어깨만 먼저 들리지 않도록 조정하세요.", "warn")
+    else:
+        pose = ("Posture", "어깨 라인 양호", "측면 삼각근 위주로 안정적으로 수행 중입니다.", "good")
+
+    return HeuristicResult(
+        activation_percent=int(round(_clamp01(level) * 100.0)),
+        activation_level=_activation_level(level),
+        usage_text=usage_text,
+        usage_tone=usage_tone,
+        pose_badge=pose[0],
+        pose_title=pose[1],
+        pose_detail=pose[2],
+        pose_tone=pose[3],
+    )
+
+
+def analyze_frame(
+    exercise_type: Optional[str],
+    frame: Optional[DecodedFrame],
+    calibration: Optional[Any] = None,
+) -> HeuristicResult:
+    if not exercise_type or frame is None:
+        return build_waiting_result()
+
+    features = _extract_features(frame, calibration)
+
+    if exercise_type == "pushup":
+        return _analyze_pushup(features)
+    if exercise_type == "lateral_raise":
+        return _analyze_lateral_raise(features)
+    return _analyze_bicep_curl(features)

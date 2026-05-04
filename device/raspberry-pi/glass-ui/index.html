@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>IMO Glass Viewer</title>
+    <style>
+      :root {
+        --bg: #081217;
+        --panel: rgba(8, 22, 28, 0.74);
+        --panel-strong: rgba(10, 28, 35, 0.86);
+        --line: rgba(91, 224, 198, 0.26);
+        --line-strong: rgba(91, 224, 198, 0.6);
+        --text-main: #ecfff7;
+        --text-soft: #a8cfc4;
+        --accent: #5be0c6;
+        --accent-2: #f7c66d;
+        --danger: #ff7b65;
+        --warn: #ffcc70;
+        --good: #6ef0a7;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Space Grotesk", "Pretendard", "Noto Sans KR", sans-serif;
+        color: var(--text-main);
+        background:
+          radial-gradient(circle at 50% 50%, rgba(91, 224, 198, 0.1), transparent 30%),
+          linear-gradient(135deg, #091419 0%, #0d2028 48%, #061014 100%);
+        overflow: hidden;
+      }
+
+      .hud {
+        position: relative;
+        min-height: 100vh;
+        padding: 24px;
+        display: grid;
+        grid-template-columns: 280px 1fr 240px;
+        grid-template-rows: 180px 1fr 220px;
+        gap: 18px;
+      }
+
+      .grid-ring {
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(91, 224, 198, 0.03) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(91, 224, 198, 0.03) 1px, transparent 1px);
+        background-size: 46px 46px;
+        pointer-events: none;
+      }
+
+      .halo {
+        position: absolute;
+        width: 54vw;
+        height: 54vw;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -48%);
+        border-radius: 50%;
+        border: 1px solid rgba(91, 224, 198, 0.12);
+        box-shadow:
+          0 0 0 28px rgba(91, 224, 198, 0.03),
+          inset 0 0 40px rgba(91, 224, 198, 0.06);
+        pointer-events: none;
+      }
+
+      .panel {
+        position: relative;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        backdrop-filter: blur(10px);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+        overflow: hidden;
+      }
+
+      .panel::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 40%);
+        pointer-events: none;
+      }
+
+      .corner {
+        position: absolute;
+        width: 20px;
+        height: 20px;
+        border-color: var(--line-strong);
+        border-style: solid;
+        opacity: 0.72;
+      }
+
+      .corner.tl {
+        left: 12px;
+        top: 12px;
+        border-width: 2px 0 0 2px;
+      }
+
+      .corner.tr {
+        right: 12px;
+        top: 12px;
+        border-width: 2px 2px 0 0;
+      }
+
+      .corner.bl {
+        left: 12px;
+        bottom: 12px;
+        border-width: 0 0 2px 2px;
+      }
+
+      .corner.br {
+        right: 12px;
+        bottom: 12px;
+        border-width: 0 2px 2px 0;
+      }
+
+      .section {
+        position: relative;
+        padding: 22px 24px;
+        z-index: 1;
+      }
+
+      .eyebrow {
+        color: var(--text-soft);
+        font-size: 12px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+
+      .exercise-panel {
+        grid-column: 1;
+        grid-row: 1;
+      }
+
+      .exercise-name {
+        margin-top: 14px;
+        font-size: 38px;
+        line-height: 0.95;
+        font-weight: 700;
+      }
+
+      .phase-chip {
+        display: inline-flex;
+        margin-top: 16px;
+        padding: 8px 14px;
+        border-radius: 999px;
+        border: 1px solid rgba(91, 224, 198, 0.24);
+        color: var(--accent);
+        font-size: 13px;
+      }
+
+      .rep-panel {
+        grid-column: 3;
+        grid-row: 1;
+        text-align: right;
+      }
+
+      .rep-count {
+        margin-top: 12px;
+        font-size: 84px;
+        line-height: 0.9;
+        font-weight: 700;
+        color: var(--accent-2);
+      }
+
+      .rep-target {
+        margin-top: 8px;
+        font-size: 18px;
+        color: var(--text-soft);
+      }
+
+      .rep-meta {
+        margin-top: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        align-items: flex-end;
+        font-size: 14px;
+        color: var(--text-soft);
+      }
+
+      .center-panel {
+        grid-column: 2;
+        grid-row: 1 / span 3;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        background: transparent;
+        border: 0;
+        box-shadow: none;
+        backdrop-filter: none;
+      }
+
+      .center-stack {
+        width: min(70vw, 760px);
+        aspect-ratio: 1 / 1;
+        display: grid;
+        place-items: center;
+        position: relative;
+      }
+
+      .pulse-ring,
+      .pulse-ring::before,
+      .pulse-ring::after {
+        position: absolute;
+        border-radius: 50%;
+        border: 1px solid rgba(91, 224, 198, 0.18);
+        content: "";
+      }
+
+      .pulse-ring {
+        width: 76%;
+        height: 76%;
+      }
+
+      .pulse-ring::before {
+        inset: 9%;
+      }
+
+      .pulse-ring::after {
+        inset: 18%;
+      }
+
+      .pose-card {
+        width: 64%;
+        min-height: 280px;
+        border-radius: 32px;
+        background: var(--panel-strong);
+        border: 1px solid rgba(91, 224, 198, 0.22);
+        padding: 28px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        text-align: center;
+        box-shadow:
+          0 24px 80px rgba(0, 0, 0, 0.28),
+          inset 0 1px 0 rgba(255, 255, 255, 0.03);
+      }
+
+      .pose-badge {
+        align-self: center;
+        padding: 7px 14px;
+        border-radius: 999px;
+        font-size: 12px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        border: 1px solid rgba(91, 224, 198, 0.24);
+        color: var(--accent);
+      }
+
+      .pose-title {
+        margin-top: 18px;
+        font-size: 44px;
+        line-height: 1;
+        font-weight: 700;
+      }
+
+      .pose-detail {
+        margin-top: 16px;
+        font-size: 18px;
+        line-height: 1.6;
+        color: var(--text-soft);
+      }
+
+      .activation-panel {
+        grid-column: 1;
+        grid-row: 3;
+      }
+
+      .metric-label {
+        font-size: 14px;
+        color: var(--text-soft);
+      }
+
+      .activation-value {
+        margin-top: 16px;
+        font-size: 52px;
+        line-height: 0.95;
+        font-weight: 700;
+      }
+
+      .bar {
+        margin-top: 18px;
+        height: 14px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        overflow: hidden;
+      }
+
+      .bar-fill {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, #43d9c2 0%, #a8ff9d 100%);
+        box-shadow: 0 0 20px rgba(91, 224, 198, 0.4);
+        transition: width 160ms ease-out;
+      }
+
+      .usage-status {
+        margin-top: 16px;
+        font-size: 17px;
+        line-height: 1.5;
+      }
+
+      .sensor-panel {
+        grid-column: 3;
+        grid-row: 3;
+      }
+
+      .sensor-list {
+        margin-top: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .sensor-item {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px 14px;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.03);
+      }
+
+      .sensor-name {
+        font-size: 14px;
+      }
+
+      .sensor-position {
+        font-size: 14px;
+        color: var(--text-soft);
+      }
+
+      .status-good {
+        color: var(--good);
+      }
+
+      .status-warn {
+        color: var(--warn);
+      }
+
+      .status-danger {
+        color: var(--danger);
+      }
+
+      .footer-strip {
+        position: absolute;
+        left: 28px;
+        right: 28px;
+        bottom: 18px;
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        color: rgba(236, 255, 247, 0.62);
+        font-size: 12px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      @media (max-width: 1100px) {
+        .hud {
+          grid-template-columns: 1fr;
+          grid-template-rows: auto auto auto auto;
+          padding: 14px;
+        }
+
+        .exercise-panel,
+        .rep-panel,
+        .activation-panel,
+        .sensor-panel,
+        .center-panel {
+          grid-column: 1;
+          grid-row: auto;
+        }
+
+        .center-stack {
+          width: 100%;
+          aspect-ratio: auto;
+          min-height: 360px;
+        }
+
+        .pose-card {
+          width: min(100%, 620px);
+        }
+
+        .rep-panel {
+          text-align: left;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="hud">
+      <div class="grid-ring"></div>
+      <div class="halo"></div>
+
+      <section class="panel exercise-panel">
+        <div class="corner tl"></div>
+        <div class="corner br"></div>
+        <div class="section">
+          <div class="eyebrow">Workout</div>
+          <div id="exercise-name" class="exercise-name">Waiting</div>
+          <div id="phase-chip" class="phase-chip">운동 선택 대기</div>
+        </div>
+      </section>
+
+      <section class="panel rep-panel">
+        <div class="corner tr"></div>
+        <div class="corner bl"></div>
+        <div class="section">
+          <div class="eyebrow">Rep Count</div>
+          <div id="rep-count" class="rep-count">-</div>
+          <div id="rep-target" class="rep-target">target -</div>
+          <div class="rep-meta">
+            <div id="set-progress">set - / -</div>
+            <div id="rest-status">rest -</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="center-panel">
+        <div class="center-stack">
+          <div class="pulse-ring"></div>
+          <article class="pose-card">
+            <div id="pose-badge" class="pose-badge">System</div>
+            <div id="pose-title" class="pose-title">앱에서 운동을 선택하세요</div>
+            <div id="pose-detail" class="pose-detail">
+              센서 위치 안내를 확인한 뒤 부착 완료와 캘리브레이션을 진행하면
+              실시간 자세 판단이 이 중앙 영역에 표시됩니다.
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel activation-panel">
+        <div class="corner tl"></div>
+        <div class="corner br"></div>
+        <div class="section">
+          <div class="eyebrow">Muscle Activation</div>
+          <div id="activation-value" class="activation-value">0%</div>
+          <div class="bar">
+            <div id="activation-fill" class="bar-fill"></div>
+          </div>
+          <div id="usage-status" class="usage-status">
+            목표 근육 사용 여부를 기다리는 중입니다.
+          </div>
+        </div>
+      </section>
+
+      <section class="panel sensor-panel">
+        <div class="corner tr"></div>
+        <div class="corner bl"></div>
+        <div class="section">
+          <div class="eyebrow">Sensor Placement</div>
+          <div id="sensor-list" class="sensor-list"></div>
+        </div>
+      </section>
+
+      <div class="footer-strip">
+        <span id="ws-status">WS disconnected</span>
+        <span id="frame-status">frame waiting</span>
+      </div>
+    </main>
+
+    <script>
+      const state = {
+        display: null,
+        exerciseLabel: "Waiting",
+        phaseLabel: "운동 선택 대기",
+        currentRep: null,
+        currentSetIndex: 0,
+        setCount: 0,
+        targetRep: null,
+        restRemainingSec: 0,
+        targetRepsPerSet: [],
+        sensors: [],
+      };
+
+      const params = new URLSearchParams(window.location.search);
+      const wsPort = params.get("wsPort") || "8765";
+      const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
+      const wsUrl = `${wsScheme}://${window.location.hostname}:${wsPort}`;
+
+      const els = {
+        exerciseName: document.getElementById("exercise-name"),
+        phaseChip: document.getElementById("phase-chip"),
+        repCount: document.getElementById("rep-count"),
+        repTarget: document.getElementById("rep-target"),
+        setProgress: document.getElementById("set-progress"),
+        restStatus: document.getElementById("rest-status"),
+        poseBadge: document.getElementById("pose-badge"),
+        poseTitle: document.getElementById("pose-title"),
+        poseDetail: document.getElementById("pose-detail"),
+        activationValue: document.getElementById("activation-value"),
+        activationFill: document.getElementById("activation-fill"),
+        usageStatus: document.getElementById("usage-status"),
+        sensorList: document.getElementById("sensor-list"),
+        wsStatus: document.getElementById("ws-status"),
+        frameStatus: document.getElementById("frame-status"),
+      };
+
+      function renderSensorList() {
+        const items = state.sensors || [];
+        els.sensorList.innerHTML = "";
+        if (items.length === 0) {
+          els.sensorList.innerHTML = `
+            <div class="sensor-item">
+              <span class="sensor-name">앱에서 운동 선택 대기</span>
+              <span class="sensor-position">-</span>
+            </div>
+          `;
+          return;
+        }
+
+        for (const item of items) {
+          const div = document.createElement("div");
+          div.className = "sensor-item";
+          div.innerHTML = `
+            <span class="sensor-name">${item.name}</span>
+            <span class="sensor-position">${item.position}</span>
+          `;
+          els.sensorList.appendChild(div);
+        }
+      }
+
+      function render() {
+        els.exerciseName.textContent = state.exerciseLabel;
+        els.phaseChip.textContent = state.phaseLabel;
+        const rep = state.currentRep;
+        els.repCount.textContent = rep ?? "-";
+        els.repTarget.textContent = `target ${state.targetRep ?? "-"}`;
+        els.setProgress.textContent = `set ${state.currentSetIndex || "-"} / ${state.setCount || "-"}`;
+        if (state.restRemainingSec > 0) {
+          els.restStatus.textContent = `rest ${state.restRemainingSec}s`;
+        } else {
+          els.restStatus.textContent = "rest -";
+        }
+
+        const display = state.display || {};
+        const levelPercent = display.activation_percent ?? 0;
+        els.activationValue.textContent = `${levelPercent}% ${display.activation_level || "LOW"}`;
+        els.activationFill.style.width = `${levelPercent}%`;
+        els.usageStatus.textContent = display.usage_text || "목표 근육 사용 여부를 기다리는 중입니다.";
+        els.usageStatus.className = `usage-status ${display.usage_tone ? `status-${display.usage_tone}` : ""}`;
+
+        els.poseBadge.textContent = display.pose_badge || "System";
+        els.poseTitle.textContent = display.pose_title || "앱에서 운동을 선택하세요";
+        els.poseDetail.textContent = display.pose_detail || "센서 데이터 대기 중입니다.";
+        els.poseTitle.className = `pose-title ${display.pose_tone ? `status-${display.pose_tone}` : ""}`;
+
+        renderSensorList();
+      }
+
+      function connect() {
+        const ws = new WebSocket(wsUrl);
+        els.wsStatus.textContent = `WS connecting ${wsUrl}`;
+
+        ws.onopen = () => {
+          els.wsStatus.textContent = `WS connected ${wsUrl}`;
+          ws.send(JSON.stringify({ type: "ping", payload: {} }));
+        };
+
+        ws.onmessage = (event) => {
+          const message = JSON.parse(event.data);
+          if (message.type === "glass_session_state") {
+            state.exerciseType = message.payload.exercise_type;
+            state.exerciseLabel = message.payload.exercise_label;
+            state.phaseLabel = message.payload.phase_label;
+            state.setCount = message.payload.set_count || 0;
+            state.currentSetIndex = message.payload.current_set_index || 0;
+            state.targetRep = message.payload.target_rep;
+            state.restRemainingSec = message.payload.rest_remaining_sec || 0;
+            state.targetRepsPerSet = message.payload.target_reps_per_set || [];
+            state.currentRep = message.payload.current_rep;
+          }
+
+          if (message.type === "glass_display_data") {
+            state.display = message.payload;
+            state.exerciseType = message.payload.exercise_type;
+            state.exerciseLabel = message.payload.exercise_label || state.exerciseLabel;
+            state.phaseLabel = message.payload.phase_label || state.phaseLabel;
+            state.currentSetIndex = message.payload.current_set_index || state.currentSetIndex;
+            state.targetRep = message.payload.target_rep;
+            state.restRemainingSec = message.payload.rest_remaining_sec || 0;
+            state.currentRep = message.payload.current_rep;
+            state.targetRepsPerSet = message.payload.target_reps_per_set || [];
+            state.sensors = message.payload.sensors || [];
+            if (message.payload.frame_seq != null) {
+              els.frameStatus.textContent = `seq ${message.payload.frame_seq} / ts ${message.payload.frame_timestamp_ms}ms`;
+            }
+          }
+
+          if (message.type === "connection_status") {
+            const connected = message.payload.esp32_connected ? "ESP32 online" : "ESP32 offline";
+            els.wsStatus.textContent = `${connected} / glass ${message.payload.glass_connected ? "online" : "waiting"}`;
+          }
+
+          render();
+        };
+
+        ws.onclose = () => {
+          els.wsStatus.textContent = "WS disconnected";
+          setTimeout(connect, 1200);
+        };
+
+        ws.onerror = () => {
+          els.wsStatus.textContent = "WS error";
+        };
+      }
+
+      render();
+      connect();
+    </script>
+  </body>
+</html>
