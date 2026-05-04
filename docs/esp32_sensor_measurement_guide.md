@@ -6,7 +6,10 @@
 ## 현재 전제
 
 - EMG: 4채널 (`GPIO 4/5/6/7`)
-- IMU: 3개 (`0x68/0x69/0x6A`)
+- IMU: 3개
+  - IMU1: `0x68`, `SDA=8`, `SCL=9`
+  - IMU2: `0x69`, `SDA=8`, `SCL=9`
+  - IMU3: `0x68`, `SDA=10`, `SCL=11`
 - 패킷: `BINARY_V2` 64바이트 고정
 - 샘플 주기: 20ms (50Hz)
 
@@ -102,9 +105,9 @@ python3 ../scripts/decode_binary_sensor_stream.py --port /dev/ttyUSB0
 | `kEmgRmsWindow` | `16` | RMS 계산 창 |
 | `kEmgHistoryWindow` | `40` | 표시 히스토리 길이 |
 | `kEmgDisplayAttackAlpha` | `0.12` | 상승 반응 속도 |
-| `kEmgDisplayReleaseAlpha` | `0.99` | 하강 반응 속도 |
-| `kEmgDisplayZeroReleaseAlpha` | `0.040` | 0 복귀 구간 하강 속도 |
-| `kEmgDisplayHoldFrames` | `18` | 유지 중 급락 완화 프레임 수 |
+| `kEmgDisplayReleaseAlpha` | `0.92` | 하강 반응 속도 |
+| `kEmgDisplayZeroReleaseAlpha` | `0.055` | 0 복귀 구간 하강 속도 |
+| `kEmgDisplayHoldFrames` | `16` | 유지 중 급락 완화 프레임 수 |
 | `kEmgRestDisplayThreshold` | `0.010` | 휴식으로 보고 0에 붙이는 기준 |
 | `kActivationThresholdOn` | `0.011` | 힘 신호로 보는 on 기준 |
 | `kEmgDisplayGain` | `20.00` | 게이지 증폭 계수 |
@@ -112,6 +115,9 @@ python3 ../scripts/decode_binary_sensor_stream.py --port /dev/ttyUSB0
 | `kEmgDisplayMax` | `1.000` | 탈착 포함 전체 표시 최대치 |
 | `kAnalogEmgRestBaselineSamples` | `100` | baseline 수집 raw 샘플 수 |
 | `kAnalogEmgFrameNoiseFloor` | `0.001` | 프레임 노이즈 하한 |
+| `kAnalogEmgRestNoiseFloorMultiplier` | `2.5` | 휴식 노이즈 기반 추가 noise floor 배수 |
+| `kAnalogEmgBaselineMaxNoise` | `0.040` | baseline 재측정 기준 |
+| `kAnalogEmgMinSignalSamples` | `2` | 프레임 유효 신호 최소 샘플 수 |
 | `kAnalogEmgDetachedMagnitudeThreshold` | `0.42` | 탈착 후보로 보는 크기 |
 | `kAnalogEmgReattachMagnitudeThreshold` | `0.08` | 재부착 안정 범위 |
 | `kAnalogEmgReattachConsecutiveFrames` | `5` | 재부착 인정 연속 프레임 수 |
@@ -134,9 +140,11 @@ python3 ../scripts/decode_binary_sensor_stream.py --port /dev/ttyUSB0
 - 원인:
   - 단순 probe 성공과 실제 스트리밍 준비 완료는 다름
   - 준비 상태 비트와 채널별 read 경로를 분리 확인해야 했음
+  - 이후 IMU3는 `10/11` 별도 I2C 버스로 분리해 단일 버스 가정을 제거
 - 대응:
   - `WHO_AM_I` 확인 로직 추가
-  - `0x68`, `0x69`만 활성화하고 `0x6A`는 예비 슬롯으로 유지
+  - IMU1/2는 `8/9`, IMU3는 `10/11` 버스로 분리
+  - 최종적으로 주소는 `{0x68,0x69,0x68}` 구성
 
 ### 7-2. 바이너리 디코더가 중간에 끊기거나 이상한 문자 출력
 

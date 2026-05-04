@@ -29,8 +29,11 @@ idf.py -p /dev/ttyUSB0 -b 115200 flash monitor
 - `kDefaultPacketFormat = BINARY_V2`
 - `kSampleIntervalMs = 20` (50Hz)
 - `kAnalogEmgAdcGpios = {4,5,6,7}`
-- `kMpu6050Addresses = {0x68,0x69,0x6A}`
-- `kImuI2cSdaGpio = 8`, `kImuI2cSclGpio = 9`
+- `kAnalogEmgChannelEnabled = {true,true,true,true}`
+- `kMpu6050Addresses = {0x68,0x69,0x68}`
+- `kImuI2cPorts = {0,0,1}`
+- `kImuI2cSdaGpios = {8,8,10}`
+- `kImuI2cSclGpios = {9,9,11}`
 - `kImuGyroBiasCalibrationSamples = 100`
 - `kImuGyroDeadzoneDps = 0.80`
 - `kImuAccelDeadzoneG = 0.015`
@@ -56,9 +59,9 @@ idf.py -p /dev/ttyUSB0 -b 115200 flash monitor
 - `kEmgRmsWindow = 16`
 - `kEmgHistoryWindow = 40`
 - `kEmgDisplayAttackAlpha = 0.12`
-- `kEmgDisplayReleaseAlpha = 0.99`
-- `kEmgDisplayZeroReleaseAlpha = 0.040`
-- `kEmgDisplayHoldFrames = 18`
+- `kEmgDisplayReleaseAlpha = 0.92`
+- `kEmgDisplayZeroReleaseAlpha = 0.055`
+- `kEmgDisplayHoldFrames = 16`
 - `kEmgRestDisplayThreshold = 0.010`
 - `kActivationThresholdOn = 0.011`
 - `kEmgDisplayGain = 20.00`
@@ -66,6 +69,9 @@ idf.py -p /dev/ttyUSB0 -b 115200 flash monitor
 - `kEmgDisplayMax = 1.000`
 - `kAnalogEmgRestBaselineSamples = 100`
 - `kAnalogEmgFrameNoiseFloor = 0.001`
+- `kAnalogEmgRestNoiseFloorMultiplier = 2.5`
+- `kAnalogEmgBaselineMaxNoise = 0.040`
+- `kAnalogEmgMinSignalSamples = 2`
 - `kAnalogEmgDetachedMagnitudeThreshold = 0.42`
 - `kAnalogEmgReattachMagnitudeThreshold = 0.08`
 - `kAnalogEmgReattachConsecutiveFrames = 5`
@@ -77,9 +83,11 @@ idf.py -p /dev/ttyUSB0 -b 115200 flash monitor
 - ESP32 내부 캘리브레이션 상태 제거
 - 전원 인가 후 즉시 `STREAMING`
 - EMG 4채널/IMU 3개 구조로 통일
-- 현재 실사용 채널은 `GPIO4` 1채널, 나머지 EMG 채널은 비활성화
-- IMU는 `0x68`, `0x69` 2개 활성, `0x6A` 슬롯은 예비
+- EMG는 `GPIO4/5/6/7` 4채널 모두 활성화
+- IMU1/2는 `8/9` 버스, IMU3는 `10/11` 별도 버스로 분리
+- IMU 주소는 `{0x68,0x69,0x68}`로 구성하고 IMU3는 별도 버스에서 `0x68` 재사용
 - EMG는 raw ADC 기준선 대비 변화량을 envelope로 사용
+- baseline 노이즈가 너무 크면 재측정하고, 최소 유효 샘플 수를 만족할 때만 신호로 인정
 - 일반 근육 신호와 탈착 경고 상한을 분리
 - `./stream` 래퍼로 실시간 수신 명령 단축
 
@@ -109,7 +117,7 @@ idf.py -p /dev/ttyUSB0 -b 115200 flash monitor
 
 | 증상 | 원인 추정 | 대응 |
 | --- | --- | --- |
-| IMU2가 계속 `0,0,0` 으로 보임 | I2C 주소 probe는 되었지만 `WHO_AM_I` 검증/채널 준비 상태가 불완전했음 | I2C scan, `WHO_AM_I`, sample read를 분리 확인하고 `0x68/0x69` 두 채널만 활성화 |
+| IMU가 일부만 `0,0,0` 으로 보임 | I2C 주소 probe 성공과 실제 채널 준비 완료는 별개였고, 단일 버스 가정이 남아 있었음 | I2C scan, `WHO_AM_I`, sample read를 분리 확인하고 IMU1/2는 `8/9`, IMU3는 `10/11` 별도 버스로 분리 |
 | 디코더 로그가 움직일 때만 보이거나 중간에 끊김 | 텍스트 로그가 바이너리 프레임을 깨뜨리거나 포트 점유 충돌 | `BINARY_V2` 수신 중 텍스트 init 로그 비활성화, monitor와 decoder 동시 사용 금지 |
 | EMG가 탈착 후 다시 붙여도 이상한 기준값에서 시작 | 이전 baseline이 재부착 후에도 영향 | 탈착/재부착 로직과 baseline reset을 여러 방식으로 실험했고, 최종값은 안정 위주로 정리 |
 | 힘 유지 중 EMG 값이 급락 | raw EMG의 순간적인 dip가 표시값에 바로 반영 | moving average, RMS, hold frame, release alpha를 조정해 게이지 성격으로 완화 |
