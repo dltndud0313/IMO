@@ -28,35 +28,28 @@ class CalibrationSummary {
 
 /// 부위별 활성도 히트맵 (백엔드 저장용)
 class MuscleMap {
-  final double chest;
-  final double leftShoulder;
-  final double rightShoulder;
-  final double leftTriceps;
-  final double rightTriceps;
+  final Map<String, double> values;
 
   const MuscleMap({
-    required this.chest,
-    required this.leftShoulder,
-    required this.rightShoulder,
-    required this.leftTriceps,
-    required this.rightTriceps,
+    required this.values,
   });
 
+  double get chest => values['chest'] ?? 0;
+  double get leftShoulder => values['left_shoulder'] ?? 0;
+  double get rightShoulder => values['right_shoulder'] ?? 0;
+  double get leftTriceps => values['left_triceps'] ?? 0;
+  double get rightTriceps => values['right_triceps'] ?? 0;
+
   factory MuscleMap.fromJson(Map<String, dynamic> json) => MuscleMap(
-        chest: (json['chest'] as num).toDouble(),
-        leftShoulder: (json['left_shoulder'] as num).toDouble(),
-        rightShoulder: (json['right_shoulder'] as num).toDouble(),
-        leftTriceps: (json['left_triceps'] as num).toDouble(),
-        rightTriceps: (json['right_triceps'] as num).toDouble(),
+        values: json.map(
+          (key, value) => MapEntry(
+            key,
+            value is num ? value.toDouble() : 0,
+          ),
+        ),
       );
 
-  Map<String, dynamic> toJson() => {
-        'chest': chest,
-        'left_shoulder': leftShoulder,
-        'right_shoulder': rightShoulder,
-        'left_triceps': leftTriceps,
-        'right_triceps': rightTriceps,
-      };
+  Map<String, dynamic> toJson() => values;
 }
 
 /// 좌우 밸런스 요약값 (백엔드 저장용)

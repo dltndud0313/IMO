@@ -353,25 +353,9 @@ ExerciseType _toExerciseType(String value) {
 }
 
 MuscleMap? _toDomainMuscleMap(Map<String, double> map) {
-  final chest = map['chest'];
-  final leftShoulder = map['left_shoulder'];
-  final rightShoulder = map['right_shoulder'];
-  final leftTriceps = map['left_triceps'];
-  final rightTriceps = map['right_triceps'];
-
-  if (chest == null ||
-      leftShoulder == null ||
-      rightShoulder == null ||
-      leftTriceps == null ||
-      rightTriceps == null) {
+  if (map.isEmpty) {
     return null;
   }
 
-  return MuscleMap(
-    chest: chest,
-    leftShoulder: leftShoulder,
-    rightShoulder: rightShoulder,
-    leftTriceps: leftTriceps,
-    rightTriceps: rightTriceps,
-  );
+  return MuscleMap(values: map);
 }
