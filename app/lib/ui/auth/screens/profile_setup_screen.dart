@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../config/dependencies.dart';
+import '../../../data/repositories/user_profile_repository.dart';
+import '../../../domain/models/user_profile.dart';
 import '../../core/themes/design_tokens.dart';
 import '../widgets/gender_selector.dart';
 import '../widgets/profile_photo_picker_placeholder.dart';
@@ -21,6 +24,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   int _height = 170;
   int _weight = 65;
   bool _photoSelected = false;
+  bool _submitting = false;
 
   bool get _canProceed {
     return switch (_step) {
@@ -42,15 +46,120 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     super.dispose();
   }
 
-  void _goNext() {
-    if (!_canProceed) {
+  Future<void> _goNext() async {
+    if (!_canProceed || _submitting) {
       return;
     }
     if (_step == _steps.length - 1) {
-      context.go('/home');
+      await _saveProfile();
       return;
     }
     setState(() => _step += 1);
+  }
+
+  Future<void> _saveProfile() async {
+    setState(() => _submitting = true);
+    try {
+      await getIt<UserProfileRepository>().updateProfile(
+        UserProfile(
+          nickname: _nicknameController.text.trim(),
+          age: DateTime.now().year - _birthYear,
+          gender: _genderCode,
+          heightCm: _height.toDouble(),
+          weightKg: _weight.toDouble(),
+        ),
+      );
+      if (!mounted) {
+        return;
+      }
+      context.go('/home');
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('프로필 저장에 실패했습니다.')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _submitting = false);
+      }
+    }
+  }
+
+  String get _genderCode {
+    return switch (_gender) {
+      '남성' => 'MALE',
+      '여성' => 'FEMALE',
+      _ => 'OTHER',
+    };
+  }
+
+  Future<void> _pickNumber({
+    required String title,
+    required int min,
+    required int max,
+    required int value,
+    required ValueChanged<int> onSelected,
+  }) async {
+    final values = [for (var i = min; i <= max; i++) i];
+    var selected = value;
+    final initialIndex = values.indexOf(value).clamp(0, values.length - 1);
+    final controller = FixedExtentScrollController(initialItem: initialIndex);
+
+    final result = await showModalBottomSheet<int>(
+      context: context,
+      backgroundColor: AppColors.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: SizedBox(
+            height: 280,
+            child: Column(
+              children: [
+                const SizedBox(height: AppSpacing.md),
+                Text(title, style: AppTextStyles.sectionTitle),
+                Expanded(
+                  child: ListWheelScrollView.useDelegate(
+                    controller: controller,
+                    itemExtent: 42,
+                    physics: const FixedExtentScrollPhysics(),
+                    onSelectedItemChanged: (index) => selected = values[index],
+                    childDelegate: ListWheelChildBuilderDelegate(
+                      childCount: values.length,
+                      builder: (context, index) {
+                        return Center(
+                          child: Text(
+                            '${values[index]}',
+                            style: AppTextStyles.title,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.of(context).pop(selected),
+                      child: const Text('선택'),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (result != null) {
+      onSelected(result);
+    }
   }
 
   void _goBack() {
@@ -98,7 +207,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           top: false,
           child: _ProfileNextButton(
             label: _step == _steps.length - 1 ? '완료' : '다음',
-            enabled: _canProceed,
+            enabled: _canProceed && !_submitting,
             onTap: _goNext,
           ),
         ),
@@ -160,8 +269,13 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         return ProfileUnitValuePicker(
           value: '$_birthYear',
           unit: '년',
-          onTap: () =>
-              setState(() => _birthYear = _birthYear == 1995 ? 1996 : 1995),
+          onTap: () => _pickNumber(
+            title: '출생년도',
+            min: 1940,
+            max: DateTime.now().year,
+            value: _birthYear,
+            onSelected: (value) => setState(() => _birthYear = value),
+          ),
         );
       case 3:
         return Column(
@@ -169,13 +283,25 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
             ProfileUnitValuePicker(
               value: '$_height',
               unit: 'cm',
-              onTap: () => setState(() => _height = _height == 170 ? 171 : 170),
+              onTap: () => _pickNumber(
+                title: '키',
+                min: 120,
+                max: 220,
+                value: _height,
+                onSelected: (value) => setState(() => _height = value),
+              ),
             ),
             const SizedBox(height: AppSpacing.md),
             ProfileUnitValuePicker(
               value: '$_weight',
               unit: 'kg',
-              onTap: () => setState(() => _weight = _weight == 65 ? 66 : 65),
+              onTap: () => _pickNumber(
+                title: '몸무게',
+                min: 30,
+                max: 180,
+                value: _weight,
+                onSelected: (value) => setState(() => _weight = value),
+              ),
             ),
           ],
         );

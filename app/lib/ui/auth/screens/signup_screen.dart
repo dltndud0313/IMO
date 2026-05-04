@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../config/dependencies.dart';
+import '../../../data/repositories/auth_repository.dart';
+import '../../../data/repositories/user_profile_repository.dart';
 import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../widgets/auth_frame.dart';
@@ -19,6 +22,7 @@ class _SignupScreenState extends State<SignupScreen> {
   String? _emailError;
   String? _passwordError;
   String? _confirmError;
+  bool _submitting = false;
 
   @override
   void dispose() {
@@ -28,7 +32,7 @@ class _SignupScreenState extends State<SignupScreen> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
     final confirm = _passwordConfirmController.text;
@@ -39,9 +43,47 @@ class _SignupScreenState extends State<SignupScreen> {
       _confirmError = _validateConfirm(password, confirm);
     });
 
-    if (_emailError == null && _passwordError == null && _confirmError == null) {
-      context.go('/profile-setup');
+    if (_emailError != null || _passwordError != null || _confirmError != null) {
+      return;
     }
+
+    setState(() => _submitting = true);
+    try {
+      await getIt<AuthRepository>().signUp(
+        email,
+        password,
+        _initialNickname(email),
+      );
+      getIt<UserProfileRepository>().clearCache();
+      if (!mounted) {
+        return;
+      }
+      context.go('/profile-setup');
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_authErrorMessage(error))),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _submitting = false);
+      }
+    }
+  }
+
+  String _initialNickname(String email) {
+    final prefix = email.split('@').first.trim();
+    return prefix.isEmpty ? 'imo_user' : prefix;
+  }
+
+  String _authErrorMessage(Object error) {
+    final message = error.toString();
+    if (message.contains('Email already exists')) {
+      return '이미 가입된 이메일입니다. 로그인해주세요.';
+    }
+    return '회원가입에 실패했습니다.';
   }
 
   String? _validateEmail(String value) {
@@ -60,6 +102,9 @@ class _SignupScreenState extends State<SignupScreen> {
     }
     if (value.length < 8) {
       return '비밀번호는 8자 이상 입력해주세요.';
+    }
+    if (!RegExp(r'^(?=.*[A-Za-z])(?=.*\d).+$').hasMatch(value)) {
+      return '비밀번호는 영문과 숫자를 함께 입력해주세요.';
     }
     return null;
   }
@@ -123,7 +168,9 @@ class _SignupScreenState extends State<SignupScreen> {
           const SizedBox(height: AppSpacing.xl),
           ImoButton(
             label: '가입하기',
-            onPressed: _submit,
+            loading: _submitting,
+            disabled: _submitting,
+            onPressed: _submitting ? null : _submit,
           ),
           const SizedBox(height: AppSpacing.md),
           Center(

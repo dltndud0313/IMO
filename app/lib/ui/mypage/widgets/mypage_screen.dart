@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../config/app_settings.dart';
+import '../../../config/dependencies.dart';
+import '../../../data/repositories/auth_repository.dart';
+import '../../../data/repositories/user_profile_repository.dart';
+import '../../../domain/models/user_profile.dart';
 import '../../core/layouts/app_scaffold.dart';
 import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
@@ -16,6 +20,26 @@ class MyPageScreen extends StatefulWidget {
 class _MyPageScreenState extends State<MyPageScreen> {
   bool _voiceCue = true;
   bool _hapticCue = true;
+  UserProfile? _profile;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    try {
+      final profile = await getIt<UserProfileRepository>().getProfile(
+        forceRefresh: true,
+      );
+      if (mounted) {
+        setState(() => _profile = profile);
+      }
+    } catch (_) {
+      // Keep the existing placeholder when profile loading fails.
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +49,10 @@ class _MyPageScreenState extends State<MyPageScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _ProfileCard(onEdit: () => context.go('/profile-edit')),
+          _ProfileCard(
+            profile: _profile,
+            onEdit: () => context.go('/profile-edit'),
+          ),
           const SizedBox(height: AppSpacing.sectionGap),
           Text('앱 설정', style: AppTextStyles.sectionTitle),
           const SizedBox(height: AppSpacing.sm),
@@ -127,9 +154,13 @@ class _MyPageScreenState extends State<MyPageScreen> {
         message: '로그아웃 하시겠습니까?',
         confirmLabel: '예',
         cancelLabel: '아니오',
-        onConfirm: () {
+        onConfirm: () async {
           Navigator.of(dialogContext).pop();
-          context.go('/splash');
+          await getIt<AuthRepository>().logout();
+          getIt<UserProfileRepository>().clearCache();
+          if (context.mounted) {
+            context.go('/splash');
+          }
         },
       ),
     );
@@ -137,8 +168,9 @@ class _MyPageScreenState extends State<MyPageScreen> {
 }
 
 class _ProfileCard extends StatelessWidget {
-  const _ProfileCard({required this.onEdit});
+  const _ProfileCard({required this.profile, required this.onEdit});
 
+  final UserProfile? profile;
   final VoidCallback onEdit;
 
   @override
@@ -166,9 +198,12 @@ class _ProfileCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('x', style: AppTextStyles.sectionTitle),
+                Text(
+                  profile?.nickname ?? 'x',
+                  style: AppTextStyles.sectionTitle,
+                ),
                 const SizedBox(height: AppSpacing.xxs),
-                Text('31세 여성 170cm 65kg', style: AppTextStyles.body),
+                Text(_profileSummary, style: AppTextStyles.body),
               ],
             ),
           ),
@@ -195,6 +230,21 @@ class _ProfileCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String get _profileSummary {
+    final currentProfile = profile;
+    if (currentProfile == null) {
+      return '31세 여성 170cm 65kg';
+    }
+    final genderLabel = switch (currentProfile.gender) {
+      'MALE' => '남성',
+      'FEMALE' => '여성',
+      _ => '기타',
+    };
+    return '${currentProfile.age}세 $genderLabel '
+        '${currentProfile.heightCm.round()}cm '
+        '${currentProfile.weightKg.round()}kg';
   }
 }
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../data/repositories/auth_repository.dart';
 import '../ui/core/layouts/bottom_nav_shell.dart';
 import '../ui/auth/screens/login_screen.dart';
 import '../ui/auth/screens/profile_setup_screen.dart';
@@ -29,9 +30,14 @@ final _rootNavigatorKey = GlobalKey<NavigatorState>();
 final _shellNavigatorKey = GlobalKey<NavigatorState>();
 
 GoRouter buildRouter() {
+  final initialLocation =
+      getIt<AuthRepository>().currentStatus == AuthStatus.authenticated
+          ? '/home'
+          : '/splash';
+
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
-    initialLocation: '/splash',
+    initialLocation: initialLocation,
     routes: [
       GoRoute(
         path: '/splash',
