@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../config/dependencies.dart';
+import '../../../data/repositories/user_profile_repository.dart';
+import '../../../domain/models/user_profile.dart';
 import '../../core/layouts/app_scaffold.dart';
 import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
@@ -19,6 +22,14 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   final _passwordController = TextEditingController();
   final _passwordConfirmController = TextEditingController();
   String _gender = '여성';
+  UserProfile? _profile;
+  bool _submitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
 
   @override
   void dispose() {
@@ -28,6 +39,82 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     _passwordController.dispose();
     _passwordConfirmController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadProfile() async {
+    try {
+      final profile = await getIt<UserProfileRepository>().getProfile(
+        forceRefresh: true,
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _profile = profile;
+        _nicknameController.text = profile.nickname;
+        _heightController.text = profile.heightCm.round().toString();
+        _weightController.text = profile.weightKg.round().toString();
+        _gender = _genderLabel(profile.gender);
+      });
+    } catch (_) {
+      // Keep the existing placeholder values when profile loading fails.
+    }
+  }
+
+  Future<void> _saveProfile() async {
+    final nickname = _nicknameController.text.trim();
+    final height = double.tryParse(_heightController.text);
+    final weight = double.tryParse(_weightController.text);
+    if (nickname.isEmpty || height == null || weight == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('프로필 정보를 확인해주세요.')),
+      );
+      return;
+    }
+
+    setState(() => _submitting = true);
+    try {
+      await getIt<UserProfileRepository>().updateProfile(
+        UserProfile(
+          nickname: nickname,
+          age: _profile?.age ?? 31,
+          gender: _genderCode,
+          heightCm: height,
+          weightKg: weight,
+        ),
+      );
+      if (!mounted) {
+        return;
+      }
+      context.go('/mypage');
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('프로필 수정에 실패했습니다.')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _submitting = false);
+      }
+    }
+  }
+
+  String get _genderCode {
+    return switch (_gender) {
+      '남성' => 'MALE',
+      '여성' => 'FEMALE',
+      _ => 'OTHER',
+    };
+  }
+
+  String _genderLabel(String code) {
+    return switch (code) {
+      'MALE' => '남성',
+      'FEMALE' => '여성',
+      _ => '기타',
+    };
   }
 
   @override
@@ -40,7 +127,12 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       bottom: Row(
         children: [
           Expanded(
-            child: ImoButton(label: '프로필 수정', onPressed: () => context.pop()),
+            child: ImoButton(
+              label: '프로필 수정',
+              loading: _submitting,
+              disabled: _submitting,
+              onPressed: _submitting ? null : _saveProfile,
+            ),
           ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
