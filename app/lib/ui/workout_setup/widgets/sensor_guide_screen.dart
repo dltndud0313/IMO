@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../config/dependencies.dart';
+import '../../../data/repositories/calibration_repository.dart';
 import '../../core/layouts/app_scaffold.dart';
 import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
@@ -23,6 +25,25 @@ class _SensorGuideScreenState extends State<SensorGuideScreen> {
   bool get _allChecked =>
       _config.sensors.every((sensor) => _checkedSensorIds.contains(sensor.id));
 
+  Future<void> _startCalibration() async {
+    try {
+      final repo = getIt<CalibrationRepository>();
+      await repo.connect();
+      repo.startCalibration(exerciseType: widget.exerciseId);
+      if (mounted) {
+        context.go(
+          '/workout-calibration?exercise=${widget.exerciseId}&autoStart=true',
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Pi connection failed.')),
+        );
+      }
+    }
+  }
+
   void _toggleSensor(String id) {
     setState(() {
       if (_checkedSensorIds.contains(id)) {
@@ -44,11 +65,7 @@ class _SensorGuideScreenState extends State<SensorGuideScreen> {
       bottom: ImoButton(
         label: _allChecked ? '캘리브레이션 시작' : '부착 확인 필요',
         disabled: !_allChecked,
-        onPressed: _allChecked
-            ? () => context.go(
-                '/workout-calibration?exercise=${widget.exerciseId}&autoStart=true',
-              )
-            : null,
+        onPressed: _allChecked ? _startCalibration : null,
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -333,102 +350,39 @@ class _SensorInfo {
 
 const _sensorConfigs = {
   'pushup': _SensorConfig(
-    title: '푸시업',
+    title: 'Push-up',
     sensors: [
-      _SensorInfo(
-        id: 'emg_1',
-        label: 'EMG 1',
-        position: '대흉근',
-        top: 104,
-        left: 96,
-      ),
-      _SensorInfo(
-        id: 'emg_2',
-        label: 'EMG 2',
-        position: '삼두근',
-        top: 142,
-        right: 42,
-      ),
-      _SensorInfo(
-        id: 'emg_3',
-        label: 'EMG 3',
-        position: '전면 삼각근',
-        top: 82,
-        left: 134,
-      ),
-      _SensorInfo(
-        id: 'imu_1',
-        label: 'IMU',
-        position: '등 중앙',
-        top: 172,
-        right: 64,
-      ),
+      _SensorInfo(id: 'emg_1', label: 'EMG 1', position: 'Left pectoralis major', top: 104, left: 96),
+      _SensorInfo(id: 'emg_2', label: 'EMG 2', position: 'Right pectoralis major', top: 142, right: 42),
+      _SensorInfo(id: 'emg_3', label: 'EMG 3', position: 'Left triceps', top: 82, left: 134),
+      _SensorInfo(id: 'emg_4', label: 'EMG 4', position: 'Right triceps', top: 118, right: 96),
+      _SensorInfo(id: 'imu_1', label: 'IMU 1', position: 'Upper back center', top: 172, right: 64),
+      _SensorInfo(id: 'imu_2', label: 'IMU 2', position: 'Left upper arm', top: 218, left: 56),
+      _SensorInfo(id: 'imu_3', label: 'IMU 3', position: 'Right upper arm', top: 218, right: 56),
     ],
   ),
   'lateral_raise': _SensorConfig(
-    title: '싸레레',
+    title: 'Lateral Raise',
     sensors: [
-      _SensorInfo(
-        id: 'emg_1',
-        label: 'EMG 1',
-        position: '측면 삼각근',
-        top: 92,
-        right: 56,
-      ),
-      _SensorInfo(
-        id: 'emg_2',
-        label: 'EMG 2',
-        position: '승모근',
-        top: 62,
-        left: 114,
-      ),
-      _SensorInfo(
-        id: 'emg_3',
-        label: 'EMG 3',
-        position: '전면 삼각근',
-        top: 128,
-        left: 60,
-      ),
-      _SensorInfo(
-        id: 'imu_1',
-        label: 'IMU',
-        position: '손목',
-        top: 192,
-        right: 46,
-      ),
+      _SensorInfo(id: 'emg_1', label: 'EMG 1', position: 'Left lateral deltoid', top: 92, left: 56),
+      _SensorInfo(id: 'emg_2', label: 'EMG 2', position: 'Right lateral deltoid', top: 92, right: 56),
+      _SensorInfo(id: 'emg_3', label: 'EMG 3', position: 'Left upper trapezius', top: 62, left: 114),
+      _SensorInfo(id: 'emg_4', label: 'EMG 4', position: 'Right upper trapezius', top: 62, right: 114),
+      _SensorInfo(id: 'imu_1', label: 'IMU 1', position: 'Left forearm', top: 192, left: 46),
+      _SensorInfo(id: 'imu_2', label: 'IMU 2', position: 'Right forearm', top: 192, right: 46),
+      _SensorInfo(id: 'imu_3', label: 'IMU 3', position: 'Back center', top: 150, right: 92),
     ],
   ),
   'bicep_curl': _SensorConfig(
-    title: '이두컬',
+    title: 'Bicep Curl',
     sensors: [
-      _SensorInfo(
-        id: 'emg_1',
-        label: 'EMG 1',
-        position: '이두근',
-        top: 136,
-        left: 54,
-      ),
-      _SensorInfo(
-        id: 'emg_2',
-        label: 'EMG 2',
-        position: '전완근',
-        top: 186,
-        left: 48,
-      ),
-      _SensorInfo(
-        id: 'emg_3',
-        label: 'EMG 3',
-        position: '삼두근',
-        top: 112,
-        right: 58,
-      ),
-      _SensorInfo(
-        id: 'imu_1',
-        label: 'IMU',
-        position: '손목',
-        top: 206,
-        right: 46,
-      ),
+      _SensorInfo(id: 'emg_1', label: 'EMG 1', position: 'Left biceps', top: 136, left: 54),
+      _SensorInfo(id: 'emg_2', label: 'EMG 2', position: 'Right biceps', top: 136, right: 54),
+      _SensorInfo(id: 'emg_3', label: 'EMG 3', position: 'Left forearm flexor', top: 186, left: 48),
+      _SensorInfo(id: 'emg_4', label: 'EMG 4', position: 'Right forearm flexor', top: 186, right: 48),
+      _SensorInfo(id: 'imu_1', label: 'IMU 1', position: 'Left forearm', top: 206, left: 46),
+      _SensorInfo(id: 'imu_2', label: 'IMU 2', position: 'Right forearm', top: 206, right: 46),
+      _SensorInfo(id: 'imu_3', label: 'IMU 3', position: 'Torso', top: 112, right: 58),
     ],
   ),
 };

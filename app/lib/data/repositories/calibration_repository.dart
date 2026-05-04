@@ -9,6 +9,10 @@ class CalibrationRepository {
   Stream<CalibrationStatusMessage> get status =>
       _socket.messagesOf<CalibrationStatusMessage>();
 
+  Future<void> connect() {
+    return _socket.connect();
+  }
+
   void startCalibration({
     required String exerciseType,
   }) {
