@@ -121,3 +121,38 @@ def stats_key(kind: str, user_id: int, week_start: str, exercise_type: Optional[
     """stats:{kind}:{user_id}:{weekStart}:{exerciseType or '_'}"""
     et = exercise_type if exercise_type else "_"
     return f"stats:{kind}:{user_id}:{week_start}:{et}"
+
+
+# ============================================================
+# Refresh Token Blacklist (Phase B-1)
+# ============================================================
+
+import hashlib
+
+
+def _refresh_token_key(token: str) -> str:
+    """refresh 토큰의 SHA256 앞 32자를 Redis 키로 사용 (메모리·보안)."""
+    digest = hashlib.sha256(token.encode("utf-8")).hexdigest()[:32]
+    return f"auth:blacklist:refresh:{digest}"
+
+
+async def blacklist_refresh_token(token: str, ttl_sec: int) -> None:
+    """refresh 토큰을 blacklist 에 등록. TTL = 토큰 남은 만료시간."""
+    if not settings.CACHE_ENABLED or ttl_sec <= 0:
+        return
+    try:
+        await get_client().set(_refresh_token_key(token), "1", ex=ttl_sec)
+    except (RedisError, OSError) as e:
+        logger.warning("blacklist_refresh_token failed: %s", e)
+
+
+async def is_refresh_token_blacklisted(token: str) -> bool:
+    """blacklist 등록 여부. Redis 장애 시 False 반환 (서비스 가용성 우선)."""
+    if not settings.CACHE_ENABLED:
+        return False
+    try:
+        result = await get_client().get(_refresh_token_key(token))
+        return result is not None
+    except (RedisError, OSError) as e:
+        logger.warning("is_refresh_token_blacklisted failed: %s", e)
+        return False
