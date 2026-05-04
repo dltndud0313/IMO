@@ -12,7 +12,7 @@ namespace mvp {
 inline constexpr char kPacketSchemaJsonV1[] = "emg-glass.v1";
 inline constexpr char kPacketSchemaBinaryV2[] = "emg-glass.v2";
 inline constexpr uint8_t kPacketProtocolVersionBinaryV2 = 2;
-inline constexpr PacketFormat kDefaultPacketFormat = PacketFormat::JSON_V1;
+inline constexpr PacketFormat kDefaultPacketFormat = PacketFormat::BINARY_V2;
 inline constexpr uint32_t kSerialBaudRate = 115200;
 inline constexpr uint32_t kSampleIntervalMs = 20;
 inline constexpr std::size_t kEmgMovingAverageWindow = 16;
