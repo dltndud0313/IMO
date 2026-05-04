@@ -21,10 +21,10 @@ struct AnalogEmgSensorConfig {
     std::array<int, kEmgChannelCount> emg_adc_gpios {4, 5, 6, 7};
     // false인 채널은 읽지 않고 0으로 고정한다(미연결 채널 노이즈 방지).
     std::array<bool, kEmgChannelCount> emg_channel_enabled {true, false, false, false};
-    // MPU-6050 I2C 주소와 버스 설정.
-    int imu_i2c_port {0};
-    int imu_sda_gpio {8};
-    int imu_scl_gpio {9};
+    // MPU-6050 I2C 주소와 버스 설정. IMU별로 다른 I2C 버스를 줄 수 있다.
+    std::array<int, kImuSensorCount> imu_i2c_ports {0, 0, 1};
+    std::array<int, kImuSensorCount> imu_sda_gpios {8, 8, 10};
+    std::array<int, kImuSensorCount> imu_scl_gpios {9, 9, 11};
     uint32_t imu_i2c_clock_hz {100000};
     int imu_i2c_transaction_timeout_ms {20};
     std::array<uint8_t, kImuSensorCount> imu_addresses {0x68, 0x69, 0x6A};

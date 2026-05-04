@@ -31,7 +31,11 @@ constexpr float kMpu6050AccelScale = 16384.0F;
 constexpr float kMpu6050GyroScale = 131.0F;
 
 adc_oneshot_unit_handle_t g_emg_adc_handle = nullptr;
-i2c_master_bus_handle_t g_imu_bus_handle = nullptr;
+std::array<i2c_master_bus_handle_t, kImuSensorCount> g_imu_bus_handles {};
+std::array<bool, kImuSensorCount> g_imu_bus_slot_in_use {};
+std::array<int, kImuSensorCount> g_imu_bus_slot_ports {};
+std::array<int, kImuSensorCount> g_imu_bus_slot_sda_gpios {};
+std::array<int, kImuSensorCount> g_imu_bus_slot_scl_gpios {};
 std::array<i2c_master_dev_handle_t, kImuSensorCount> g_imu_device_handles {};
 
 #define IMU_LOGE(...)            \
@@ -105,11 +109,62 @@ bool gpio_to_adc_channel(int gpio, adc_channel_t* channel) {
         default: return false;
     }
 }
+
+int find_existing_imu_bus_slot(int port, int sda_gpio, int scl_gpio) {
+    for (std::size_t slot = 0; slot < kImuSensorCount; ++slot) {
+        if (!g_imu_bus_slot_in_use[slot]) {
+            continue;
+        }
+        if (
+            g_imu_bus_slot_ports[slot] == port &&
+            g_imu_bus_slot_sda_gpios[slot] == sda_gpio &&
+            g_imu_bus_slot_scl_gpios[slot] == scl_gpio
+        ) {
+            return static_cast<int>(slot);
+        }
+    }
+    return -1;
+}
+
+int reserve_imu_bus_slot(int port, int sda_gpio, int scl_gpio) {
+    const int existing_slot = find_existing_imu_bus_slot(port, sda_gpio, scl_gpio);
+    if (existing_slot >= 0) {
+        return existing_slot;
+    }
+
+    for (std::size_t slot = 0; slot < kImuSensorCount; ++slot) {
+        if (g_imu_bus_slot_in_use[slot]) {
+            continue;
+        }
+        g_imu_bus_slot_in_use[slot] = true;
+        g_imu_bus_slot_ports[slot] = port;
+        g_imu_bus_slot_sda_gpios[slot] = sda_gpio;
+        g_imu_bus_slot_scl_gpios[slot] = scl_gpio;
+        return static_cast<int>(slot);
+    }
+
+    return -1;
+}
 #endif
 
 bool is_detached_raw_sample(float raw_sample, float adc_full_scale) {
     return raw_sample <= (adc_full_scale * kAnalogEmgDetachRawLowRatio) ||
         raw_sample >= (adc_full_scale * kAnalogEmgDetachRawHighRatio);
+}
+
+void reset_emg_baseline_state(
+    std::array<float, kEmgChannelCount>* baseline_raw,
+    std::array<float, kEmgChannelCount>* noise_m2,
+    std::array<float, kEmgChannelCount>* noise_floor,
+    std::array<std::size_t, kEmgChannelCount>* baseline_count,
+    std::array<bool, kEmgChannelCount>* baseline_ready,
+    std::size_t channel
+) {
+    (*baseline_raw)[channel] = 0.0F;
+    (*noise_m2)[channel] = 0.0F;
+    (*noise_floor)[channel] = 0.0F;
+    (*baseline_count)[channel] = 0U;
+    (*baseline_ready)[channel] = false;
 }
 
 float process_section(
@@ -170,6 +225,7 @@ SensorFrame AnalogEmgSensorSource::read_frame(uint32_t timestamp_ms) {
         float raw_magnitude_sum_squares = 0.0F;
         std::size_t valid_sample_count = 0;
         std::size_t magnitude_sample_count = 0;
+        std::size_t signal_sample_count = 0;
         std::size_t detached_sample_count = 0;
         for (std::size_t index = 0; index < samples_to_read; ++index) {
             const float raw_sample = std::clamp(read_raw_sample(channel), 0.0F, adc_full_scale);
@@ -190,8 +246,21 @@ SensorFrame AnalogEmgSensorSource::read_frame(uint32_t timestamp_ms) {
                         ? emg_rest_noise_m2_[channel] /
                             static_cast<float>(emg_rest_baseline_count_[channel] - 1U)
                         : 0.0F;
-                    emg_rest_noise_floor_[channel] = std::sqrt(std::max(variance, 0.0F)) / adc_full_scale;
-                    emg_rest_baseline_ready_[channel] = true;
+                    const float baseline_noise =
+                        std::sqrt(std::max(variance, 0.0F)) / adc_full_scale;
+                    if (baseline_noise > kAnalogEmgBaselineMaxNoise) {
+                        reset_emg_baseline_state(
+                            &emg_rest_baseline_raw_,
+                            &emg_rest_noise_m2_,
+                            &emg_rest_noise_floor_,
+                            &emg_rest_baseline_count_,
+                            &emg_rest_baseline_ready_,
+                            channel
+                        );
+                    } else {
+                        emg_rest_noise_floor_[channel] = baseline_noise;
+                        emg_rest_baseline_ready_[channel] = true;
+                    }
                 }
                 continue;
             }
@@ -208,6 +277,9 @@ SensorFrame AnalogEmgSensorSource::read_frame(uint32_t timestamp_ms) {
             );
             if (magnitude <= noise_floor) {
                 magnitude = 0.0F;
+            } else {
+                magnitude -= noise_floor;
+                ++signal_sample_count;
             }
             sum_squares += magnitude * magnitude;
             ++valid_sample_count;
@@ -262,7 +334,8 @@ SensorFrame AnalogEmgSensorSource::read_frame(uint32_t timestamp_ms) {
             }
         }
 
-        frame.emg.channels[channel] = valid_sample_count == 0
+        frame.emg.channels[channel] =
+            valid_sample_count == 0 || signal_sample_count < kAnalogEmgMinSignalSamples
             ? 0.0F
             : std::sqrt(sum_squares / static_cast<float>(valid_sample_count));
     }
@@ -411,29 +484,6 @@ bool AnalogEmgSensorSource::ensure_imu_ready() {
         return true;
     }
 
-    if (g_imu_bus_handle == nullptr) {
-        i2c_master_bus_config_t bus_config {};
-        bus_config.i2c_port = static_cast<i2c_port_num_t>(config_.imu_i2c_port);
-        bus_config.sda_io_num = static_cast<gpio_num_t>(config_.imu_sda_gpio);
-        bus_config.scl_io_num = static_cast<gpio_num_t>(config_.imu_scl_gpio);
-        bus_config.clk_source = I2C_CLK_SRC_DEFAULT;
-        bus_config.glitch_ignore_cnt = 7;
-        bus_config.intr_priority = 0;
-        bus_config.trans_queue_depth = 0;
-        bus_config.flags.enable_internal_pullup = 1;
-        bus_config.flags.allow_pd = 0;
-
-        if (i2c_new_master_bus(&bus_config, &g_imu_bus_handle) != ESP_OK) {
-            IMU_LOGE(
-                "failed to create I2C master bus (port=%d, sda=%d, scl=%d)",
-                config_.imu_i2c_port,
-                config_.imu_sda_gpio,
-                config_.imu_scl_gpio
-            );
-            return false;
-        }
-    }
-
     for (std::size_t imu_index = 0; imu_index < kImuSensorCount; ++imu_index) {
         if (!config_.imu_sensor_enabled[imu_index]) {
             imu_channel_ready_[imu_index] = false;
@@ -443,9 +493,48 @@ bool AnalogEmgSensorSource::ensure_imu_ready() {
             continue;
         }
 
+        const int imu_i2c_port = config_.imu_i2c_ports[imu_index];
+        const int imu_sda_gpio = config_.imu_sda_gpios[imu_index];
+        const int imu_scl_gpio = config_.imu_scl_gpios[imu_index];
+        const int bus_slot = reserve_imu_bus_slot(imu_i2c_port, imu_sda_gpio, imu_scl_gpio);
+        if (bus_slot < 0) {
+            IMU_LOGE(
+                "imu%u failed to reserve I2C bus slot (port=%d, sda=%d, scl=%d)",
+                static_cast<unsigned>(imu_index + 1U),
+                imu_i2c_port,
+                imu_sda_gpio,
+                imu_scl_gpio
+            );
+            continue;
+        }
+
+        if (g_imu_bus_handles[bus_slot] == nullptr) {
+            i2c_master_bus_config_t bus_config {};
+            bus_config.i2c_port = static_cast<i2c_port_num_t>(imu_i2c_port);
+            bus_config.sda_io_num = static_cast<gpio_num_t>(imu_sda_gpio);
+            bus_config.scl_io_num = static_cast<gpio_num_t>(imu_scl_gpio);
+            bus_config.clk_source = I2C_CLK_SRC_DEFAULT;
+            bus_config.glitch_ignore_cnt = 7;
+            bus_config.intr_priority = 0;
+            bus_config.trans_queue_depth = 0;
+            bus_config.flags.enable_internal_pullup = 1;
+            bus_config.flags.allow_pd = 0;
+
+            if (i2c_new_master_bus(&bus_config, &g_imu_bus_handles[bus_slot]) != ESP_OK) {
+                IMU_LOGE(
+                    "failed to create I2C master bus for imu%u (port=%d, sda=%d, scl=%d)",
+                    static_cast<unsigned>(imu_index + 1U),
+                    imu_i2c_port,
+                    imu_sda_gpio,
+                    imu_scl_gpio
+                );
+                continue;
+            }
+        }
+
         const uint8_t imu_address = config_.imu_addresses[imu_index];
         const esp_err_t probe_result = i2c_master_probe(
-            g_imu_bus_handle,
+            g_imu_bus_handles[bus_slot],
             imu_address,
             config_.imu_i2c_transaction_timeout_ms
         );
@@ -462,11 +551,20 @@ bool AnalogEmgSensorSource::ensure_imu_ready() {
             device_config.scl_wait_us = 0;
             device_config.flags.disable_ack_check = 0;
 
-            if (i2c_master_bus_add_device(g_imu_bus_handle, &device_config, &g_imu_device_handles[imu_index]) != ESP_OK) {
+            if (
+                i2c_master_bus_add_device(
+                    g_imu_bus_handles[bus_slot],
+                    &device_config,
+                    &g_imu_device_handles[imu_index]
+                ) != ESP_OK
+            ) {
                 IMU_LOGW(
-                    "imu%u addr=0x%02X add_device failed",
+                    "imu%u addr=0x%02X add_device failed (port=%d, sda=%d, scl=%d)",
                     static_cast<unsigned>(imu_index + 1U),
-                    imu_address
+                    imu_address,
+                    imu_i2c_port,
+                    imu_sda_gpio,
+                    imu_scl_gpio
                 );
                 continue;
             }
@@ -515,9 +613,12 @@ bool AnalogEmgSensorSource::ensure_imu_ready() {
 
         imu_channel_ready_[imu_index] = true;
         IMU_LOGI(
-            "imu%u addr=0x%02X ready",
+            "imu%u addr=0x%02X ready (port=%d, sda=%d, scl=%d)",
             static_cast<unsigned>(imu_index + 1U),
-            imu_address
+            imu_address,
+            imu_i2c_port,
+            imu_sda_gpio,
+            imu_scl_gpio
         );
     }
 

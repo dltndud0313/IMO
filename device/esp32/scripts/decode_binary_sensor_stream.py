@@ -37,7 +37,8 @@ STATE_NAMES = {
 class DecodedFrame(NamedTuple):
     seq: int
     timestamp_ms: int
-    text: str
+    one_line_text: str
+    multi_line_text: str
 
 
 def crc16_ccitt_false(data: bytes) -> int:
@@ -92,7 +93,7 @@ def decode_frame(frame: bytes) -> Optional[DecodedFrame]:
         )
         imus.append((acc, gyro))
 
-    text = (
+    one_line_text = (
         f"seq={seq} ts={timestamp_ms} "
         f"emg=({emg1/EMG_SCALE:.3f},{emg2/EMG_SCALE:.3f},{emg3/EMG_SCALE:.3f},{emg4/EMG_SCALE:.3f}) "
         f"imu1_acc=({imus[0][0][0]:.3f},{imus[0][0][1]:.3f},{imus[0][0][2]:.3f}) "
@@ -103,7 +104,22 @@ def decode_frame(frame: bytes) -> Optional[DecodedFrame]:
         f"imu3_gyro=({imus[2][1][0]:.3f},{imus[2][1][1]:.3f},{imus[2][1][2]:.3f}) "
         f"state={state_name} flags={flags} rep_index={rep_index_text}"
     )
-    return DecodedFrame(seq=seq, timestamp_ms=timestamp_ms, text=text)
+    multi_line_text = (
+        f"seq={seq} ts={timestamp_ms} state={state_name} flags={flags} rep_index={rep_index_text}\n"
+        f"  emg : ({emg1/EMG_SCALE:.3f},{emg2/EMG_SCALE:.3f},{emg3/EMG_SCALE:.3f},{emg4/EMG_SCALE:.3f})\n"
+        f"  imu1: acc=({imus[0][0][0]:.3f},{imus[0][0][1]:.3f},{imus[0][0][2]:.3f}) "
+        f"gyro=({imus[0][1][0]:.3f},{imus[0][1][1]:.3f},{imus[0][1][2]:.3f})\n"
+        f"  imu2: acc=({imus[1][0][0]:.3f},{imus[1][0][1]:.3f},{imus[1][0][2]:.3f}) "
+        f"gyro=({imus[1][1][0]:.3f},{imus[1][1][1]:.3f},{imus[1][1][2]:.3f})\n"
+        f"  imu3: acc=({imus[2][0][0]:.3f},{imus[2][0][1]:.3f},{imus[2][0][2]:.3f}) "
+        f"gyro=({imus[2][1][0]:.3f},{imus[2][1][1]:.3f},{imus[2][1][2]:.3f})"
+    )
+    return DecodedFrame(
+        seq=seq,
+        timestamp_ms=timestamp_ms,
+        one_line_text=one_line_text,
+        multi_line_text=multi_line_text,
+    )
 
 
 def parse_args() -> argparse.Namespace:
@@ -112,6 +128,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--baud", type=int, default=115200, help="Serial baud rate")
     parser.add_argument("--max-frames", type=int, default=0, help="Stop after N valid frames, 0 means unlimited")
     parser.add_argument("--show-gaps", action="store_true", help="Print seq/timestamp gaps between decoded frames")
+    parser.add_argument("--single-line", action="store_true", help="Print legacy single-line output")
     return parser.parse_args()
 
 
@@ -162,11 +179,14 @@ def main() -> int:
                     continue
 
                 del buffer[:FRAME_SIZE]
-                line = decoded.text
+                line = decoded.one_line_text if args.single_line else decoded.multi_line_text
                 if args.show_gaps and last_seq is not None and last_timestamp_ms is not None:
                     seq_gap = decoded.seq - last_seq
                     ts_gap = decoded.timestamp_ms - last_timestamp_ms
-                    line = f"{line} seq_gap={seq_gap} ts_gap_ms={ts_gap}"
+                    if args.single_line:
+                        line = f"{line} seq_gap={seq_gap} ts_gap_ms={ts_gap}"
+                    else:
+                        line = f"{line}\n  gap : seq_gap={seq_gap} ts_gap_ms={ts_gap}"
                 print(line)
                 sys.stdout.flush()
 
