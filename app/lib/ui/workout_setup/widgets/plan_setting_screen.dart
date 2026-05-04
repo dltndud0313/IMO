@@ -1,6 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../config/dependencies.dart';
+import '../../../data/repositories/workout_repository.dart';
+import '../../../data/services/pi_message.dart';
 import '../../core/layouts/app_scaffold.dart';
 import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
@@ -16,16 +21,79 @@ class PlanSettingScreen extends StatefulWidget {
 
 class _PlanSettingScreenState extends State<PlanSettingScreen> {
   int _setCount = 3;
-  int _reps = 10;
+  List<int> _targetRepsPerSet = [12, 12, 10];
   int _restSeconds = 60;
+  bool _submitting = false;
 
   String get _exerciseTitle =>
       _exerciseNames[widget.exerciseId] ?? _exerciseNames['pushup']!;
 
-  int get _totalReps => _setCount * _reps;
+  int get _totalReps =>
+      _targetRepsPerSet.fold(0, (sum, reps) => sum + reps);
 
   int get _estimatedMinutes =>
       ((_totalReps * 3 + _restSeconds * (_setCount - 1)) / 60).ceil();
+
+  void _syncSetCount(int nextCount) {
+    setState(() {
+      _setCount = nextCount;
+      if (_targetRepsPerSet.length < nextCount) {
+        _targetRepsPerSet = [
+          ..._targetRepsPerSet,
+          ...List<int>.filled(nextCount - _targetRepsPerSet.length, 10),
+        ];
+      } else {
+        _targetRepsPerSet = _targetRepsPerSet.take(nextCount).toList();
+      }
+    });
+  }
+
+  void _changeAllReps(int delta) {
+    setState(() {
+      _targetRepsPerSet = [
+        for (final reps in _targetRepsPerSet) (reps + delta).clamp(1, 50),
+      ];
+    });
+  }
+
+  Future<void> _submitPlan() async {
+    setState(() => _submitting = true);
+    try {
+      final repo = getIt<WorkoutRepository>();
+      await repo.connect();
+      repo.submitWorkoutPlan(
+        exerciseType: widget.exerciseId,
+        setCount: _setCount,
+        targetRepsPerSet: _targetRepsPerSet,
+        restSec: _restSeconds,
+      );
+      final ack = await repo.planAck.map<Object?>((message) => message).first.timeout(
+        const Duration(seconds: 5),
+        onTimeout: () => null,
+      );
+      if (ack is PlanAckMessage && !ack.accepted) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(ack.validationErrors.join(', '))),
+          );
+        }
+        return;
+      }
+      if (mounted) {
+        context.go('/sensor-guide?exercise=${widget.exerciseId}');
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Pi connection failed.')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _submitting = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,8 +105,9 @@ class _PlanSettingScreenState extends State<PlanSettingScreen> {
       scrollable: true,
       bottom: ImoButton(
         label: '다음',
-        onPressed: () =>
-            context.go('/sensor-guide?exercise=${widget.exerciseId}'),
+        loading: _submitting,
+        disabled: _submitting,
+        onPressed: _submitPlan,
       ),
       body: Column(
         children: [
@@ -48,19 +117,19 @@ class _PlanSettingScreenState extends State<PlanSettingScreen> {
             value: _setCount,
             suffix: '',
             onDecrease: () =>
-                setState(() => _setCount = (_setCount - 1).clamp(1, 10)),
+                _syncSetCount((_setCount - 1).clamp(1, 10)),
             onIncrease: () =>
-                setState(() => _setCount = (_setCount + 1).clamp(1, 10)),
+                _syncSetCount((_setCount + 1).clamp(1, 10)),
           ),
           const SizedBox(height: AppSpacing.md),
           _SettingCard(
             title: '세트당 목표 횟수',
             description: '모든 세트 동일',
-            value: _reps,
+            value: _targetRepsPerSet.first,
             suffix: '',
             chipLabel: '세트별',
-            onDecrease: () => setState(() => _reps = (_reps - 1).clamp(1, 50)),
-            onIncrease: () => setState(() => _reps = (_reps + 1).clamp(1, 50)),
+            onDecrease: () => _changeAllReps(-1),
+            onIncrease: () => _changeAllReps(1),
           ),
           const SizedBox(height: AppSpacing.md),
           _SettingCard(
