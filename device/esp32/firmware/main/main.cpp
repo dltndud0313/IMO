@@ -20,9 +20,9 @@ extern "C" void app_main(void) {
     sensor_config.adc_full_scale = mvp::kAnalogEmgAdcFullScale;
     sensor_config.emg_adc_gpios = mvp::kAnalogEmgAdcGpios;
     sensor_config.emg_channel_enabled = mvp::kAnalogEmgChannelEnabled;
-    sensor_config.imu_i2c_port = mvp::kImuI2cPort;
-    sensor_config.imu_sda_gpio = mvp::kImuI2cSdaGpio;
-    sensor_config.imu_scl_gpio = mvp::kImuI2cSclGpio;
+    sensor_config.imu_i2c_ports = mvp::kImuI2cPorts;
+    sensor_config.imu_sda_gpios = mvp::kImuI2cSdaGpios;
+    sensor_config.imu_scl_gpios = mvp::kImuI2cSclGpios;
     sensor_config.imu_i2c_clock_hz = mvp::kImuI2cClockHz;
     sensor_config.imu_i2c_transaction_timeout_ms = mvp::kImuI2cTransactionTimeoutMs;
     sensor_config.imu_addresses = mvp::kMpu6050Addresses;

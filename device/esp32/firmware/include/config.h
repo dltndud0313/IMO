@@ -19,9 +19,9 @@ inline constexpr std::size_t kEmgMovingAverageWindow = 16;
 inline constexpr std::size_t kEmgRmsWindow = 16;
 inline constexpr std::size_t kEmgHistoryWindow = 40;
 inline constexpr float kEmgDisplayAttackAlpha = 0.12F;
-inline constexpr float kEmgDisplayReleaseAlpha = 0.99F;
-inline constexpr float kEmgDisplayZeroReleaseAlpha = 0.040F;
-inline constexpr std::size_t kEmgDisplayHoldFrames = 18;
+inline constexpr float kEmgDisplayReleaseAlpha = 0.92F;
+inline constexpr float kEmgDisplayZeroReleaseAlpha = 0.055F;
+inline constexpr std::size_t kEmgDisplayHoldFrames = 16;
 inline constexpr float kEmgDisplayNoiseFloor = 0.000F;
 // 최종 표시값이 이 값 이하면 휴식으로 보고 0.000으로 붙인다.
 inline constexpr float kEmgRestDisplayThreshold = 0.010F;
@@ -47,7 +47,9 @@ inline constexpr std::size_t kAnalogEmgSamplesPerFrame = 10;
 inline constexpr float kAnalogEmgAdcFullScale = 4095.0F;
 inline constexpr std::size_t kAnalogEmgRestBaselineSamples = 100;
 inline constexpr float kAnalogEmgFrameNoiseFloor = 0.001F;
-inline constexpr float kAnalogEmgRestNoiseFloorMultiplier = 1.0F;
+inline constexpr float kAnalogEmgRestNoiseFloorMultiplier = 2.5F;
+inline constexpr float kAnalogEmgBaselineMaxNoise = 0.040F;
+inline constexpr std::size_t kAnalogEmgMinSignalSamples = 2;
 inline constexpr float kAnalogEmgDetachRawLowRatio = 0.02F;
 inline constexpr float kAnalogEmgDetachRawHighRatio = 0.98F;
 inline constexpr float kAnalogEmgDetachedMagnitudeThreshold = 0.42F;
@@ -56,25 +58,22 @@ inline constexpr std::size_t kAnalogEmgDetachConsecutiveFrames = 3;
 inline constexpr std::size_t kAnalogEmgReattachConsecutiveFrames = 5;
 inline constexpr float kAnalogEmgDetachFrameValue = 1.000F;
 inline constexpr std::array<int, kEmgChannelCount> kAnalogEmgAdcGpios = {4, 5, 6, 7};
-// 현재 하드웨어(EMG 1개)에서는 GPIO4만 활성화하고 나머지 채널은 소프트웨어로 비활성화한다.
-inline constexpr std::array<bool, kEmgChannelCount> kAnalogEmgChannelEnabled = {true, false, false, false};
+inline constexpr std::array<bool, kEmgChannelCount> kAnalogEmgChannelEnabled = {true, true, true, true};
 inline constexpr bool kEnableEmgRawSerialPlotterMode = false;
 inline constexpr std::size_t kEmgRawSerialPlotterWindowSamples = 20;
 inline constexpr uint32_t kEmgRawSerialPlotterIntervalMs = 50;
 // BINARY_V2 수신 중에는 텍스트 로그가 바이너리 프레임을 깨뜨릴 수 있으므로 기본 비활성화한다.
 inline constexpr bool kEnableImuInitTextLog = false;
 
-// MPU-6050 기본 I2C 설정값. 보드 배선에 따라 SDA/SCL은 실제 연결값으로 바꿔야 한다.
-inline constexpr int kImuI2cPort = 0;
-inline constexpr int kImuI2cSdaGpio = 8;
-inline constexpr int kImuI2cSclGpio = 9;
+// MPU-6050 기본 I2C 설정값. 현재는 IMU1/2가 8/9, IMU3가 10/11 버스를 사용한다.
+inline constexpr std::array<int, kImuSensorCount> kImuI2cPorts = {0, 0, 1};
+inline constexpr std::array<int, kImuSensorCount> kImuI2cSdaGpios = {8, 8, 10};
+inline constexpr std::array<int, kImuSensorCount> kImuI2cSclGpios = {9, 9, 11};
 inline constexpr uint32_t kImuI2cClockHz = 100000;
 inline constexpr int kImuI2cTransactionTimeoutMs = 20;
-// MPU-6050 단독 주소는 일반적으로 0x68/0x69 두 개만 사용 가능하다.
-// 세 번째 슬롯(0x6A)은 다른 IMU를 붙이거나, 멀티플렉서 적용 시에만 유효하다.
-inline constexpr std::array<uint8_t, kImuSensorCount> kMpu6050Addresses = {0x68, 0x69, 0x6A};
-// 현재 장착된 IMU만 읽는다. 미장착 슬롯을 계속 probe하면 스트리밍 주기가 밀릴 수 있다.
-inline constexpr std::array<bool, kImuSensorCount> kImuSensorEnabled = {true, true, false};
+// IMU3는 별도 I2C 버스를 쓰므로 0x68 주소를 다시 사용할 수 있다.
+inline constexpr std::array<uint8_t, kImuSensorCount> kMpu6050Addresses = {0x68, 0x69, 0x68};
+inline constexpr std::array<bool, kImuSensorCount> kImuSensorEnabled = {true, true, true};
 
 inline constexpr uint32_t kFlagMockData = 1U << 0;
 inline constexpr uint32_t kFlagImuBiasReady = 1U << 1;
