@@ -1,4 +1,2 @@
-// 온보딩 ViewModel
-// 의존: UserProfileRepository
-// - 앱 소개, 프로필 입력 상태 관리
-// TODO: 구현
+// 온보딩 ViewModel 자리.
+// 추후 앱 최초 실행 여부와 온보딩 완료 상태 처리를 담당한다.

@@ -2,14 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../data/repositories/auth_repository.dart';
 import '../ui/core/layouts/bottom_nav_shell.dart';
+import '../ui/auth/screens/login_screen.dart';
+import '../ui/auth/screens/profile_setup_screen.dart';
+import '../ui/auth/screens/signup_screen.dart';
 import '../ui/history/widgets/history_screen.dart';
 import '../ui/history/widgets/history_detail_screen.dart';
 import '../ui/home/view_model/home_viewmodel.dart';
 import '../ui/home/widgets/home_screen.dart';
 import '../ui/mypage/widgets/mypage_screen.dart';
 import '../ui/mypage/widgets/profile_edit_screen.dart';
-import '../ui/onboarding/widgets/onboarding_screen.dart';
+import '../ui/mypage/widgets/wearable_settings_screen.dart';
+import '../ui/onboarding/screens/onboarding_screen.dart';
+import '../ui/onboarding/screens/splash_screen.dart';
 import '../ui/session_result/widgets/session_result_screen.dart';
 import '../ui/stats/widgets/stats_screen.dart';
 import '../ui/workout/widgets/workout_screen.dart';
@@ -24,13 +30,31 @@ final _rootNavigatorKey = GlobalKey<NavigatorState>();
 final _shellNavigatorKey = GlobalKey<NavigatorState>();
 
 GoRouter buildRouter() {
+  final initialLocation =
+      getIt<AuthRepository>().currentStatus == AuthStatus.authenticated
+          ? '/home'
+          : '/splash';
+
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
-    initialLocation: '/home',
+    initialLocation: initialLocation,
     routes: [
+      GoRoute(
+        path: '/splash',
+        builder: (context, state) => const SplashScreen(),
+      ),
       GoRoute(
         path: '/onboarding',
         builder: (context, state) => const OnboardingScreen(),
+      ),
+      GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
+      GoRoute(
+        path: '/signup',
+        builder: (context, state) => const SignupScreen(),
+      ),
+      GoRoute(
+        path: '/profile-setup',
+        builder: (context, state) => const ProfileSetupScreen(),
       ),
       ShellRoute(
         navigatorKey: _shellNavigatorKey,
@@ -83,6 +107,7 @@ GoRouter buildRouter() {
         path: '/workout-calibration',
         builder: (context, state) => CalibrationScreen(
           exerciseId: state.uri.queryParameters['exercise'] ?? 'pushup',
+          autoStart: state.uri.queryParameters['autoStart'] == 'true',
         ),
       ),
       GoRoute(
@@ -96,12 +121,17 @@ GoRouter buildRouter() {
       GoRoute(
         path: '/history-detail',
         builder: (context, state) => HistoryDetailScreen(
-          sessionId: state.uri.queryParameters['session'] ?? 'sess_20260427_001',
+          sessionId:
+              state.uri.queryParameters['session'] ?? 'sess_20260427_001',
         ),
       ),
       GoRoute(
         path: '/profile-edit',
         builder: (context, state) => const ProfileEditScreen(),
+      ),
+      GoRoute(
+        path: '/wearable-settings',
+        builder: (context, state) => const WearableSettingsScreen(),
       ),
     ],
   );

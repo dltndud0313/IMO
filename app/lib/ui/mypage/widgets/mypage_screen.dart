@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../config/app_settings.dart';
+import '../../../config/dependencies.dart';
+import '../../../data/repositories/auth_repository.dart';
+import '../../../data/repositories/user_profile_repository.dart';
+import '../../../domain/models/user_profile.dart';
 import '../../core/layouts/app_scaffold.dart';
 import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
@@ -15,24 +20,41 @@ class MyPageScreen extends StatefulWidget {
 class _MyPageScreenState extends State<MyPageScreen> {
   bool _voiceCue = true;
   bool _hapticCue = true;
-  bool _darkMode = false;
+  UserProfile? _profile;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    try {
+      final profile = await getIt<UserProfileRepository>().getProfile(
+        forceRefresh: true,
+      );
+      if (mounted) {
+        setState(() => _profile = profile);
+      }
+    } catch (_) {
+      // Keep the existing placeholder when profile loading fails.
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
-      title: 'My Page',
-      subtitle: 'Profile and settings',
+      title: '마이페이지',
       scrollable: true,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _ProfileCard(onEdit: () => context.go('/profile-edit')),
+          _ProfileCard(
+            profile: _profile,
+            onEdit: () => context.go('/profile-edit'),
+          ),
           const SizedBox(height: AppSpacing.sectionGap),
-          Text('Devices', style: AppTextStyles.sectionTitle),
-          const SizedBox(height: AppSpacing.sm),
-          const _DeviceStatusCard(),
-          const SizedBox(height: AppSpacing.sectionGap),
-          Text('App settings', style: AppTextStyles.sectionTitle),
+          Text('앱 설정', style: AppTextStyles.sectionTitle),
           const SizedBox(height: AppSpacing.sm),
           ImoCard(
             paddingSize: ImoCardPadding.none,
@@ -40,7 +62,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
               children: [
                 _SettingsRow(
                   icon: Icons.volume_up_rounded,
-                  label: 'Voice cue',
+                  label: '음성 피드백',
                   trailing: Switch(
                     value: _voiceCue,
                     activeThumbColor: AppColors.primary,
@@ -50,7 +72,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
                 const Divider(height: 1, color: AppColors.divider),
                 _SettingsRow(
                   icon: Icons.vibration_rounded,
-                  label: 'Haptic cue',
+                  label: '진동 피드백',
                   trailing: Switch(
                     value: _hapticCue,
                     activeThumbColor: AppColors.primary,
@@ -58,20 +80,36 @@ class _MyPageScreenState extends State<MyPageScreen> {
                   ),
                 ),
                 const Divider(height: 1, color: AppColors.divider),
+                ValueListenableBuilder<ThemeMode>(
+                  valueListenable: appThemeMode,
+                  builder: (context, themeMode, _) {
+                    return _SettingsRow(
+                      icon: Icons.dark_mode_rounded,
+                      label: '다크 모드',
+                      trailing: Switch(
+                        value: themeMode == ThemeMode.dark,
+                        activeThumbColor: AppColors.primary,
+                        onChanged: (value) {
+                          appThemeMode.value = value
+                              ? ThemeMode.dark
+                              : ThemeMode.light;
+                        },
+                      ),
+                    );
+                  },
+                ),
+                const Divider(height: 1, color: AppColors.divider),
                 _SettingsRow(
-                  icon: Icons.dark_mode_rounded,
-                  label: 'Dark mode',
-                  trailing: Switch(
-                    value: _darkMode,
-                    activeThumbColor: AppColors.primary,
-                    onChanged: (value) => setState(() => _darkMode = value),
-                  ),
+                  icon: Icons.delete_outline_rounded,
+                  label: '데이터 초기화',
+                  danger: true,
+                  onTap: () => _showDataResetDialog(context),
                 ),
               ],
             ),
           ),
           const SizedBox(height: AppSpacing.sectionGap),
-          Text('Account', style: AppTextStyles.sectionTitle),
+          Text('앱 정보', style: AppTextStyles.sectionTitle),
           const SizedBox(height: AppSpacing.sm),
           ImoCard(
             paddingSize: ImoCardPadding.none,
@@ -79,29 +117,14 @@ class _MyPageScreenState extends State<MyPageScreen> {
               children: [
                 _SettingsRow(
                   icon: Icons.info_outline_rounded,
-                  label: 'App version',
-                  trailing: Text('1.0.0', style: AppTextStyles.caption),
-                ),
-                const Divider(height: 1, color: AppColors.divider),
-                _SettingsRow(
-                  icon: Icons.delete_outline_rounded,
-                  label: 'Clear local history',
-                  danger: true,
-                  onTap: () => _showSimpleDialog(
-                    context,
-                    title: 'Clear local history',
-                    message: 'This will clear local workout history later.',
-                  ),
+                  label: '앱 버전',
+                  trailing: Text('1.1.1', style: AppTextStyles.caption),
                 ),
                 const Divider(height: 1, color: AppColors.divider),
                 _SettingsRow(
                   icon: Icons.logout_rounded,
-                  label: 'Log out',
-                  onTap: () => _showSimpleDialog(
-                    context,
-                    title: 'Log out',
-                    message: 'Login flow will be connected later.',
-                  ),
+                  label: '로그아웃',
+                  onTap: () => _showLogoutDialog(context),
                 ),
               ],
             ),
@@ -111,30 +134,43 @@ class _MyPageScreenState extends State<MyPageScreen> {
     );
   }
 
-  Future<void> _showSimpleDialog(
-    BuildContext context, {
-    required String title,
-    required String message,
-  }) {
+  Future<void> _showDataResetDialog(BuildContext context) {
     return showDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
-          ),
-        ],
+      builder: (dialogContext) => ImoConfirmDialog(
+        message: '모든 운동 기록이 사라집니다.\n정말 초기화 하시겠습니까?',
+        confirmLabel: '예',
+        cancelLabel: '아니오',
+        danger: true,
+        onConfirm: () => Navigator.of(dialogContext).pop(),
+      ),
+    );
+  }
+
+  Future<void> _showLogoutDialog(BuildContext context) {
+    return showDialog<void>(
+      context: context,
+      builder: (dialogContext) => ImoConfirmDialog(
+        message: '로그아웃 하시겠습니까?',
+        confirmLabel: '예',
+        cancelLabel: '아니오',
+        onConfirm: () async {
+          Navigator.of(dialogContext).pop();
+          await getIt<AuthRepository>().logout();
+          getIt<UserProfileRepository>().clearCache();
+          if (context.mounted) {
+            context.go('/splash');
+          }
+        },
       ),
     );
   }
 }
 
 class _ProfileCard extends StatelessWidget {
-  const _ProfileCard({required this.onEdit});
+  const _ProfileCard({required this.profile, required this.onEdit});
 
+  final UserProfile? profile;
   final VoidCallback onEdit;
 
   @override
@@ -152,7 +188,7 @@ class _ProfileCard extends StatelessWidget {
               shape: BoxShape.circle,
             ),
             child: const Icon(
-              Icons.person_rounded,
+              Icons.person_outline_rounded,
               color: AppColors.textTertiary,
               size: 30,
             ),
@@ -162,42 +198,53 @@ class _ProfileCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('IMO User', style: AppTextStyles.sectionTitle),
+                Text(
+                  profile?.nickname ?? 'x',
+                  style: AppTextStyles.sectionTitle,
+                ),
                 const SizedBox(height: AppSpacing.xxs),
-                Text('28 · 170cm · 65kg', style: AppTextStyles.caption),
+                Text(_profileSummary, style: AppTextStyles.body),
               ],
             ),
           ),
-          ImoButton(
-            label: 'Edit',
-            size: ImoButtonSize.sm,
-            variant: ImoButtonVariant.outline,
-            fullWidth: false,
-            onPressed: onEdit,
+          InkWell(
+            borderRadius: BorderRadius.circular(AppSpacing.pillRadius),
+            onTap: onEdit,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.xs,
+                vertical: AppSpacing.xs,
+              ),
+              child: Row(
+                children: [
+                  Text('프로필 수정', style: AppTextStyles.caption),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppColors.textTertiary,
+                    size: 18,
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),
     );
   }
-}
 
-class _DeviceStatusCard extends StatelessWidget {
-  const _DeviceStatusCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return ImoCard(
-      paddingSize: ImoCardPadding.lg,
-      child: const Wrap(
-        spacing: AppSpacing.xs,
-        runSpacing: AppSpacing.xs,
-        children: [
-          StatusBadge(label: 'Pi standby', variant: StatusVariant.info),
-          StatusBadge(label: 'ESP32 pending', variant: StatusVariant.neutral),
-          StatusBadge(label: 'Glass pending', variant: StatusVariant.neutral),
-        ],
-      ),
-    );
+  String get _profileSummary {
+    final currentProfile = profile;
+    if (currentProfile == null) {
+      return '31세 여성 170cm 65kg';
+    }
+    final genderLabel = switch (currentProfile.gender) {
+      'MALE' => '남성',
+      'FEMALE' => '여성',
+      _ => '기타',
+    };
+    return '${currentProfile.age}세 $genderLabel '
+        '${currentProfile.heightCm.round()}cm '
+        '${currentProfile.weightKg.round()}kg';
   }
 }
 
@@ -231,12 +278,12 @@ class _SettingsRow extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Icon(icon, color: color, size: 20),
+              Icon(icon, color: color, size: 22),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
                   label,
-                  style: AppTextStyles.body.copyWith(
+                  style: AppTextStyles.bodyLg.copyWith(
                     color: danger ? AppColors.error : AppColors.textPrimary,
                     fontWeight: FontWeight.w600,
                   ),

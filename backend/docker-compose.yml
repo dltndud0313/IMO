@@ -10,8 +10,12 @@ services:
       - JWT_SECRET=dev_only_access_secret_change_me
       - JWT_REFRESH_SECRET=dev_only_refresh_secret_change_me
       - CORS_ORIGINS=*
+      - REDIS_URL=redis://redis:6379/0
+      # Locust 부하 테스트 Before/After 비교용 토글. 기본 true.
+      - CACHE_ENABLED=${CACHE_ENABLED:-true}
     depends_on:
       - db
+      - redis
     # 개발 편의: 호스트 코드를 컨테이너에 마운트 → 코드 수정/마이그레이션 파일이
     # 즉시 양쪽에 반영. 운영(EC2) 배포 시에는 이 volumes 블록을 제거하거나
     # docker-compose.override.yml 로 분리할 것.
@@ -37,8 +41,21 @@ services:
     networks:
       - imo_net
 
+  # Redis 캐시 (통계 read-through + 향후 blacklist/rate-limit 확장 자리)
+  redis:
+    image: redis:7-alpine
+    restart: always
+    # 로컬 디버깅 편의를 위해 6379 노출. 운영(EC2)에서는 docker-compose.ec2.yml 에서 미노출.
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - imo_net
+
 volumes:
   postgres_data:
+  redis_data:
 
 networks:
   imo_net:

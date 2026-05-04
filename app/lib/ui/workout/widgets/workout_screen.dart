@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../config/dependencies.dart';
+import '../../../data/repositories/device_connection_repository.dart';
+import '../../../data/repositories/workout_repository.dart';
 import '../../core/layouts/app_scaffold.dart';
 import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
@@ -18,23 +21,48 @@ class WorkoutScreen extends StatefulWidget {
 
 class _WorkoutScreenState extends State<WorkoutScreen> {
   Timer? _timer;
+  StreamSubscription? _connectionSubscription;
+  StreamSubscription? _pausedSubscription;
+  StreamSubscription? _resumedSubscription;
   _WorkoutState _state = _WorkoutState.running;
+  bool _piConnected = false;
+  bool _esp32Connected = false;
+  bool _glassConnected = false;
   int _elapsedSeconds = 0;
-  final int _currentSet = 1;
-  int _currentRep = 0;
-
-  final int _setCount = 3;
-  final List<int> _targetRepsPerSet = const [10, 10, 10];
 
   @override
   void initState() {
     super.initState();
+    final repo = getIt<WorkoutRepository>();
+    _connectionSubscription =
+        getIt<DeviceConnectionRepository>().systemStatus.listen((status) {
+      if (mounted) {
+        setState(() {
+          _piConnected = status.piConnected;
+          _esp32Connected = status.esp32Connected;
+          _glassConnected = status.glassConnected;
+        });
+      }
+    });
+    _pausedSubscription = repo.workoutPaused.listen((_) {
+      if (mounted) {
+        setState(() => _state = _WorkoutState.paused);
+      }
+    });
+    _resumedSubscription = repo.workoutResumed.listen((_) {
+      if (mounted) {
+        setState(() => _state = _WorkoutState.running);
+      }
+    });
     _startTimer();
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _connectionSubscription?.cancel();
+    _pausedSubscription?.cancel();
+    _resumedSubscription?.cancel();
     super.dispose();
   }
 
@@ -49,18 +77,44 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   }
 
   void _togglePause() {
+    final repo = getIt<WorkoutRepository>();
+    try {
+      if (_state == _WorkoutState.paused) {
+        repo.resumeWorkout();
+      } else {
+        repo.pauseWorkout();
+      }
+    } catch (_) {}
     setState(() {
       _state =
           _state == _WorkoutState.paused ? _WorkoutState.running : _WorkoutState.paused;
     });
   }
 
-  void _finishWorkout() {
-    context.go('/session-result');
+  Future<void> _finishWorkout() async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => ImoConfirmDialog(
+        message: '운동을 정지하시겠습니까?',
+        confirmLabel: '정지',
+        cancelLabel: '계속',
+        danger: true,
+        onConfirm: () {
+          try {
+            getIt<WorkoutRepository>().stopWorkout();
+          } catch (_) {}
+          Navigator.of(dialogContext).pop();
+          context.go('/session-result?status=stopped');
+        },
+      ),
+    );
   }
 
   void _emergencyStop() {
-    context.go('/home');
+    try {
+      getIt<WorkoutRepository>().emergencyStop();
+    } catch (_) {}
+    context.go('/session-result?status=emergency_stopped');
   }
 
   String get _timeLabel {
@@ -72,11 +126,11 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   String get _stateLabel {
     switch (_state) {
       case _WorkoutState.running:
-        return 'Running';
+        return '운동 중';
       case _WorkoutState.paused:
-        return 'Paused';
+        return '일시정지';
       case _WorkoutState.resting:
-        return 'Resting';
+        return '휴식 중';
     }
   }
 
@@ -94,7 +148,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
-      title: 'Push-up',
+      title: '푸시업',
       subtitle: _stateLabel,
       scrollable: true,
       bottom: Column(
@@ -104,7 +158,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
             children: [
               Expanded(
                 child: ImoButton(
-                  label: _state == _WorkoutState.paused ? 'Resume' : 'Pause',
+                  label: _state == _WorkoutState.paused ? '재개' : '일시정지',
                   variant: ImoButtonVariant.outline,
                   leftIcon: Icon(
                     _state == _WorkoutState.paused
@@ -117,7 +171,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: ImoButton(
-                  label: 'Stop',
+                  label: '종료',
                   variant: ImoButtonVariant.danger,
                   leftIcon: const Icon(Icons.stop_rounded),
                   onPressed: _finishWorkout,
@@ -129,7 +183,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
           TextButton.icon(
             onPressed: _emergencyStop,
             icon: const Icon(Icons.emergency_rounded, size: 16),
-            label: const Text('Emergency stop'),
+            label: const Text('비상 종료'),
             style: TextButton.styleFrom(
               foregroundColor: AppColors.error,
               textStyle: AppTextStyles.caption,
@@ -144,30 +198,13 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
             timeLabel: _timeLabel,
             stateLabel: _stateLabel,
             stateVariant: _stateVariant,
-            currentSet: _currentSet,
-            setCount: _setCount,
           ),
           const SizedBox(height: AppSpacing.sectionGap),
-          _CurrentRepCard(
-            currentRep: _currentRep,
-            targetRep: _targetRepsPerSet[_currentSet - 1],
-            onIncrement: () {
-              setState(() {
-                final target = _targetRepsPerSet[_currentSet - 1];
-                if (_currentRep < target) {
-                  _currentRep++;
-                }
-              });
-            },
+          _ConnectionStatusCard(
+            piConnected: _piConnected,
+            esp32Connected: _esp32Connected,
+            glassConnected: _glassConnected,
           ),
-          const SizedBox(height: AppSpacing.md),
-          _SetProgressCard(
-            currentSet: _currentSet,
-            currentRep: _currentRep,
-            targets: _targetRepsPerSet,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          const _ConnectionStatusCard(),
           const SizedBox(height: AppSpacing.md),
           const _WorkoutNoticeCard(),
         ],
@@ -181,15 +218,11 @@ class _WorkoutHeroCard extends StatelessWidget {
     required this.timeLabel,
     required this.stateLabel,
     required this.stateVariant,
-    required this.currentSet,
-    required this.setCount,
   });
 
   final String timeLabel;
   final String stateLabel;
   final StatusVariant stateVariant;
-  final int currentSet;
-  final int setCount;
 
   @override
   Widget build(BuildContext context) {
@@ -218,7 +251,7 @@ class _WorkoutHeroCard extends StatelessWidget {
                   ),
                   const SizedBox(width: AppSpacing.xs),
                   Text(
-                    'Glass cue active',
+                    '스마트 글래스 안내 활성화',
                     style: AppTextStyles.caption.copyWith(
                       color: AppColors.card.withValues(alpha: 0.88),
                       fontWeight: FontWeight.w600,
@@ -234,7 +267,7 @@ class _WorkoutHeroCard extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.xxl),
               Text(
-                'Elapsed time',
+                '운동 시간',
                 style: AppTextStyles.caption.copyWith(
                   color: AppColors.card.withValues(alpha: 0.78),
                 ),
@@ -250,7 +283,7 @@ class _WorkoutHeroCard extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.md),
               Text(
-                'Set $currentSet / $setCount',
+                'Pi가 운동 진행과 반복 수를 처리합니다.',
                 style: AppTextStyles.bodySmall.copyWith(
                   color: AppColors.card.withValues(alpha: 0.9),
                   fontWeight: FontWeight.w600,
@@ -286,10 +319,10 @@ class _CurrentRepCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text('Current set', style: AppTextStyles.label),
+              Text('현재 세트', style: AppTextStyles.label),
               const Spacer(),
               StatusBadge(
-                label: '$currentRep / $targetRep reps',
+                label: '$currentRep / $targetRep회',
                 variant: StatusVariant.info,
               ),
             ],
@@ -306,7 +339,7 @@ class _CurrentRepCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.md),
           ImoButton(
-            label: 'Simulate rep',
+            label: '횟수 테스트',
             size: ImoButtonSize.md,
             variant: ImoButtonVariant.secondary,
             leftIcon: const Icon(Icons.add_rounded),
@@ -336,7 +369,7 @@ class _SetProgressCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Workout plan', style: AppTextStyles.label),
+          Text('운동 계획', style: AppTextStyles.label),
           const SizedBox(height: AppSpacing.md),
           for (var index = 0; index < targets.length; index++) ...[
             _SetProgressRow(
@@ -400,10 +433,10 @@ class _SetProgressRow extends StatelessWidget {
           ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
-            child: Text('Set $index', style: AppTextStyles.label),
+            child: Text('$index세트', style: AppTextStyles.label),
           ),
           Text(
-            active ? '$currentRep / $target' : '$target reps',
+            active ? '$currentRep / $target' : '$target회',
             style: AppTextStyles.bodySmall,
           ),
         ],
@@ -413,7 +446,15 @@ class _SetProgressRow extends StatelessWidget {
 }
 
 class _ConnectionStatusCard extends StatelessWidget {
-  const _ConnectionStatusCard();
+  const _ConnectionStatusCard({
+    required this.piConnected,
+    required this.esp32Connected,
+    required this.glassConnected,
+  });
+
+  final bool piConnected;
+  final bool esp32Connected;
+  final bool glassConnected;
 
   @override
   Widget build(BuildContext context) {
@@ -423,15 +464,15 @@ class _ConnectionStatusCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Device status', style: AppTextStyles.label),
+          Text('기기 상태', style: AppTextStyles.label),
           const SizedBox(height: AppSpacing.md),
-          const Wrap(
+          Wrap(
             spacing: AppSpacing.xs,
             runSpacing: AppSpacing.xs,
             children: [
-              StatusBadge(label: 'Pi connected', variant: StatusVariant.success),
-              StatusBadge(label: 'ESP32 connected', variant: StatusVariant.success),
-              StatusBadge(label: 'Glass ready', variant: StatusVariant.info),
+              StatusBadge(label: piConnected ? 'Pi connected' : 'Pi waiting', variant: piConnected ? StatusVariant.success : StatusVariant.warning),
+              StatusBadge(label: esp32Connected ? 'ESP32 connected' : 'ESP32 waiting', variant: esp32Connected ? StatusVariant.success : StatusVariant.warning),
+              StatusBadge(label: glassConnected ? 'Glass ready' : 'Glass waiting', variant: glassConnected ? StatusVariant.info : StatusVariant.warning),
             ],
           ),
         ],
@@ -449,7 +490,7 @@ class _WorkoutNoticeCard extends StatelessWidget {
       variant: ImoCardVariant.outlined,
       paddingSize: ImoCardPadding.lg,
       child: Text(
-        'This screen is a UI skeleton. Pi WebSocket events will later drive set progress, pause/resume, stop, emergency, and session result transitions.',
+        '현재 화면은 운동 중 UI 스켈레톤입니다. 이후 Pi WebSocket 이벤트로 세트 진행, 일시정지, 재개, 종료, 결과 화면 전환이 연결됩니다.',
         style: AppTextStyles.bodySmall,
       ),
     );

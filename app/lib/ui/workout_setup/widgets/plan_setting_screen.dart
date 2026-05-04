@@ -1,15 +1,17 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../config/dependencies.dart';
+import '../../../data/repositories/workout_repository.dart';
+import '../../../data/services/pi_message.dart';
 import '../../core/layouts/app_scaffold.dart';
 import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
 
 class PlanSettingScreen extends StatefulWidget {
-  const PlanSettingScreen({
-    super.key,
-    this.exerciseId = 'pushup',
-  });
+  const PlanSettingScreen({super.key, this.exerciseId = 'pushup'});
 
   final String exerciseId;
 
@@ -19,92 +21,133 @@ class PlanSettingScreen extends StatefulWidget {
 
 class _PlanSettingScreenState extends State<PlanSettingScreen> {
   int _setCount = 3;
+  List<int> _targetRepsPerSet = [12, 12, 10];
   int _restSeconds = 60;
-  bool _perSetMode = false;
-  List<int> _repsPerSet = [10, 10, 10];
+  bool _submitting = false;
 
   String get _exerciseTitle =>
       _exerciseNames[widget.exerciseId] ?? _exerciseNames['pushup']!;
 
   int get _totalReps =>
-      _repsPerSet.take(_setCount).fold(0, (total, reps) => total + reps);
+      _targetRepsPerSet.fold(0, (sum, reps) => sum + reps);
 
   int get _estimatedMinutes =>
       ((_totalReps * 3 + _restSeconds * (_setCount - 1)) / 60).ceil();
 
-  void _updateSetCount(int value) {
+  void _syncSetCount(int nextCount) {
     setState(() {
-      _setCount = value.clamp(1, 10);
-      final next = [..._repsPerSet];
-      while (next.length < _setCount) {
-        next.add(next.isEmpty ? 10 : next.last);
+      _setCount = nextCount;
+      if (_targetRepsPerSet.length < nextCount) {
+        _targetRepsPerSet = [
+          ..._targetRepsPerSet,
+          ...List<int>.filled(nextCount - _targetRepsPerSet.length, 10),
+        ];
+      } else {
+        _targetRepsPerSet = _targetRepsPerSet.take(nextCount).toList();
       }
-      _repsPerSet = next.take(_setCount).toList();
     });
   }
 
-  void _updateAllReps(int value) {
+  void _changeAllReps(int delta) {
     setState(() {
-      _repsPerSet = List.filled(_setCount, value.clamp(1, 50));
+      _targetRepsPerSet = [
+        for (final reps in _targetRepsPerSet) (reps + delta).clamp(1, 50),
+      ];
     });
   }
 
-  void _updateSetReps(int index, int value) {
-    setState(() {
-      _repsPerSet[index] = value.clamp(1, 50);
-    });
-  }
-
-  void _updateRestSeconds(int value) {
-    setState(() {
-      _restSeconds = value.clamp(30, 300);
-    });
+  Future<void> _submitPlan() async {
+    setState(() => _submitting = true);
+    try {
+      final repo = getIt<WorkoutRepository>();
+      await repo.connect();
+      repo.submitWorkoutPlan(
+        exerciseType: widget.exerciseId,
+        setCount: _setCount,
+        targetRepsPerSet: _targetRepsPerSet,
+        restSec: _restSeconds,
+      );
+      final ack = await repo.planAck.map<Object?>((message) => message).first.timeout(
+        const Duration(seconds: 5),
+        onTimeout: () => null,
+      );
+      if (ack is PlanAckMessage && !ack.accepted) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(ack.validationErrors.join(', '))),
+          );
+        }
+        return;
+      }
+      if (mounted) {
+        context.go('/sensor-guide?exercise=${widget.exerciseId}');
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Pi connection failed.')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _submitting = false);
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
       title: _exerciseTitle,
-      subtitle: 'Workout plan',
+      subtitle: '운동 계획 설정',
       showBackButton: true,
+      onBack: () => context.go('/workout-guide?exercise=${widget.exerciseId}'),
       scrollable: true,
       bottom: ImoButton(
-        label: 'Continue',
-        rightIcon: const Icon(Icons.arrow_forward_rounded),
-        onPressed: () => context.go('/sensor-guide?exercise=${widget.exerciseId}'),
+        label: '다음',
+        loading: _submitting,
+        disabled: _submitting,
+        onPressed: _submitPlan,
       ),
       body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _PlanSummaryHeader(
-            exerciseTitle: _exerciseTitle,
-            setCount: _setCount,
-            totalReps: _totalReps,
-          ),
-          const SizedBox(height: AppSpacing.sectionGap),
-          _SetCountCard(
+          _SettingCard(
+            title: '세트 수',
+            description: '최대 10세트',
             value: _setCount,
-            onChanged: _updateSetCount,
+            suffix: '',
+            onDecrease: () =>
+                _syncSetCount((_setCount - 1).clamp(1, 10)),
+            onIncrease: () =>
+                _syncSetCount((_setCount + 1).clamp(1, 10)),
           ),
           const SizedBox(height: AppSpacing.md),
-          _RepsCard(
-            setCount: _setCount,
-            perSetMode: _perSetMode,
-            repsPerSet: _repsPerSet,
-            onModeChanged: (value) => setState(() => _perSetMode = value),
-            onAllRepsChanged: _updateAllReps,
-            onSetRepsChanged: _updateSetReps,
+          _SettingCard(
+            title: '세트당 목표 횟수',
+            description: '모든 세트 동일',
+            value: _targetRepsPerSet.first,
+            suffix: '',
+            chipLabel: '세트별',
+            onDecrease: () => _changeAllReps(-1),
+            onIncrease: () => _changeAllReps(1),
           ),
           const SizedBox(height: AppSpacing.md),
-          _RestTimeCard(
+          _SettingCard(
+            title: '세트 간 휴식',
+            description: '30 ~ 300초',
             value: _restSeconds,
-            onChanged: _updateRestSeconds,
+            suffix: '초',
+            onDecrease: () => setState(
+              () => _restSeconds = (_restSeconds - 15).clamp(30, 300),
+            ),
+            onIncrease: () => setState(
+              () => _restSeconds = (_restSeconds + 15).clamp(30, 300),
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
           _PlanTotalCard(
             setCount: _setCount,
             totalReps: _totalReps,
-            restSeconds: _restSeconds,
             estimatedMinutes: _estimatedMinutes,
           ),
         ],
@@ -113,199 +156,84 @@ class _PlanSettingScreenState extends State<PlanSettingScreen> {
   }
 }
 
-class _PlanSummaryHeader extends StatelessWidget {
-  const _PlanSummaryHeader({
-    required this.exerciseTitle,
-    required this.setCount,
-    required this.totalReps,
+class _SettingCard extends StatelessWidget {
+  const _SettingCard({
+    required this.title,
+    required this.description,
+    required this.value,
+    required this.suffix,
+    required this.onDecrease,
+    required this.onIncrease,
+    this.chipLabel,
   });
 
-  final String exerciseTitle;
-  final int setCount;
-  final int totalReps;
+  final String title;
+  final String description;
+  final int value;
+  final String suffix;
+  final VoidCallback onDecrease;
+  final VoidCallback onIncrease;
+  final String? chipLabel;
 
   @override
   Widget build(BuildContext context) {
     return ImoCard(
-      variant: ImoCardVariant.hero,
       paddingSize: ImoCardPadding.lg,
       child: Row(
         children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [AppColors.primary, AppColors.primaryStrong],
-              ),
-              borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
-            ),
-            child: const Icon(
-              Icons.tune_rounded,
-              color: AppColors.card,
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(exerciseTitle, style: AppTextStyles.sectionTitle),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: AppTextStyles.bodyLg.copyWith(
+                          color: AppColors.textTertiary,
+                        ),
+                      ),
+                    ),
+                    if (chipLabel != null)
+                      ImoChip(
+                        label: chipLabel!,
+                        variant: ImoChipVariant.defaultChip,
+                        icon: const Icon(Icons.tune_rounded, size: 14),
+                      ),
+                  ],
+                ),
                 const SizedBox(height: AppSpacing.xxs),
-                Text(
-                  '$setCount sets · $totalReps target reps',
-                  style: AppTextStyles.bodySmall,
-                ),
+                Text(description, style: AppTextStyles.body),
               ],
             ),
           ),
-          const ImoChip(
-            label: 'Draft',
-            variant: ImoChipVariant.selected,
+          const SizedBox(width: AppSpacing.sm),
+          _RoundButton(
+            icon: Icons.remove_rounded,
+            color: AppColors.cardSubtle,
+            iconColor: AppColors.textPrimary,
+            onTap: onDecrease,
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SetCountCard extends StatelessWidget {
-  const _SetCountCard({
-    required this.value,
-    required this.onChanged,
-  });
-
-  final int value;
-  final ValueChanged<int> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return ImoCard(
-      paddingSize: ImoCardPadding.lg,
-      child: Row(
-        children: [
-          Expanded(
-            child: _SettingTitle(
-              title: 'Set count',
-              description: 'Choose how many sets to perform.',
-            ),
-          ),
-          _NumberStepper(
-            value: value,
-            min: 1,
-            max: 10,
-            onChanged: onChanged,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _RepsCard extends StatelessWidget {
-  const _RepsCard({
-    required this.setCount,
-    required this.perSetMode,
-    required this.repsPerSet,
-    required this.onModeChanged,
-    required this.onAllRepsChanged,
-    required this.onSetRepsChanged,
-  });
-
-  final int setCount;
-  final bool perSetMode;
-  final List<int> repsPerSet;
-  final ValueChanged<bool> onModeChanged;
-  final ValueChanged<int> onAllRepsChanged;
-  final void Function(int index, int value) onSetRepsChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return ImoCard(
-      paddingSize: ImoCardPadding.lg,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Expanded(
-                child: _SettingTitle(
-                  title: 'Target reps',
-                  description: 'Use the same reps or customize each set.',
-                ),
-              ),
-              ImoChip(
-                label: perSetMode ? 'Per set' : 'Same',
-                variant: perSetMode
-                    ? ImoChipVariant.selected
-                    : ImoChipVariant.defaultChip,
-                icon: const Icon(Icons.settings_rounded, size: 14),
-                onTap: () => onModeChanged(!perSetMode),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          if (!perSetMode)
-            Row(
-              children: [
-                Text('Every set', style: AppTextStyles.label),
-                const Spacer(),
-                _NumberStepper(
-                  value: repsPerSet.first,
-                  min: 1,
-                  max: 50,
-                  onChanged: onAllRepsChanged,
-                ),
-              ],
-            )
-          else
-            Column(
-              children: [
-                for (var index = 0; index < setCount; index++) ...[
-                  _PerSetRepsRow(
-                    index: index,
-                    value: repsPerSet[index],
-                    onChanged: (value) => onSetRepsChanged(index, value),
-                  ),
-                  if (index != setCount - 1)
-                    const SizedBox(height: AppSpacing.sm),
+          SizedBox(
+            width: suffix.isEmpty ? 48 : 64,
+            child: Text.rich(
+              TextSpan(
+                text: '$value',
+                children: [
+                  if (suffix.isNotEmpty)
+                    TextSpan(text: ' $suffix', style: AppTextStyles.bodySmall),
                 ],
-              ],
+              ),
+              textAlign: TextAlign.center,
+              style: AppTextStyles.sectionTitle,
             ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PerSetRepsRow extends StatelessWidget {
-  const _PerSetRepsRow({
-    required this.index,
-    required this.value,
-    required this.onChanged,
-  });
-
-  final int index;
-  final int value;
-  final ValueChanged<int> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return ImoCard(
-      variant: ImoCardVariant.subtle,
-      paddingSize: ImoCardPadding.sm,
-      child: Row(
-        children: [
-          Text('Set ${index + 1}', style: AppTextStyles.label),
-          const Spacer(),
-          _NumberStepper(
-            value: value,
-            min: 1,
-            max: 50,
-            onChanged: onChanged,
+          ),
+          _RoundButton(
+            icon: Icons.add_rounded,
+            color: AppColors.primary,
+            iconColor: AppColors.card,
+            onTap: onIncrease,
           ),
         ],
       ),
@@ -313,36 +241,32 @@ class _PerSetRepsRow extends StatelessWidget {
   }
 }
 
-class _RestTimeCard extends StatelessWidget {
-  const _RestTimeCard({
-    required this.value,
-    required this.onChanged,
+class _RoundButton extends StatelessWidget {
+  const _RoundButton({
+    required this.icon,
+    required this.color,
+    required this.iconColor,
+    required this.onTap,
   });
 
-  final int value;
-  final ValueChanged<int> onChanged;
+  final IconData icon;
+  final Color color;
+  final Color iconColor;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return ImoCard(
-      paddingSize: ImoCardPadding.lg,
-      child: Row(
-        children: [
-          const Expanded(
-            child: _SettingTitle(
-              title: 'Rest time',
-              description: 'Set the rest time between sets.',
-            ),
-          ),
-          _NumberStepper(
-            value: value,
-            min: 30,
-            max: 300,
-            step: 15,
-            suffix: 's',
-            onChanged: onChanged,
-          ),
-        ],
+    return Material(
+      color: color,
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: SizedBox(
+          width: 46,
+          height: 46,
+          child: Icon(icon, color: iconColor, size: 22),
+        ),
       ),
     );
   }
@@ -352,13 +276,11 @@ class _PlanTotalCard extends StatelessWidget {
   const _PlanTotalCard({
     required this.setCount,
     required this.totalReps,
-    required this.restSeconds,
     required this.estimatedMinutes,
   });
 
   final int setCount;
   final int totalReps;
-  final int restSeconds;
   final int estimatedMinutes;
 
   @override
@@ -369,15 +291,13 @@ class _PlanTotalCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Plan summary', style: AppTextStyles.label),
+          Text('요약', style: AppTextStyles.sectionTitle),
           const SizedBox(height: AppSpacing.md),
-          _SummaryLine(label: 'Sets', value: '$setCount'),
+          _SummaryLine(label: '총 세트', value: '$setCount세트'),
           const SizedBox(height: AppSpacing.xs),
-          _SummaryLine(label: 'Target reps', value: '$totalReps'),
+          _SummaryLine(label: '총 횟수', value: '$totalReps회'),
           const SizedBox(height: AppSpacing.xs),
-          _SummaryLine(label: 'Rest', value: '${restSeconds}s'),
-          const SizedBox(height: AppSpacing.xs),
-          _SummaryLine(label: 'Estimated time', value: '$estimatedMinutes min'),
+          _SummaryLine(label: '예상 소요', value: '약 $estimatedMinutes분'),
         ],
       ),
     );
@@ -385,10 +305,7 @@ class _PlanTotalCard extends StatelessWidget {
 }
 
 class _SummaryLine extends StatelessWidget {
-  const _SummaryLine({
-    required this.label,
-    required this.value,
-  });
+  const _SummaryLine({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -397,125 +314,16 @@ class _SummaryLine extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Text(label, style: AppTextStyles.bodySmall),
+        Text(label, style: AppTextStyles.bodyLg),
         const Spacer(),
-        Text(
-          value,
-          style: AppTextStyles.label,
-        ),
+        Text(value, style: AppTextStyles.label.copyWith(fontSize: 16)),
       ],
-    );
-  }
-}
-
-class _SettingTitle extends StatelessWidget {
-  const _SettingTitle({
-    required this.title,
-    required this.description,
-  });
-
-  final String title;
-  final String description;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(title, style: AppTextStyles.label),
-        const SizedBox(height: AppSpacing.xxs),
-        Text(description, style: AppTextStyles.bodySmall),
-      ],
-    );
-  }
-}
-
-class _NumberStepper extends StatelessWidget {
-  const _NumberStepper({
-    required this.value,
-    required this.min,
-    required this.max,
-    required this.onChanged,
-    this.step = 1,
-    this.suffix = '',
-  });
-
-  final int value;
-  final int min;
-  final int max;
-  final int step;
-  final String suffix;
-  final ValueChanged<int> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _StepperButton(
-          icon: Icons.remove_rounded,
-          enabled: value > min,
-          onTap: () => onChanged((value - step).clamp(min, max)),
-        ),
-        SizedBox(
-          width: suffix.isEmpty ? 48 : 64,
-          child: Text(
-            '$value$suffix',
-            textAlign: TextAlign.center,
-            style: AppTextStyles.label.copyWith(fontSize: 16),
-          ),
-        ),
-        _StepperButton(
-          icon: Icons.add_rounded,
-          enabled: value < max,
-          filled: true,
-          onTap: () => onChanged((value + step).clamp(min, max)),
-        ),
-      ],
-    );
-  }
-}
-
-class _StepperButton extends StatelessWidget {
-  const _StepperButton({
-    required this.icon,
-    required this.enabled,
-    required this.onTap,
-    this.filled = false,
-  });
-
-  final IconData icon;
-  final bool enabled;
-  final bool filled;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: filled ? AppColors.primary : AppColors.cardSubtle,
-      shape: const CircleBorder(),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: enabled ? onTap : null,
-        child: Opacity(
-          opacity: enabled ? 1 : 0.4,
-          child: SizedBox(
-            width: 36,
-            height: 36,
-            child: Icon(
-              icon,
-              size: 18,
-              color: filled ? AppColors.card : AppColors.textPrimary,
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
 
 const _exerciseNames = {
-  'pushup': 'Push-up',
-  'lateral_raise': 'Lateral raise',
-  'bicep_curl': 'Bicep curl',
+  'pushup': '푸시업',
+  'lateral_raise': '싸레레',
+  'bicep_curl': '이두컬',
 };

@@ -6,10 +6,7 @@ import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
 
 class ExerciseGuideScreen extends StatelessWidget {
-  const ExerciseGuideScreen({
-    super.key,
-    this.exerciseId = 'pushup',
-  });
+  const ExerciseGuideScreen({super.key, this.exerciseId = 'pushup'});
 
   final String exerciseId;
 
@@ -19,18 +16,18 @@ class ExerciseGuideScreen extends StatelessWidget {
 
     return AppScaffold(
       title: guide.title,
-      subtitle: 'Exercise guide',
+      subtitle: '자세 가이드',
       showBackButton: true,
+      onBack: () => context.go('/workout-setup'),
       scrollable: true,
       bottom: ImoButton(
-        label: 'Set workout plan',
-        rightIcon: const Icon(Icons.arrow_forward_rounded),
+        label: '다음',
         onPressed: () => context.go('/workout-plan?exercise=$exerciseId'),
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _GuideHeroCard(guide: guide),
+          _TargetAreaCard(guide: guide),
           const SizedBox(height: AppSpacing.sectionGap),
           _GuideStepCard(steps: guide.steps),
           const SizedBox(height: AppSpacing.md),
@@ -41,8 +38,8 @@ class ExerciseGuideScreen extends StatelessWidget {
   }
 }
 
-class _GuideHeroCard extends StatelessWidget {
-  const _GuideHeroCard({required this.guide});
+class _TargetAreaCard extends StatelessWidget {
+  const _TargetAreaCard({required this.guide});
 
   final _ExerciseGuide guide;
 
@@ -60,11 +57,7 @@ class _GuideHeroCard extends StatelessWidget {
                 width: 56,
                 height: 56,
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: guide.gradient,
-                  ),
+                  gradient: LinearGradient(colors: guide.gradient),
                   borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
                 ),
                 child: const Icon(
@@ -78,53 +71,95 @@ class _GuideHeroCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(guide.title, style: AppTextStyles.sectionTitle),
+                    Text(guide.title, style: AppTextStyles.title),
                     const SizedBox(height: AppSpacing.xxs),
-                    Text(
-                      guide.description,
-                      style: AppTextStyles.bodySmall,
-                    ),
+                    Text(guide.description, style: AppTextStyles.bodyLg),
                   ],
                 ),
               ),
             ],
           ),
           const SizedBox(height: AppSpacing.lg),
-          ImoCard(
-            variant: ImoCardVariant.subtle,
-            paddingSize: ImoCardPadding.lg,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          Container(
+            height: 300,
+            width: double.infinity,
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            decoration: BoxDecoration(
+              color: AppColors.cardSubtle,
+              borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+            ),
+            child: Stack(
               children: [
                 Row(
                   children: [
                     const Icon(
                       Icons.track_changes_rounded,
-                      size: 16,
+                      size: 18,
                       color: AppColors.primaryStrong,
                     ),
                     const SizedBox(width: AppSpacing.xs),
-                    Text('Target muscles', style: AppTextStyles.label),
+                    Text('타겟 부위', style: AppTextStyles.label),
                   ],
                 ),
-                const SizedBox(height: AppSpacing.md),
-                Wrap(
-                  spacing: AppSpacing.xs,
-                  runSpacing: AppSpacing.xs,
-                  children: [
-                    for (final target in guide.targets)
-                      ImoChip(
-                        label: target,
-                        variant: ImoChipVariant.selected,
-                        icon: const Icon(Icons.circle, size: 8),
-                      ),
-                  ],
+                const Center(
+                  child: Icon(
+                    Icons.accessibility_new_rounded,
+                    size: 100,
+                    color: AppColors.textTertiary,
+                  ),
                 ),
+                for (final marker in guide.markers)
+                  Positioned(
+                    top: marker.top,
+                    left: marker.left,
+                    right: marker.right,
+                    child: _TargetMarker(label: marker.label),
+                  ),
               ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Center(
+            child: Text(
+              guide.targets.join(' · '),
+              style: AppTextStyles.body.copyWith(color: AppColors.textTertiary),
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _TargetMarker extends StatelessWidget {
+  const _TargetMarker({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 16,
+          height: 16,
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.36),
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: AppSpacing.xs),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: BorderRadius.circular(AppSpacing.pillRadius),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Text(label, style: AppTextStyles.caption),
+        ),
+      ],
     );
   }
 }
@@ -149,13 +184,14 @@ class _GuideStepCard extends StatelessWidget {
                 color: AppColors.primaryStrong,
               ),
               const SizedBox(width: AppSpacing.xs),
-              Text('How to move', style: AppTextStyles.label),
+              Text('자세 가이드', style: AppTextStyles.sectionTitle),
             ],
           ),
           const SizedBox(height: AppSpacing.md),
           for (var index = 0; index < steps.length; index++) ...[
             _GuideStepItem(index: index + 1, text: steps[index]),
-            if (index != steps.length - 1) const SizedBox(height: AppSpacing.sm),
+            if (index != steps.length - 1)
+              const SizedBox(height: AppSpacing.sm),
           ],
         ],
       ),
@@ -164,10 +200,7 @@ class _GuideStepCard extends StatelessWidget {
 }
 
 class _GuideStepItem extends StatelessWidget {
-  const _GuideStepItem({
-    required this.index,
-    required this.text,
-  });
+  const _GuideStepItem({required this.index, required this.text});
 
   final int index;
   final String text;
@@ -194,9 +227,7 @@ class _GuideStepItem extends StatelessWidget {
           ),
         ),
         const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: Text(text, style: AppTextStyles.body),
-        ),
+        Expanded(child: Text(text, style: AppTextStyles.bodyLg)),
       ],
     );
   }
@@ -224,8 +255,10 @@ class _GuideCautionCard extends StatelessWidget {
               ),
               const SizedBox(width: AppSpacing.xs),
               Text(
-                'Check before starting',
-                style: AppTextStyles.label.copyWith(color: AppColors.warning),
+                '주의사항',
+                style: AppTextStyles.sectionTitle.copyWith(
+                  color: const Color(0xFFB97509),
+                ),
               ),
             ],
           ),
@@ -235,15 +268,11 @@ class _GuideCautionCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Padding(
-                  padding: EdgeInsets.only(top: 6),
-                  child: Icon(
-                    Icons.circle,
-                    size: 6,
-                    color: AppColors.warning,
-                  ),
+                  padding: EdgeInsets.only(top: 8),
+                  child: Icon(Icons.circle, size: 5, color: AppColors.warning),
                 ),
                 const SizedBox(width: AppSpacing.xs),
-                Expanded(child: Text(caution, style: AppTextStyles.bodySmall)),
+                Expanded(child: Text(caution, style: AppTextStyles.body)),
               ],
             ),
             const SizedBox(height: AppSpacing.xs),
@@ -261,6 +290,7 @@ class _ExerciseGuide {
     required this.targets,
     required this.steps,
     required this.cautions,
+    required this.markers,
     required this.gradient,
   });
 
@@ -269,58 +299,86 @@ class _ExerciseGuide {
   final List<String> targets;
   final List<String> steps;
   final List<String> cautions;
+  final List<_TargetMarkerData> markers;
   final List<Color> gradient;
+}
+
+class _TargetMarkerData {
+  const _TargetMarkerData({
+    required this.label,
+    required this.top,
+    this.left,
+    this.right,
+  });
+
+  final String label;
+  final double top;
+  final double? left;
+  final double? right;
 }
 
 const _exerciseGuides = {
   'pushup': _ExerciseGuide(
-    title: 'Push-up',
-    description: 'A compound movement for checking upper-body activation.',
-    targets: ['Chest', 'Shoulder', 'Triceps'],
+    title: '푸시업',
+    description: '상체 전반을 강화하는 기본 운동',
+    targets: ['가슴', '삼두근', '어깨'],
     steps: [
-      'Place both hands slightly wider than shoulder width.',
-      'Keep the body line stable from shoulder to ankle.',
-      'Lower the body slowly while keeping the elbows controlled.',
-      'Push the floor away and return to the starting position.',
+      '어깨 너비로 손을 벌려 바닥에 댑니다',
+      '몸을 일직선으로 유지합니다',
+      '팔꿈치를 구부려 가슴이 바닥에 가까워질 때까지 내려갑니다',
+      '팔을 펴며 시작 자세로 돌아옵니다',
     ],
     cautions: [
-      'Avoid letting the lower back collapse.',
-      'Do not rush the movement during calibration or measurement.',
-      'Stop immediately if pain or dizziness occurs.',
+      '허리가 꺾이지 않도록 복부에 힘을 주세요.',
+      '어깨가 귀 쪽으로 올라가지 않게 유지하세요.',
+      '통증이 있으면 즉시 중단하고 자세를 확인하세요.',
+    ],
+    markers: [
+      _TargetMarkerData(label: '대흉근', top: 104, left: 90),
+      _TargetMarkerData(label: '삼두근', top: 142, right: 46),
+      _TargetMarkerData(label: '전면 삼각근', top: 194, left: 58),
     ],
     gradient: [AppColors.primary, AppColors.primaryStrong],
   ),
   'lateral_raise': _ExerciseGuide(
-    title: 'Lateral raise',
-    description: 'A shoulder movement for checking side deltoid activation.',
-    targets: ['Side deltoid', 'Upper trapezius'],
+    title: '싸레레',
+    description: '측면 어깨 자극을 위한 운동',
+    targets: ['측면 삼각근', '승모근 보조'],
     steps: [
-      'Stand upright and keep the shoulders relaxed.',
-      'Raise both arms to the side with controlled speed.',
-      'Stop near shoulder height without shrugging.',
-      'Lower the arms slowly to complete one repetition.',
+      '덤벨을 양손에 들고 몸 옆에 둡니다',
+      '팔꿈치를 살짝 굽힌 상태를 유지합니다',
+      '어깨 높이까지 양팔을 천천히 들어 올립니다',
+      '반동 없이 천천히 시작 자세로 돌아옵니다',
     ],
     cautions: [
-      'Avoid lifting the shoulders toward the ears.',
-      'Keep the wrist and elbow line stable.',
-      'Use a light load while checking sensor response.',
+      '어깨가 과하게 올라가지 않도록 주의하세요.',
+      '허리를 젖히지 않고 몸통을 고정하세요.',
+      '너무 무거운 중량보다 정확한 자세가 중요합니다.',
+    ],
+    markers: [
+      _TargetMarkerData(label: '측면 삼각근', top: 96, right: 56),
+      _TargetMarkerData(label: '승모근', top: 70, left: 96),
     ],
     gradient: [AppColors.secondary, Color(0xFF5DC447)],
   ),
   'bicep_curl': _ExerciseGuide(
-    title: 'Bicep curl',
-    description: 'An arm movement for checking elbow flexion consistency.',
-    targets: ['Biceps', 'Forearm'],
+    title: '이두컬',
+    description: '이두근 수축을 집중적으로 보는 운동',
+    targets: ['이두근', '전완근'],
     steps: [
-      'Stand upright and keep the elbows close to the body.',
-      'Curl the arms upward without swinging the torso.',
-      'Pause briefly at the top position.',
-      'Lower the arms slowly and keep tension controlled.',
+      '덤벨을 양손에 들고 팔을 아래로 둡니다',
+      '팔꿈치를 몸 옆에 고정합니다',
+      '손바닥이 위를 향하도록 들어 올립니다',
+      '천천히 내려오며 이두근 긴장을 유지합니다',
     ],
     cautions: [
-      'Avoid using momentum from the back or shoulder.',
-      'Keep the elbow position stable.',
-      'Stop if the sensor or band feels loose.',
+      '상체를 뒤로 젖히며 반동을 쓰지 마세요.',
+      '팔꿈치 위치가 크게 움직이지 않도록 하세요.',
+      '손목이 꺾이지 않게 중립을 유지하세요.',
+    ],
+    markers: [
+      _TargetMarkerData(label: '이두근', top: 118, left: 58),
+      _TargetMarkerData(label: '전완근', top: 162, left: 54),
     ],
     gradient: [Color(0xFFFFB371), AppColors.warning],
   ),

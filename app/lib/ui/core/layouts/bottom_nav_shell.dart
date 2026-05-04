@@ -11,10 +11,10 @@ class BottomNavShell extends StatelessWidget {
   final Widget child;
 
   static const _tabs = [
-    _NavTab(label: 'Home', icon: Icons.home_rounded, path: '/home'),
-    _NavTab(label: 'History', icon: Icons.history_rounded, path: '/history'),
-    _NavTab(label: 'Stats', icon: Icons.bar_chart_rounded, path: '/stats'),
-    _NavTab(label: 'My', icon: Icons.person_rounded, path: '/mypage'),
+    _NavTab(label: '홈', icon: Icons.home_rounded, path: '/home'),
+    _NavTab(label: '기록', icon: Icons.history_rounded, path: '/history'),
+    _NavTab(label: '통계', icon: Icons.bar_chart_rounded, path: '/stats'),
+    _NavTab(label: '마이', icon: Icons.person_rounded, path: '/mypage'),
   ];
 
   @override

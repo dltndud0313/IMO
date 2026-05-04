@@ -1,8 +1,12 @@
+// ignore_for_file: use_null_aware_elements
+
 import 'package:dio/dio.dart';
 
 import '../../domain/models/exercise_type.dart';
 import '../../domain/models/user_profile.dart';
 import '../../domain/models/workout_session.dart';
+
+const backendApiBaseUrl = 'https://k14c203.p.ssafy.io/api/v1';
 
 /// Backend REST API 클라이언트
 /// Base URL: https://api.imo-app.com/v1 (또는 환경변수)

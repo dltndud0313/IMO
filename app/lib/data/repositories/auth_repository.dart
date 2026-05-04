@@ -1,7 +1,7 @@
 import 'dart:async';
 
-import 'auth_service.dart';
-import 'shared_prefs_service.dart';
+import '../services/auth_service.dart';
+import '../services/shared_prefs_service.dart';
 
 enum AuthStatus { unknown, authenticated, unauthenticated }
 
@@ -20,7 +20,7 @@ class AuthRepository {
 
   /// 초기화 시 로컬 저장소에서 토큰 확인
   Future<void> init() async {
-    final token = await _prefsService.getAccessToken();
+    final token = _prefsService.getAccessToken();
     if (token != null && token.isNotEmpty) {
       _updateStatus(AuthStatus.authenticated);
     } else {
@@ -52,7 +52,7 @@ class AuthRepository {
   /// 토큰 갱신
   /// (Dio 인터셉터 등에서 401 발생 시 호출됨)
   Future<String?> refreshToken() async {
-    final refreshToken = await _prefsService.getRefreshToken();
+    final refreshToken = _prefsService.getRefreshToken();
     if (refreshToken == null || refreshToken.isEmpty) {
       await logout();
       return null;

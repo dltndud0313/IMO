@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lateral Raise Dodger</title>
+    <style>
+      :root {
+        --bg: #071118;
+        --panel: rgba(11, 25, 33, 0.82);
+        --line: rgba(107, 240, 215, 0.24);
+        --accent: #6bf0d7;
+        --accent-strong: #d9ff78;
+        --warn: #ffcf70;
+        --danger: #ff7c66;
+        --text: #ecfff9;
+        --soft: #9ec8bf;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Space Grotesk", "Pretendard", "Noto Sans KR", sans-serif;
+        background:
+          radial-gradient(circle at top, rgba(107, 240, 215, 0.14), transparent 28%),
+          linear-gradient(180deg, #08131b 0%, #04090d 100%);
+        color: var(--text);
+      }
+
+      .page {
+        width: min(1120px, 100%);
+        margin: 0 auto;
+        padding: 24px 20px 32px;
+      }
+
+      .hero {
+        display: flex;
+        justify-content: space-between;
+        align-items: end;
+        gap: 16px;
+        margin-bottom: 18px;
+      }
+
+      .eyebrow {
+        font-size: 12px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--soft);
+      }
+
+      h1 {
+        margin: 10px 0 0;
+        font-size: clamp(32px, 5vw, 54px);
+        line-height: 0.95;
+      }
+
+      .sub {
+        margin-top: 12px;
+        color: var(--soft);
+        max-width: 680px;
+        line-height: 1.6;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: 300px 1fr;
+        gap: 18px;
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        padding: 18px;
+        backdrop-filter: blur(12px);
+      }
+
+      .stats {
+        display: grid;
+        gap: 14px;
+      }
+
+      .metric {
+        padding: 16px;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.04);
+      }
+
+      .metric .label {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: var(--soft);
+      }
+
+      .metric .value {
+        margin-top: 8px;
+        font-size: 34px;
+        font-weight: 700;
+      }
+
+      .metric .subvalue {
+        margin-top: 8px;
+        color: var(--soft);
+        font-size: 14px;
+      }
+
+      .status {
+        padding: 12px 14px;
+        border-radius: 16px;
+        background: rgba(107, 240, 215, 0.08);
+        color: var(--accent);
+        font-weight: 600;
+      }
+
+      .status.warn {
+        background: rgba(255, 207, 112, 0.12);
+        color: var(--warn);
+      }
+
+      .status.danger {
+        background: rgba(255, 124, 102, 0.14);
+        color: var(--danger);
+      }
+
+      .legend {
+        display: grid;
+        gap: 10px;
+        margin-top: 12px;
+      }
+
+      .legend-item {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        font-size: 14px;
+        color: var(--soft);
+      }
+
+      .game-shell {
+        position: relative;
+        overflow: hidden;
+        min-height: 720px;
+      }
+
+      canvas {
+        width: 100%;
+        height: auto;
+        display: block;
+        border-radius: 22px;
+        background:
+          linear-gradient(180deg, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.4)),
+          linear-gradient(180deg, #10212c 0%, #071118 100%);
+      }
+
+      .overlay {
+        position: absolute;
+        inset: 18px;
+        pointer-events: none;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+
+      .topbar,
+      .bottombar {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .chip {
+        padding: 10px 14px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        font-size: 13px;
+      }
+
+      .center-notice {
+        align-self: center;
+        text-align: center;
+        padding: 18px 24px;
+        border-radius: 20px;
+        background: rgba(7, 17, 24, 0.72);
+        border: 1px solid rgba(107, 240, 215, 0.18);
+        max-width: 540px;
+      }
+
+      .center-notice h2 {
+        margin: 0;
+        font-size: 30px;
+      }
+
+      .center-notice p {
+        margin: 12px 0 0;
+        color: var(--soft);
+        line-height: 1.6;
+      }
+
+      .hint {
+        margin-top: 10px;
+        color: var(--accent-strong);
+      }
+
+      @media (max-width: 960px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+
+        .game-shell {
+          min-height: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div class="hero">
+        <div>
+          <div class="eyebrow">IMU Game Prototype</div>
+          <h1>Lateral Raise Dodger</h1>
+          <div class="sub">
+            왼팔과 오른팔의 IMU 움직임으로 레인을 이동하는 1차 게임 프로토타입입니다.
+            몸통 반동이 크면 페널티가 쌓이도록 설계했습니다.
+          </div>
+        </div>
+      </div>
+
+      <div class="layout">
+        <section class="panel stats">
+          <div class="metric">
+            <div class="label">Connection</div>
+            <div id="ws-status" class="value">Waiting</div>
+            <div id="frame-status" class="subvalue">frame waiting</div>
+          </div>
+
+          <div class="metric">
+            <div class="label">Score</div>
+            <div id="score" class="value">0</div>
+            <div id="speed" class="subvalue">speed x1.00</div>
+          </div>
+
+          <div class="metric">
+            <div class="label">Body Sway Penalty</div>
+            <div id="penalty" class="value">0</div>
+            <div class="subvalue">몸통 흔들림이 크면 위험합니다.</div>
+          </div>
+
+          <div id="status-card" class="status">센서 연결 대기 중</div>
+
+          <div class="metric">
+            <div class="label">Live IMU Input</div>
+            <div id="left-input" class="subvalue">Left arm: 0.00</div>
+            <div id="right-input" class="subvalue">Right arm: 0.00</div>
+            <div id="torso-input" class="subvalue">Torso: 0.00</div>
+          </div>
+
+          <div class="metric">
+            <div class="label">Input Rule</div>
+            <div class="legend">
+              <div class="legend-item"><span>왼팔 빠른 올리기</span><span>왼쪽 이동</span></div>
+              <div class="legend-item"><span>오른팔 빠른 올리기</span><span>오른쪽 이동</span></div>
+              <div class="legend-item"><span>몸통 흔들림 큼</span><span>페널티</span></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel game-shell">
+          <canvas id="game" width="760" height="720"></canvas>
+          <div class="overlay">
+            <div class="topbar">
+              <div class="chip" id="mode-chip">mode: lateral_raise</div>
+              <div class="chip" id="phase-chip">phase: waiting</div>
+            </div>
+            <div class="center-notice" id="notice">
+              <h2>게임 준비</h2>
+              <p>
+                브리지를 연결한 뒤 앱 또는 `ws_control_demo.py`로 운동을 선택하세요.
+              </p>
+              <p class="hint">권장 입력: `lateral_raise`</p>
+            </div>
+            <div class="bottombar">
+              <div class="chip">IMU1: left arm</div>
+              <div class="chip">IMU2: right arm</div>
+              <div class="chip">IMU3: torso</div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <script>
+      const params = new URLSearchParams(window.location.search);
+      const wsPort = params.get("wsPort") || "8765";
+      const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
+      const wsUrl = `${wsScheme}://${window.location.hostname}:${wsPort}`;
+
+      const canvas = document.getElementById("game");
+      const ctx = canvas.getContext("2d");
+
+      const ui = {
+        wsStatus: document.getElementById("ws-status"),
+        frameStatus: document.getElementById("frame-status"),
+        score: document.getElementById("score"),
+        speed: document.getElementById("speed"),
+        penalty: document.getElementById("penalty"),
+        statusCard: document.getElementById("status-card"),
+        leftInput: document.getElementById("left-input"),
+        rightInput: document.getElementById("right-input"),
+        torsoInput: document.getElementById("torso-input"),
+        modeChip: document.getElementById("mode-chip"),
+        phaseChip: document.getElementById("phase-chip"),
+        notice: document.getElementById("notice"),
+      };
+
+      const game = {
+        laneCount: 3,
+        playerLane: 1,
+        obstacles: [],
+        score: 0,
+        penalty: 0,
+        speed: 1,
+        running: false,
+        phase: "waiting",
+        exerciseType: null,
+        wsConnected: false,
+        cooldownMs: 460,
+        lastLeftTrigger: 0,
+        lastRightTrigger: 0,
+        leftInput: 0,
+        rightInput: 0,
+        torsoInput: 0,
+        lastFrameSeq: null,
+        lastSpawnAt: 0,
+      };
+
+      function laneCenter(laneIndex) {
+        const trackWidth = canvas.width * 0.64;
+        const left = (canvas.width - trackWidth) / 2;
+        const laneWidth = trackWidth / game.laneCount;
+        return left + laneWidth * laneIndex + laneWidth / 2;
+      }
+
+      function resetGameState() {
+        game.playerLane = 1;
+        game.obstacles = [];
+        game.score = 0;
+        game.penalty = 0;
+        game.speed = 1;
+        game.lastSpawnAt = performance.now();
+      }
+
+      function startGameIfReady() {
+        const ready = game.exerciseType === "lateral_raise" && game.phase === "monitoring";
+        game.running = ready;
+        ui.notice.style.display = ready ? "none" : "block";
+        if (ready && game.obstacles.length === 0) {
+          resetGameState();
+        }
+      }
+
+      function updateStatusCard(text, tone = "normal") {
+        ui.statusCard.textContent = text;
+        ui.statusCard.className = "status";
+        if (tone === "warn") ui.statusCard.classList.add("warn");
+        if (tone === "danger") ui.statusCard.classList.add("danger");
+      }
+
+      function triggerLane(direction) {
+        if (!game.running) return;
+        if (direction === "left") {
+          game.playerLane = Math.max(0, game.playerLane - 1);
+        } else {
+          game.playerLane = Math.min(game.laneCount - 1, game.playerLane + 1);
+        }
+      }
+
+      function evaluateInput(leftScore, rightScore, torsoScore) {
+        const now = performance.now();
+        game.leftInput = leftScore;
+        game.rightInput = rightScore;
+        game.torsoInput = torsoScore;
+
+        if (leftScore > 7.0 && leftScore > rightScore * 1.18 && now - game.lastLeftTrigger > game.cooldownMs) {
+          triggerLane("left");
+          game.lastLeftTrigger = now;
+        }
+
+        if (rightScore > 7.0 && rightScore > leftScore * 1.18 && now - game.lastRightTrigger > game.cooldownMs) {
+          triggerLane("right");
+          game.lastRightTrigger = now;
+        }
+
+        if (torsoScore > 8.0) {
+          game.penalty += 1;
+          updateStatusCard("BODY SWAY detected", "danger");
+        } else if (leftScore > 7.0 || rightScore > 7.0) {
+          updateStatusCard("Good arm input", "normal");
+        } else {
+          updateStatusCard("Input waiting", "warn");
+        }
+      }
+
+      function handleSensorFrame(message) {
+        const imus = message.payload.imus || [];
+        const leftGyro = imus[0]?.gyro || [0, 0, 0];
+        const rightGyro = imus[1]?.gyro || [0, 0, 0];
+        const torsoGyro = imus[2]?.gyro || [0, 0, 0];
+
+        const leftScore = Math.abs(leftGyro[0]) + Math.abs(leftGyro[1]) + Math.abs(leftGyro[2]);
+        const rightScore = Math.abs(rightGyro[0]) + Math.abs(rightGyro[1]) + Math.abs(rightGyro[2]);
+        const torsoScore = Math.abs(torsoGyro[0]) + Math.abs(torsoGyro[1]) + Math.abs(torsoGyro[2]);
+
+        evaluateInput(leftScore, rightScore, torsoScore);
+        game.lastFrameSeq = message.payload.seq;
+        ui.frameStatus.textContent = `seq ${message.payload.seq} / ts ${message.payload.timestamp_ms}ms`;
+      }
+
+      function handleSessionState(message) {
+        game.exerciseType = message.payload.exercise_type;
+        game.phase = message.payload.phase;
+        ui.modeChip.textContent = `mode: ${game.exerciseType || "waiting"}`;
+        ui.phaseChip.textContent = `phase: ${game.phase}`;
+
+        if (game.exerciseType === "lateral_raise" && game.phase === "monitoring") {
+          ui.notice.style.display = "none";
+          updateStatusCard("Game running", "normal");
+        } else {
+          ui.notice.style.display = "block";
+          updateStatusCard("Choose lateral_raise and finish calibration", "warn");
+        }
+
+        startGameIfReady();
+      }
+
+      function handleConnectionStatus(message) {
+        const connected = message.payload.esp32_connected;
+        game.wsConnected = connected;
+        ui.wsStatus.textContent = connected ? "Connected" : "Waiting";
+        if (!connected) {
+          updateStatusCard("ESP32 disconnected", "warn");
+        }
+      }
+
+      function spawnObstacle(now) {
+        if (!game.running) return;
+        const interval = 1200 / game.speed;
+        if (now - game.lastSpawnAt < interval) return;
+
+        game.obstacles.push({
+          lane: Math.floor(Math.random() * game.laneCount),
+          y: -80,
+          passed: false,
+        });
+        game.lastSpawnAt = now;
+      }
+
+      function updateGame(now, deltaMs) {
+        if (!game.running) return;
+        game.speed = 1 + game.score * 0.015;
+        spawnObstacle(now);
+
+        const velocity = 0.28 * game.speed * deltaMs;
+        for (const obstacle of game.obstacles) {
+          obstacle.y += velocity;
+
+          if (!obstacle.passed && obstacle.y > canvas.height - 180) {
+            obstacle.passed = true;
+            if (obstacle.lane === game.playerLane) {
+              game.penalty += 12;
+              updateStatusCard("Hit obstacle", "danger");
+            } else {
+              game.score += 10;
+            }
+          }
+        }
+
+        game.obstacles = game.obstacles.filter((obstacle) => obstacle.y < canvas.height + 120);
+      }
+
+      function drawTrack() {
+        const trackWidth = canvas.width * 0.64;
+        const left = (canvas.width - trackWidth) / 2;
+        const laneWidth = trackWidth / game.laneCount;
+
+        ctx.fillStyle = "rgba(11, 25, 33, 0.86)";
+        ctx.fillRect(left, 40, trackWidth, canvas.height - 80);
+
+        ctx.strokeStyle = "rgba(107, 240, 215, 0.18)";
+        ctx.lineWidth = 2;
+        for (let i = 0; i <= game.laneCount; i++) {
+          const x = left + laneWidth * i;
+          ctx.beginPath();
+          ctx.moveTo(x, 40);
+          ctx.lineTo(x, canvas.height - 40);
+          ctx.stroke();
+        }
+
+        ctx.strokeStyle = "rgba(217, 255, 120, 0.25)";
+        ctx.strokeRect(left, 40, trackWidth, canvas.height - 80);
+      }
+
+      function drawPlayer() {
+        const x = laneCenter(game.playerLane);
+        const y = canvas.height - 120;
+
+        ctx.fillStyle = "#d9ff78";
+        ctx.beginPath();
+        ctx.moveTo(x, y - 34);
+        ctx.lineTo(x - 28, y + 32);
+        ctx.lineTo(x + 28, y + 32);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.shadowColor = "rgba(217, 255, 120, 0.4)";
+        ctx.shadowBlur = 26;
+        ctx.fillRect(x - 4, y + 36, 8, 18);
+        ctx.shadowBlur = 0;
+      }
+
+      function drawObstacles() {
+        for (const obstacle of game.obstacles) {
+          const x = laneCenter(obstacle.lane);
+          const y = obstacle.y;
+          ctx.fillStyle = "#ff7c66";
+          ctx.fillRect(x - 26, y - 26, 52, 52);
+          ctx.strokeStyle = "rgba(255,255,255,0.12)";
+          ctx.strokeRect(x - 26, y - 26, 52, 52);
+        }
+      }
+
+      function drawHud() {
+        ui.score.textContent = String(game.score);
+        ui.speed.textContent = `speed x${game.speed.toFixed(2)}`;
+        ui.penalty.textContent = String(game.penalty);
+        ui.leftInput.textContent = `Left arm: ${game.leftInput.toFixed(2)}`;
+        ui.rightInput.textContent = `Right arm: ${game.rightInput.toFixed(2)}`;
+        ui.torsoInput.textContent = `Torso: ${game.torsoInput.toFixed(2)}`;
+      }
+
+      function renderBackgroundGrid() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        grad.addColorStop(0, "#143140");
+        grad.addColorStop(1, "#050b10");
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.strokeStyle = "rgba(107, 240, 215, 0.06)";
+        for (let y = 0; y < canvas.height; y += 36) {
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(canvas.width, y);
+          ctx.stroke();
+        }
+      }
+
+      let lastTs = performance.now();
+      function loop(now) {
+        const delta = now - lastTs;
+        lastTs = now;
+
+        updateGame(now, delta);
+        renderBackgroundGrid();
+        drawTrack();
+        drawObstacles();
+        drawPlayer();
+        drawHud();
+
+        requestAnimationFrame(loop);
+      }
+
+      function connect() {
+        const ws = new WebSocket(wsUrl);
+        ui.wsStatus.textContent = "Connecting";
+
+        ws.onopen = () => {
+          ui.wsStatus.textContent = "Connected";
+          updateStatusCard("WebSocket connected", "normal");
+          ws.send(JSON.stringify({ type: "ping", payload: {} }));
+        };
+
+        ws.onmessage = (event) => {
+          const message = JSON.parse(event.data);
+          if (message.type === "connection_status") {
+            handleConnectionStatus(message);
+          }
+          if (message.type === "glass_session_state") {
+            handleSessionState(message);
+          }
+          if (message.type === "sensor_frame") {
+            handleSensorFrame(message);
+          }
+          if (message.type === "error") {
+            updateStatusCard(message.payload.message || "Bridge error", "danger");
+          }
+        };
+
+        ws.onclose = () => {
+          ui.wsStatus.textContent = "Disconnected";
+          updateStatusCard("WebSocket disconnected", "warn");
+          setTimeout(connect, 1200);
+        };
+
+        ws.onerror = () => {
+          updateStatusCard("WebSocket error", "danger");
+        };
+      }
+
+      connect();
+      requestAnimationFrame(loop);
+    </script>
+  </body>
+</html>

@@ -1,4 +1,2 @@
-// 주간 통계 ViewModel (선택 기능)
-// 의존: SessionHistoryRepository, ApiService
-// FR-51 ~ FR-56
-// TODO: 구현
+// 통계 화면 ViewModel 자리.
+// 추후 SQLite 기록 조회, 기간 필터, 히트맵/밸런스/추세 데이터 가공을 담당한다.

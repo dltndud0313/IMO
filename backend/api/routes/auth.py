@@ -1,9 +1,13 @@
+import time
+
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
+from core.cache import blacklist_refresh_token
 from core.database import get_db
-from core.exceptions import DuplicateEmail, Unauthorized
+from core.exceptions import APIException, DuplicateEmail, Unauthorized
+from core.rate_limit import rate_limit_by_ip
 from core.responses import success_response
 from core.security import (
     create_access_token,
@@ -25,7 +29,11 @@ from schemas.auth import (
 router = APIRouter()
 
 
-@router.post("/signup", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/signup",
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(rate_limit_by_ip("signup", 5, 60))],
+)
 async def signup(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
     """API-01 회원가입. 가입과 동시에 토큰 발급."""
     # 이메일 중복 체크
@@ -59,7 +67,10 @@ async def signup(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
     return success_response(payload.model_dump(by_alias=True))
 
 
-@router.post("/login")
+@router.post(
+    "/login",
+    dependencies=[Depends(rate_limit_by_ip("login", 10, 60))],
+)
 async def login(user_in: UserLogin, db: AsyncSession = Depends(get_db)):
     """API-02 로그인."""
     result = await db.execute(select(User).where(User.email == user_in.email))
@@ -78,15 +89,42 @@ async def login(user_in: UserLogin, db: AsyncSession = Depends(get_db)):
     return success_response(payload.model_dump(by_alias=True))
 
 
-@router.post("/refresh")
+@router.post(
+    "/refresh",
+    dependencies=[Depends(rate_limit_by_ip("refresh", 30, 60))],
+)
 async def refresh_token(request: RefreshRequest):
-    """API-03 토큰 갱신. refresh 검증 후 access + refresh 모두 새로 발급(rotation)."""
-    payload = decode_refresh_token(request.refresh_token)
+    """API-03 토큰 갱신. refresh 검증 + 이전 토큰 blacklist + 새 토큰 발급(rotation)."""
+    payload = await decode_refresh_token(request.refresh_token)
     sub = payload.get("sub")
     if not sub:
         raise Unauthorized("Invalid refresh token payload")
+
+    # 이전 refresh 토큰을 blacklist 등록 (TTL = 남은 만료시간)
+    exp = payload.get("exp")
+    if exp:
+        ttl = max(0, int(exp - time.time()))
+        await blacklist_refresh_token(request.refresh_token, ttl)
 
     new_access = create_access_token(subject=sub)
     new_refresh = create_refresh_token(subject=sub)
     body = RefreshResponse(access_token=new_access, refresh_token=new_refresh)
     return success_response(body.model_dump(by_alias=True))
+
+
+@router.post("/logout")
+async def logout(request: RefreshRequest):
+    """로그아웃 — refresh 토큰을 blacklist 등록 (멱등).
+
+    이미 만료된/무효화된 토큰이어도 200 으로 종결한다 (앱 측 단순화).
+    """
+    try:
+        payload = await decode_refresh_token(request.refresh_token)
+        exp = payload.get("exp")
+        if exp:
+            ttl = max(0, int(exp - time.time()))
+            await blacklist_refresh_token(request.refresh_token, ttl)
+    except APIException:
+        # 이미 무효 토큰 — 멱등 응답
+        pass
+    return success_response({"loggedOut": True})

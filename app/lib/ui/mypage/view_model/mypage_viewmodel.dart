@@ -1,3 +1,2 @@
-// 마이페이지 ViewModel
-// 의존: UserProfileRepository, SettingsRepository
-// TODO: 구현
+// 마이페이지 ViewModel 자리.
+// 추후 사용자 프로필, 앱 설정, 로그아웃/초기화 상태 처리를 담당한다.
