@@ -8,8 +8,8 @@ class UserProfileRepository {
 
   UserProfileRepository(this._api);
 
-  Future<UserProfile> getProfile() async {
-    if (_cachedProfile != null) return _cachedProfile!;
+  Future<UserProfile> getProfile({bool forceRefresh = false}) async {
+    if (!forceRefresh && _cachedProfile != null) return _cachedProfile!;
     _cachedProfile = await _api.getProfile();
     return _cachedProfile!;
   }
