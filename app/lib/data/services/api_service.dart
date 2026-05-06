@@ -155,9 +155,81 @@ class ApiService {
   Future<WorkoutSession> getSessionDetail(String sessionId) async {
     final res = await _dio.get('/sessions/$sessionId');
     if (res.data['success'] == true) {
-      return WorkoutSession.fromJson(res.data['data'] as Map<String, dynamic>);
+      final data = res.data['data'] as Map<String, dynamic>;
+      return WorkoutSession.fromJson(_normalizeSessionDetail(data));
     }
     throw Exception(res.data['error'] ?? 'getSessionDetail failed');
+  }
+
+  Map<String, dynamic> _normalizeSessionDetail(Map<String, dynamic> data) {
+    if (data.containsKey('session_id')) {
+      return data;
+    }
+
+    final start = DateTime.parse(data['startTime'] as String);
+    final end = DateTime.parse(data['endTime'] as String);
+    final sets = (data['sets'] as List? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .toList();
+    final summary = data['overallSummary'] as Map<String, dynamic>? ?? const {};
+    final balance = data['muscleBalance'] as Map<String, dynamic>?;
+    final targetReps = sets
+        .map((set) => (set['targetReps'] as num?)?.toInt() ?? 0)
+        .toList();
+    final actualReps = sets
+        .map((set) => (set['actualReps'] as num?)?.toInt() ?? 0)
+        .toList();
+    final totalReps = (summary['totalReps'] as num?)?.toInt() ??
+        actualReps.fold<int>(0, (sum, reps) => sum + reps);
+    final totalDuration = (data['totalDurationSeconds'] as num?)?.toInt() ??
+        end.difference(start).inSeconds.clamp(0, 1 << 31);
+
+    return {
+      'session_id': data['sessionId'],
+      'exercise_type': data['exerciseType'],
+      'status': 'completed',
+      'end_reason': 'unknown',
+      'started_at': start.toIso8601String(),
+      'ended_at': end.toIso8601String(),
+      'duration_sec': totalDuration,
+      'set_count': sets.length,
+      'target_reps_per_set': targetReps,
+      'actual_reps_per_set': actualReps,
+      'rest_sec': sets.isNotEmpty
+          ? ((sets.first['restDurationSeconds'] as num?)?.toInt() ?? 0)
+          : 0,
+      'total_reps': totalReps,
+      'valid_reps': totalReps,
+      'avg_target_muscle':
+          (summary['avgTargetActivation'] as num?)?.toDouble() ?? 0,
+      'avg_assist_muscle': 0,
+      'avg_compensator': 0,
+      'compensation_count':
+          (summary['totalCompensationCount'] as num?)?.toInt() ?? 0,
+      'fatigue_onset_set': (summary['fatigueOnsetSet'] as num?)?.toInt(),
+      'fatigue_onset_rep': (summary['fatigueOnsetRep'] as num?)?.toInt(),
+      if (balance != null)
+        'balance_summary': {
+          'enabled': true,
+          'reason': balance['status']?.toString() ?? 'backend_detail',
+          'left_value': (balance['leftAvg'] as num?)?.toDouble(),
+          'right_value': (balance['rightAvg'] as num?)?.toDouble(),
+          'diff_value': (balance['balanceRatio'] as num?)?.toDouble(),
+          'balance_label': balance['status']?.toString(),
+        },
+      'set_results': sets.map((set) {
+        return {
+          'set_index': (set['setNumber'] as num?)?.toInt() ?? 0,
+          'target_reps': (set['targetReps'] as num?)?.toInt() ?? 0,
+          'actual_reps': (set['actualReps'] as num?)?.toInt() ?? 0,
+          'compensation_count':
+              (set['compensationCount'] as num?)?.toInt() ?? 0,
+          'avg_speed': set['avgSpeed']?.toString().toLowerCase() ?? 'normal',
+          'started_at': start.toIso8601String(),
+          'ended_at': end.toIso8601String(),
+        };
+      }).toList(),
+    };
   }
 
   /// API-09: 세션 삭제
