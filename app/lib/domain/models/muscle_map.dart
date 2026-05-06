@@ -1,3 +1,4 @@
+import 'exercise_sensor_mapping.dart';
 import 'muscle_map_schema.dart';
 import 'workout_session.dart' as workout_session;
 
@@ -50,27 +51,31 @@ class MuscleMapState {
     required Map<String, double> values,
     bool includeMissingKeys = true,
   }) {
+    final mapping = findExerciseSensorMapping(exerciseId);
     final schema = findExerciseMuscleMapSchema(exerciseId);
     final entries = <MuscleMapEntry>[];
     final knownKeys = <String>{};
+    final allowedKeys = mapping?.muscleMapKeys ?? schema?.allowedKeys ?? const <String>[];
 
-    if (schema != null) {
-      for (final definition in schema.keys) {
-        knownKeys.add(definition.key);
-        if (!includeMissingKeys && !values.containsKey(definition.key)) {
+    if (allowedKeys.isNotEmpty) {
+      for (final key in allowedKeys) {
+        final definition = schema?.findKey(key);
+        final kind = definition?.kind ?? MuscleMapValueKind.activation;
+        knownKeys.add(key);
+        if (!includeMissingKeys && !values.containsKey(key)) {
           continue;
         }
 
-        final value = values[definition.key] ?? 0;
+        final value = values[key] ?? 0;
         entries.add(
           MuscleMapEntry(
-            key: definition.key,
-            displayName: definition.displayName,
+            key: key,
+            displayName: definition?.displayName ?? key,
             value: _clampRatio(value),
             level: _toActivationLevel(
-              classifyMuscleMapValue(value, kind: definition.kind),
+              classifyMuscleMapValue(value, kind: kind),
             ),
-            kind: definition.kind,
+            kind: kind,
           ),
         );
       }
