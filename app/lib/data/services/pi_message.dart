@@ -42,6 +42,8 @@ sealed class PiMessage {
         PiMessageType.restFinished => RestFinishedMessage.fromPayload(payload),
         PiMessageType.workoutCompleted =>
           WorkoutCompletedMessage.fromPayload(payload),
+        PiMessageType.workoutEvent =>
+          WorkoutEventMessage.fromPayload(payload),
         PiMessageType.sessionResult =>
           SessionResultMessage.fromPayload(payload),
         PiMessageType.error => PiErrorMessage.fromPayload(payload),
@@ -55,6 +57,7 @@ sealed class PiMessage {
 
 abstract final class PiMessageType {
   static const submitWorkoutPlan = 'submit_workout_plan';
+  static const sensorsAttached = 'sensors_attached';
   static const startCalibration = 'start_calibration';
   static const emergencyStop = 'emergency_stop';
   static const stopWorkout = 'stop_workout';
@@ -71,6 +74,7 @@ abstract final class PiMessageType {
   static const restStarted = 'rest_started';
   static const restFinished = 'rest_finished';
   static const workoutCompleted = 'workout_completed';
+  static const workoutEvent = 'workout_event';
   static const sessionResult = 'session_result';
   static const error = 'error';
 }
@@ -379,6 +383,50 @@ class WorkoutCompletedMessage extends PiMessage {
         'ended_at': endedAt,
         'status': status,
         'end_reason': endReason,
+      };
+}
+
+class WorkoutEventMessage extends PiMessage {
+  const WorkoutEventMessage({
+    required this.event,
+    required this.exerciseType,
+    required this.phase,
+    required this.details,
+    this.currentSetIndex,
+    this.currentRep,
+    this.targetRep,
+  }) : super(type: PiMessageType.workoutEvent);
+
+  final String event;
+  final String exerciseType;
+  final String phase;
+  final int? currentSetIndex;
+  final int? currentRep;
+  final int? targetRep;
+  final Map<String, dynamic> details;
+
+  factory WorkoutEventMessage.fromPayload(Map<String, dynamic> payload) {
+    final details = payload['details'];
+    return WorkoutEventMessage(
+      event: payload['event'] as String? ?? '',
+      exerciseType: payload['exercise_type'] as String? ?? '',
+      phase: payload['phase'] as String? ?? '',
+      currentSetIndex: payload['current_set_index'] as int?,
+      currentRep: payload['current_rep'] as int?,
+      targetRep: payload['target_rep'] as int?,
+      details: details is Map<String, dynamic> ? details : const {},
+    );
+  }
+
+  @override
+  Map<String, dynamic> get payload => {
+        'event': event,
+        'exercise_type': exerciseType,
+        'phase': phase,
+        if (currentSetIndex != null) 'current_set_index': currentSetIndex,
+        if (currentRep != null) 'current_rep': currentRep,
+        if (targetRep != null) 'target_rep': targetRep,
+        if (details.isNotEmpty) 'details': details,
       };
 }
 

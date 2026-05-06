@@ -18,4 +18,8 @@ class CalibrationRepository {
   }) {
     _socket.startCalibration(exerciseType: exerciseType);
   }
+
+  void markSensorsAttached() {
+    _socket.markSensorsAttached();
+  }
 }

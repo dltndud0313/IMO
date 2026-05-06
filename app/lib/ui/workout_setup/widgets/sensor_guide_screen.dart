@@ -29,6 +29,7 @@ class _SensorGuideScreenState extends State<SensorGuideScreen> {
     try {
       final repo = getIt<CalibrationRepository>();
       await repo.connect();
+      repo.markSensorsAttached();
       repo.startCalibration(exerciseType: widget.exerciseId);
       if (mounted) {
         context.go(
