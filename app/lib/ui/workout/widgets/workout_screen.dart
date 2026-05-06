@@ -22,7 +22,6 @@ class WorkoutScreen extends StatefulWidget {
 
 class _WorkoutScreenState extends State<WorkoutScreen> {
   Timer? _timer;
-  StreamSubscription? _connectionSubscription;
   late final WorkoutViewModel _workoutViewModel;
   _WorkoutState _state = _WorkoutState.running;
   bool _piConnected = false;
@@ -34,18 +33,20 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   void initState() {
     super.initState();
     final repo = getIt<WorkoutRepository>();
-    _workoutViewModel = WorkoutViewModel(repo);
-    _connectionSubscription =
-        getIt<DeviceConnectionRepository>().systemStatus.listen((status) {
-      if (mounted) {
-        setState(() {
-          _piConnected = status.piConnected;
-          _esp32Connected = status.esp32Connected;
-          _glassConnected = status.glassConnected;
-        });
-      }
-    });
+    _workoutViewModel = WorkoutViewModel(
+      repo,
+      getIt<DeviceConnectionRepository>(),
+    );
     _workoutViewModel.startListening(
+      onConnectionStatus: (status) {
+        if (mounted) {
+          setState(() {
+            _piConnected = status.piConnected;
+            _esp32Connected = status.esp32Connected;
+            _glassConnected = status.glassConnected;
+          });
+        }
+      },
       onPaused: () {
         if (mounted) {
           setState(() => _state = _WorkoutState.paused);
@@ -63,7 +64,6 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   @override
   void dispose() {
     _timer?.cancel();
-    _connectionSubscription?.cancel();
     _workoutViewModel.dispose();
     super.dispose();
   }

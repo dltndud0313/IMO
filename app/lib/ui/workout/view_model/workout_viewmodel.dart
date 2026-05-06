@@ -2,19 +2,31 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../../../data/repositories/device_connection_repository.dart';
 import '../../../data/repositories/workout_repository.dart';
+import '../../../data/services/pi_message.dart';
 
 class WorkoutViewModel {
-  WorkoutViewModel(this._workoutRepository);
+  WorkoutViewModel(
+    this._workoutRepository,
+    this._deviceConnectionRepository,
+  );
 
   final WorkoutRepository _workoutRepository;
+  final DeviceConnectionRepository _deviceConnectionRepository;
+  StreamSubscription? _connectionSubscription;
   StreamSubscription? _pausedSubscription;
   StreamSubscription? _resumedSubscription;
 
   void startListening({
+    required ValueChanged<ConnectionStatusMessage> onConnectionStatus,
     required VoidCallback onPaused,
     required VoidCallback onResumed,
   }) {
+    _connectionSubscription ??=
+        _deviceConnectionRepository.systemStatus.listen((status) {
+      onConnectionStatus(status);
+    });
     _pausedSubscription ??= _workoutRepository.workoutPaused.listen((_) {
       onPaused();
     });
@@ -46,6 +58,7 @@ class WorkoutViewModel {
   }
 
   void dispose() {
+    _connectionSubscription?.cancel();
     _pausedSubscription?.cancel();
     _resumedSubscription?.cancel();
   }
