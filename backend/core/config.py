@@ -32,6 +32,15 @@ class Settings(BaseSettings):
     # 캐시 사용 여부. false 면 cache_get/set/invalidate 모두 no-op (Before/After 비교 측정용).
     CACHE_ENABLED: bool = os.getenv("CACHE_ENABLED", "true").lower() in ("true", "1", "yes")
 
+    # Google Gemini API — 운동 챗봇 (Phase C). 무료 티어 활용.
+    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+    # 모델 토글 — 개발/시연 flash (한도 풍부), 평가 직전 pro (품질).
+    LLM_MODEL: str = os.getenv("LLM_MODEL", "gemini-2.5-flash")
+    # 대화 히스토리 Redis TTL (초). 1시간 = 3600.
+    CHAT_HISTORY_TTL: int = int(os.getenv("CHAT_HISTORY_TTL", "3600"))
+    # 한 대화에서 유지할 최대 턴 수 (히스토리 누적 토큰 폭발 방지)
+    CHAT_MAX_TURNS: int = int(os.getenv("CHAT_MAX_TURNS", "10"))
+
     @property
     def CORS_ORIGINS(self) -> List[str]:
         if self.CORS_ORIGINS_RAW.strip() == "*":
