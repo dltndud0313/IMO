@@ -156,3 +156,110 @@ async def is_refresh_token_blacklisted(token: str) -> bool:
     except (RedisError, OSError) as e:
         logger.warning("is_refresh_token_blacklisted failed: %s", e)
         return False
+
+
+# ============================================================
+# Chat History (Phase C — 운동 챗봇)
+# ============================================================
+
+def _chat_key(user_id: int) -> str:
+    return f"chat:history:{user_id}"
+
+
+async def get_chat_history(user_id: int) -> list:
+    """대화 히스토리 조회. Redis 장애/없음 시 빈 리스트."""
+    if not settings.CACHE_ENABLED:
+        return []
+    try:
+        raw = await get_client().get(_chat_key(user_id))
+        if not raw:
+            return []
+        return json.loads(raw)
+    except (RedisError, OSError, ValueError) as e:
+        logger.warning("get_chat_history failed (user=%s): %s", user_id, e)
+        return []
+
+
+async def append_chat_messages(user_id: int, new_messages: list, max_turns: int = 10) -> None:
+    """user 메시지 + assistant 응답을 히스토리에 추가, 슬라이딩 윈도우 max_turns × 2."""
+    if not settings.CACHE_ENABLED:
+        return
+    try:
+        history = await get_chat_history(user_id)
+        history.extend(new_messages)
+        max_msgs = max_turns * 2
+        if len(history) > max_msgs:
+            history = history[-max_msgs:]
+        await get_client().set(
+            _chat_key(user_id),
+            json.dumps(history, ensure_ascii=False, default=str),
+            ex=settings.CHAT_HISTORY_TTL,
+        )
+    except (RedisError, OSError, TypeError, ValueError) as e:
+        logger.warning("append_chat_messages failed (user=%s): %s", user_id, e)
+
+
+async def clear_chat_history(user_id: int) -> None:
+    """대화 초기화 — DELETE /chat 에서 호출."""
+    if not settings.CACHE_ENABLED:
+        return
+    try:
+        await get_client().delete(_chat_key(user_id))
+    except (RedisError, OSError) as e:
+        logger.warning("clear_chat_history failed (user=%s): %s", user_id, e)
+
+
+async def build_user_workout_context(user_id: int, db) -> str:
+    """사용자의 최근 7일 운동 통계 요약 텍스트 — LLM 컨텍스트로 주입.
+
+    데이터 없으면 "최근 운동 기록 없음" 반환.
+    """
+    from datetime import datetime, timedelta, timezone
+    from sqlalchemy import select
+    from models.session import WorkoutBalanceSummary, WorkoutSession
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=7)
+    q = (
+        select(WorkoutSession)
+        .where(WorkoutSession.user_id == user_id)
+        .where(WorkoutSession.started_at >= cutoff)
+        .order_by(WorkoutSession.started_at.desc())
+    )
+    result = await db.execute(q)
+    sessions = result.scalars().all()
+
+    if not sessions:
+        return "최근 7일 운동 기록 없음"
+
+    # 운동 종목 분포
+    by_type: dict = {}
+    for s in sessions:
+        by_type[s.exercise_type] = by_type.get(s.exercise_type, 0) + 1
+    type_str = " / ".join(f"{k} {v}회" for k, v in by_type.items())
+
+    avg_target = sum(float(s.avg_target_muscle or 0) for s in sessions) / len(sessions)
+
+    # 좌우 밸런스 평균 — 별도 테이블에서 join
+    session_ids = [s.session_id for s in sessions]
+    bal_q = select(WorkoutBalanceSummary).where(
+        WorkoutBalanceSummary.session_id.in_(session_ids),
+        WorkoutBalanceSummary.diff_value.isnot(None),
+    )
+    bal_result = await db.execute(bal_q)
+    balances = bal_result.scalars().all()
+    if balances:
+        avg_diff = sum(float(b.diff_value) for b in balances) / len(balances)
+        bal_str = f"{avg_diff:.1f}%"
+    else:
+        bal_str = "데이터 부족"
+
+    last = sessions[0]
+    last_str = f"{last.started_at.strftime('%Y-%m-%d')} {last.exercise_type} {last.set_count}세트"
+
+    return (
+        f"- 최근 7일 총 세션: {len(sessions)}개\n"
+        f"- 운동별: {type_str}\n"
+        f"- 평균 타깃 근육 활성화: {avg_target:.1f}%\n"
+        f"- 평균 좌우 밸런스 차이: {bal_str}\n"
+        f"- 마지막 세션: {last_str}"
+    )

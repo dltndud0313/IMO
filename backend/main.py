@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from api.routes import auth, exercises, sessions, statistics, users
+from api.routes import auth, chat, exercises, sessions, statistics, users
 from core.config import settings
 from core.exceptions import APIException
 from core.responses import error_response
@@ -108,6 +108,7 @@ app.include_router(users.router, prefix="/api/v1/users", tags=["Users"])
 app.include_router(sessions.router, prefix="/api/v1/sessions", tags=["Sessions"])
 app.include_router(statistics.router, prefix="/api/v1/statistics", tags=["Statistics"])
 app.include_router(exercises.router, prefix="/api/v1/exercises", tags=["Exercises"])
+app.include_router(chat.router, prefix="/api/v1/chat", tags=["Chat"])
 
 
 @app.get("/")

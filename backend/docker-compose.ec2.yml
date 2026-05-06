@@ -14,6 +14,11 @@ services:
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
       - REFRESH_TOKEN_EXPIRE_DAYS=${REFRESH_TOKEN_EXPIRE_DAYS:-14}
       - REDIS_URL=redis://redis:6379/0
+      # Google Gemini API — 운동 챗봇 (Phase C). 시연 직전 LLM_MODEL=gemini-2.5-pro 토글.
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - LLM_MODEL=${LLM_MODEL:-gemini-2.5-flash}
+      - CHAT_HISTORY_TTL=${CHAT_HISTORY_TTL:-3600}
+      - CHAT_MAX_TURNS=${CHAT_MAX_TURNS:-10}
     depends_on:
       - db
       - redis
