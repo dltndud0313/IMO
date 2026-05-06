@@ -13,6 +13,11 @@ services:
       - REDIS_URL=redis://redis:6379/0
       # Locust 부하 테스트 Before/After 비교용 토글. 기본 true.
       - CACHE_ENABLED=${CACHE_ENABLED:-true}
+      # Google Gemini API — 운동 챗봇 (Phase C). 무료 티어 활용.
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - LLM_MODEL=${LLM_MODEL:-gemini-2.5-flash}
+      - CHAT_HISTORY_TTL=${CHAT_HISTORY_TTL:-3600}
+      - CHAT_MAX_TURNS=${CHAT_MAX_TURNS:-10}
     depends_on:
       - db
       - redis
