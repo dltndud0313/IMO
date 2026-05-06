@@ -19,6 +19,7 @@ import '../ui/onboarding/screens/splash_screen.dart';
 import '../ui/session_result/widgets/session_result_screen.dart';
 import '../ui/stats/widgets/stats_screen.dart';
 import '../ui/workout/widgets/workout_screen.dart';
+import '../ui/workout_setup/widgets/exercise_catalog_screen.dart';
 import '../ui/workout_setup/widgets/exercise_guide_screen.dart';
 import '../ui/workout_setup/widgets/exercise_select_screen.dart';
 import '../ui/workout_setup/widgets/plan_setting_screen.dart';
@@ -32,8 +33,8 @@ final _shellNavigatorKey = GlobalKey<NavigatorState>();
 GoRouter buildRouter() {
   final initialLocation =
       getIt<AuthRepository>().currentStatus == AuthStatus.authenticated
-          ? '/home'
-          : '/splash';
+      ? '/home'
+      : '/splash';
 
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
@@ -86,9 +87,16 @@ GoRouter buildRouter() {
         builder: (context, state) => const ExerciseSelectScreen(),
       ),
       GoRoute(
+        path: '/workout-exercises',
+        builder: (context, state) => ExerciseCatalogScreen(
+          categoryId: state.uri.queryParameters['category'] ?? 'upper',
+        ),
+      ),
+      GoRoute(
         path: '/workout-guide',
         builder: (context, state) => ExerciseGuideScreen(
           exerciseId: state.uri.queryParameters['exercise'] ?? 'pushup',
+          categoryId: state.uri.queryParameters['category'],
         ),
       ),
       GoRoute(
