@@ -37,3 +37,8 @@ class LoginResponse(CamelModel):
 class RefreshResponse(CamelModel):
     access_token: str
     refresh_token: str
+
+
+# ==== 이메일 중복 확인 (신규) ====
+class EmailCheckResponse(CamelModel):
+    available: bool

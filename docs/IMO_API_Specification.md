@@ -463,6 +463,42 @@
 
 ---
 
+#### API-17. `GET /auth/email/check` — 이메일 중복 확인
+
+| 항목 | 내용 |
+|------|------|
+| **관련 화면** | 회원가입 (입력 즉시 검증) |
+| **필수 여부** | 선택 |
+| **인증** | ❌ |
+
+**Request Query Parameters:**
+
+| 필드 | 타입 | 필수 | 유효성 검증 |
+|------|------|------|-------------|
+| `email` | string | ✅ | RFC 5322 이메일 형식 |
+
+**예시:** `GET /api/v1/auth/email/check?email=test@example.com`
+
+**Response `200 OK`:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "available": true
+  },
+  "error": null
+}
+```
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| `available` | bool | `true` 면 미가입 (사용 가능), `false` 면 이미 가입됨 |
+
+**Rate Limit:** IP당 분당 20회 (이메일 enumeration 공격 속도 제한)
+
+---
+
 ### 3-2. 프로필 관리
 
 #### API-04. `GET /users/me/profile` — 프로필 조회
@@ -1279,6 +1315,7 @@
 | API-14 | `PUT` | `/users/me/settings` | 설정 수정 | 필수 | ✅ |
 | API-15 | `DELETE` | `/users/me/data` | 데이터 초기화 | 선택 | ✅ |
 | API-16 | `GET` | `/exercises` | 운동 종목 목록 | 필수 | ✅ |
+| API-17 | `GET` | `/auth/email/check` | 이메일 중복 확인 | 선택 | ❌ |
 
 ---
 

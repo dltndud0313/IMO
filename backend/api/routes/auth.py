@@ -1,6 +1,7 @@
 import time
 
 from fastapi import APIRouter, Depends, status
+from pydantic import EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
@@ -18,6 +19,7 @@ from core.security import (
 )
 from models.user import User, UserSettings
 from schemas.auth import (
+    EmailCheckResponse,
     LoginResponse,
     RefreshRequest,
     RefreshResponse,
@@ -27,6 +29,20 @@ from schemas.auth import (
 )
 
 router = APIRouter()
+
+
+@router.get(
+    "/email/check",
+    dependencies=[Depends(rate_limit_by_ip("email_check", 20, 60))],
+)
+async def check_email(email: EmailStr, db: AsyncSession = Depends(get_db)):
+    """이메일 사용 가능 여부 확인 — signup 입력 즉시 검증용.
+
+    rate limit 분당 20회 (이메일 enumeration 공격 속도 제한).
+    """
+    result = await db.execute(select(User).where(User.email == email))
+    available = result.scalar_one_or_none() is None
+    return success_response(EmailCheckResponse(available=available).model_dump(by_alias=True))
 
 
 @router.post(
