@@ -29,14 +29,12 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
   _CalibrationStage _stage = _CalibrationStage.ready;
   StreamSubscription? _statusSubscription;
 
-  String get _exerciseTitle =>
-      _exerciseNames[widget.exerciseId] ?? _exerciseNames['pushup']!;
-
   @override
   void initState() {
     super.initState();
-    _statusSubscription =
-        getIt<CalibrationRepository>().status.listen(_handleCalibrationStatus);
+    _statusSubscription = getIt<CalibrationRepository>().status.listen(
+      _handleCalibrationStatus,
+    );
     if (widget.autoStart) {
       _startCalibration(sendToPi: false);
     }
@@ -75,8 +73,7 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
-      title: _exerciseTitle,
-      subtitle: '캘리브레이션',
+      title: '캘리브레이션',
       showBackButton: _stage != _CalibrationStage.measuring,
       onBack: () => context.go('/sensor-guide?exercise=${widget.exerciseId}'),
       scrollable: true,
@@ -389,9 +386,3 @@ class _CalibrationPalette {
   final IconData icon;
   final Color color;
 }
-
-const _exerciseNames = {
-  'pushup': '푸시업',
-  'lateral_raise': '싸레레',
-  'bicep_curl': '이두컬',
-};

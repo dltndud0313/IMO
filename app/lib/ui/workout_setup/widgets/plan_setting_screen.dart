@@ -25,11 +25,7 @@ class _PlanSettingScreenState extends State<PlanSettingScreen> {
   int _restSeconds = 60;
   bool _submitting = false;
 
-  String get _exerciseTitle =>
-      _exerciseNames[widget.exerciseId] ?? _exerciseNames['pushup']!;
-
-  int get _totalReps =>
-      _targetRepsPerSet.fold(0, (sum, reps) => sum + reps);
+  int get _totalReps => _targetRepsPerSet.fold(0, (sum, reps) => sum + reps);
 
   int get _estimatedMinutes =>
       ((_totalReps * 3 + _restSeconds * (_setCount - 1)) / 60).ceil();
@@ -67,10 +63,10 @@ class _PlanSettingScreenState extends State<PlanSettingScreen> {
         targetRepsPerSet: _targetRepsPerSet,
         restSec: _restSeconds,
       );
-      final ack = await repo.planAck.map<Object?>((message) => message).first.timeout(
-        const Duration(seconds: 5),
-        onTimeout: () => null,
-      );
+      final ack = await repo.planAck
+          .map<Object?>((message) => message)
+          .first
+          .timeout(const Duration(seconds: 5), onTimeout: () => null);
       if (ack is PlanAckMessage && !ack.accepted) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -84,9 +80,9 @@ class _PlanSettingScreenState extends State<PlanSettingScreen> {
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Pi connection failed.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Pi connection failed.')));
       }
     } finally {
       if (mounted) {
@@ -98,8 +94,7 @@ class _PlanSettingScreenState extends State<PlanSettingScreen> {
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
-      title: _exerciseTitle,
-      subtitle: '운동 계획 설정',
+      title: '운동 계획 설정',
       showBackButton: true,
       onBack: () => context.go('/workout-guide?exercise=${widget.exerciseId}'),
       scrollable: true,
@@ -116,10 +111,8 @@ class _PlanSettingScreenState extends State<PlanSettingScreen> {
             description: '최대 10세트',
             value: _setCount,
             suffix: '',
-            onDecrease: () =>
-                _syncSetCount((_setCount - 1).clamp(1, 10)),
-            onIncrease: () =>
-                _syncSetCount((_setCount + 1).clamp(1, 10)),
+            onDecrease: () => _syncSetCount((_setCount - 1).clamp(1, 10)),
+            onIncrease: () => _syncSetCount((_setCount + 1).clamp(1, 10)),
           ),
           const SizedBox(height: AppSpacing.md),
           _SettingCard(
@@ -321,9 +314,3 @@ class _SummaryLine extends StatelessWidget {
     );
   }
 }
-
-const _exerciseNames = {
-  'pushup': '푸시업',
-  'lateral_raise': '싸레레',
-  'bicep_curl': '이두컬',
-};
