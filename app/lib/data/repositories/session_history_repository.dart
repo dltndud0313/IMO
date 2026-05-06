@@ -34,7 +34,16 @@ class SessionHistoryRepository {
   Future<List<WorkoutSession>> getSessionsByDate(String dateYYYYMMDD) async {
     final data = await _api.getSessions(date: dateYYYYMMDD, size: 50);
     final rawList = data['sessions'] as List;
-    return rawList.map((j) => _parseSummary(j as Map<String, dynamic>)).toList();
+    final filtered = rawList.where((j) {
+      final session = j as Map<String, dynamic>;
+      final date = session['date']?.toString();
+      final startTime = session['startTime']?.toString();
+      return date == dateYYYYMMDD ||
+          (startTime != null && startTime.startsWith(dateYYYYMMDD));
+    });
+    return filtered
+        .map((j) => _parseSummary(j as Map<String, dynamic>))
+        .toList();
   }
 
   /// 세션 상세 조회 (repDetails, graphs 포함)
@@ -51,10 +60,35 @@ class SessionHistoryRepository {
   /// 호출하거나, 전용 StatsRepository를 만들어서 위임합니다.
   
   WorkoutSession _parseSummary(Map<String, dynamic> json) {
+    final start = DateTime.parse(json['startTime'] as String);
+    final end = DateTime.parse(json['endTime'] as String);
+    final durationSec = end.difference(start).inSeconds.clamp(0, 1 << 31);
+    final totalSets = json['totalSets'] as int? ?? 0;
+    final totalReps = json['totalReps'] as int? ?? 0;
+
     // getSessions API 응답에는 간략화된 정보만 들어있음.
     // 임시로 필요한 값만 채워 넣기
     return WorkoutSession.fromJson({
-      ...json,
+      'session_id': json['sessionId'],
+      'exercise_type': json['exerciseType'],
+      'status': 'completed',
+      'end_reason': 'unknown',
+      'started_at': start.toIso8601String(),
+      'ended_at': end.toIso8601String(),
+      'duration_sec': durationSec,
+      'set_count': totalSets,
+      'target_reps_per_set': <int>[],
+      'actual_reps_per_set': totalSets > 0
+          ? List<int>.filled(totalSets, totalReps ~/ totalSets)
+          : <int>[],
+      'rest_sec': 0,
+      'total_reps': totalReps,
+      'valid_reps': totalReps,
+      'avg_target_muscle': (json['avgTargetActivation'] as num?)?.toDouble() ?? 0,
+      'avg_assist_muscle': 0,
+      'avg_compensator': 0,
+      'compensation_count': 0,
+      'set_results': [],
       'totalDurationSeconds': 0, // 없는 값은 더미
       'sets': [], // 
       'overallSummary': {

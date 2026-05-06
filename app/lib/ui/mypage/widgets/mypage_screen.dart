@@ -21,6 +21,8 @@ class _MyPageScreenState extends State<MyPageScreen> {
   bool _voiceCue = true;
   bool _hapticCue = true;
   UserProfile? _profile;
+  bool _profileLoading = true;
+  String? _profileLoadError;
 
   @override
   void initState() {
@@ -29,15 +31,27 @@ class _MyPageScreenState extends State<MyPageScreen> {
   }
 
   Future<void> _loadProfile() async {
+    setState(() {
+      _profileLoading = true;
+      _profileLoadError = null;
+    });
     try {
       final profile = await getIt<UserProfileRepository>().getProfile(
         forceRefresh: true,
       );
       if (mounted) {
-        setState(() => _profile = profile);
+        setState(() {
+          _profile = profile;
+          _profileLoading = false;
+        });
       }
     } catch (_) {
-      // Keep the existing placeholder when profile loading fails.
+      if (mounted) {
+        setState(() {
+          _profileLoading = false;
+          _profileLoadError = '프로필 정보를 불러오지 못했습니다.';
+        });
+      }
     }
   }
 
@@ -51,8 +65,16 @@ class _MyPageScreenState extends State<MyPageScreen> {
         children: [
           _ProfileCard(
             profile: _profile,
+            loading: _profileLoading,
             onEdit: () => context.go('/profile-edit'),
           ),
+          if (_profileLoadError != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            _ProfileErrorCard(
+              message: _profileLoadError!,
+              onRetry: _loadProfile,
+            ),
+          ],
           const SizedBox(height: AppSpacing.sectionGap),
           Text('앱 설정', style: AppTextStyles.sectionTitle),
           const SizedBox(height: AppSpacing.sm),
@@ -168,9 +190,14 @@ class _MyPageScreenState extends State<MyPageScreen> {
 }
 
 class _ProfileCard extends StatelessWidget {
-  const _ProfileCard({required this.profile, required this.onEdit});
+  const _ProfileCard({
+    required this.profile,
+    required this.loading,
+    required this.onEdit,
+  });
 
   final UserProfile? profile;
+  final bool loading;
   final VoidCallback onEdit;
 
   @override
@@ -178,54 +205,62 @@ class _ProfileCard extends StatelessWidget {
     return ImoCard(
       variant: ImoCardVariant.hero,
       paddingSize: ImoCardPadding.lg,
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 58,
-            height: 58,
-            decoration: const BoxDecoration(
-              color: AppColors.cardSubtle,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.person_outline_rounded,
-              color: AppColors.textTertiary,
-              size: 30,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  profile?.nickname ?? 'x',
-                  style: AppTextStyles.sectionTitle,
+          Row(
+            children: [
+              Container(
+                width: 58,
+                height: 58,
+                decoration: const BoxDecoration(
+                  color: AppColors.cardSubtle,
+                  shape: BoxShape.circle,
                 ),
-                const SizedBox(height: AppSpacing.xxs),
-                Text(_profileSummary, style: AppTextStyles.body),
-              ],
-            ),
-          ),
-          InkWell(
-            borderRadius: BorderRadius.circular(AppSpacing.pillRadius),
-            onTap: onEdit,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.xs,
-                vertical: AppSpacing.xs,
+                child: const Icon(
+                  Icons.person_outline_rounded,
+                  color: AppColors.textTertiary,
+                  size: 30,
+                ),
               ),
-              child: Row(
-                children: [
-                  Text('프로필 수정', style: AppTextStyles.caption),
-                  const Icon(
-                    Icons.chevron_right_rounded,
-                    color: AppColors.textTertiary,
-                    size: 18,
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      loading ? '불러오는 중' : profile?.nickname ?? '프로필 없음',
+                      style: AppTextStyles.sectionTitle,
+                    ),
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      loading ? '프로필 정보를 확인하고 있어요' : _profileSummary,
+                      style: AppTextStyles.body,
+                    ),
+                  ],
+                ),
+              ),
+              InkWell(
+                borderRadius: BorderRadius.circular(AppSpacing.pillRadius),
+                onTap: onEdit,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.xs,
+                    vertical: AppSpacing.xs,
                   ),
-                ],
+                  child: Row(
+                    children: [
+                      Text('프로필 수정', style: AppTextStyles.caption),
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        color: AppColors.textTertiary,
+                        size: 18,
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
         ],
       ),
@@ -235,7 +270,7 @@ class _ProfileCard extends StatelessWidget {
   String get _profileSummary {
     final currentProfile = profile;
     if (currentProfile == null) {
-      return '31세 여성 170cm 65kg';
+      return '프로필 정보를 불러오지 못했습니다';
     }
     final genderLabel = switch (currentProfile.gender) {
       'MALE' => '남성',
@@ -245,6 +280,32 @@ class _ProfileCard extends StatelessWidget {
     return '${currentProfile.age}세 $genderLabel '
         '${currentProfile.heightCm.round()}cm '
         '${currentProfile.weightKg.round()}kg';
+  }
+}
+
+class _ProfileErrorCard extends StatelessWidget {
+  const _ProfileErrorCard({
+    required this.message,
+    required this.onRetry,
+  });
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return ImoCard(
+      variant: ImoCardVariant.subtle,
+      paddingSize: ImoCardPadding.md,
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline_rounded, color: AppColors.warning),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(child: Text(message, style: AppTextStyles.bodySmall)),
+          TextButton(onPressed: onRetry, child: const Text('다시 시도')),
+        ],
+      ),
+    );
   }
 }
 

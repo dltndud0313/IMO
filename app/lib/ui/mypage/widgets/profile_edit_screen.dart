@@ -27,6 +27,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   String? _passwordConfirmError;
   String _gender = '여성';
   UserProfile? _profile;
+  String? _profileLoadError;
   bool _submitting = false;
   bool _changingPassword = false;
 
@@ -57,13 +58,16 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       }
       setState(() {
         _profile = profile;
+        _profileLoadError = null;
         _nicknameController.text = profile.nickname;
         _heightController.text = profile.heightCm.round().toString();
         _weightController.text = profile.weightKg.round().toString();
         _gender = _genderLabel(profile.gender);
       });
     } catch (_) {
-      // Keep the existing placeholder values when profile loading fails.
+      if (mounted) {
+        setState(() => _profileLoadError = '프로필 정보를 불러오지 못했습니다.');
+      }
     }
   }
 
@@ -246,6 +250,26 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
             ],
           ),
           const SizedBox(height: AppSpacing.lg),
+          if (_profileLoadError != null) ...[
+            ImoCard(
+              variant: ImoCardVariant.subtle,
+              paddingSize: ImoCardPadding.md,
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline_rounded,
+                      color: AppColors.warning),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      _profileLoadError!,
+                      style: AppTextStyles.bodySmall,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+          ],
           ImoCard(
             paddingSize: ImoCardPadding.none,
             child: Column(
