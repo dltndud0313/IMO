@@ -4,26 +4,87 @@ import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
 
 class BalanceTab extends StatelessWidget {
-  const BalanceTab({super.key});
+  const BalanceTab({super.key, this.data});
+
+  final Map<String, dynamic>? data;
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
-      key: ValueKey('balance'),
+    final pairs = (data?['balancePairs'] as List?)
+            ?.whereType<Map<String, dynamic>>()
+            .toList() ??
+        const <Map<String, dynamic>>[];
+    return Column(
+      key: const ValueKey('balance'),
       children: [
-        _BalanceCard(),
-        SizedBox(height: AppSpacing.md),
-        _BalanceNotice(),
+        _BalanceCard(pairs: pairs),
+        const SizedBox(height: AppSpacing.md),
+        const _BalanceNotice(),
       ],
     );
   }
 }
 
 class _BalanceCard extends StatelessWidget {
-  const _BalanceCard();
+  const _BalanceCard({required this.pairs});
+
+  final List<Map<String, dynamic>> pairs;
 
   @override
   Widget build(BuildContext context) {
+    if (pairs.isEmpty) {
+      return ImoCard(
+        paddingSize: ImoCardPadding.lg,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('좌우 밸런스', style: AppTextStyles.sectionTitle),
+            const SizedBox(height: AppSpacing.md),
+            for (var i = 0; i < 3; i++)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 60,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: AppColors.cardSubtle,
+                            borderRadius:
+                                BorderRadius.circular(AppSpacing.pillRadius),
+                          ),
+                        ),
+                        const Spacer(),
+                        Container(
+                          width: 80,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: AppColors.cardSubtle,
+                            borderRadius:
+                                BorderRadius.circular(AppSpacing.pillRadius),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    ClipRRect(
+                      borderRadius:
+                          BorderRadius.circular(AppSpacing.pillRadius),
+                      child: Container(
+                        height: 34,
+                        color: AppColors.cardSubtle,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      );
+    }
     return ImoCard(
       paddingSize: ImoCardPadding.lg,
       child: Column(
@@ -31,13 +92,23 @@ class _BalanceCard extends StatelessWidget {
         children: [
           Text('좌우 밸런스', style: AppTextStyles.sectionTitle),
           const SizedBox(height: AppSpacing.md),
-          const _BalanceRow(label: '가슴', left: 85, right: 78),
-          const _BalanceRow(label: '삼두근', left: 72, right: 75),
-          const _BalanceRow(label: '어깨', left: 68, right: 82),
+          for (final pair in pairs)
+            _BalanceRow(
+              label: pair['muscleName']?.toString() ?? 'unknown',
+              left: _avgActivation(pair['left']),
+              right: _avgActivation(pair['right']),
+            ),
         ],
       ),
     );
   }
+}
+
+int _avgActivation(dynamic value) {
+  if (value is Map<String, dynamic>) {
+    return ((value['avgActivation'] as num?)?.toDouble() ?? 0).round();
+  }
+  return 0;
 }
 
 class _BalanceRow extends StatelessWidget {
@@ -72,12 +143,12 @@ class _BalanceRow extends StatelessWidget {
               children: [
                 const Spacer(flex: 1),
                 Expanded(
-                  flex: left,
+                  flex: left.clamp(1, 100),
                   child: Container(height: 34, color: AppColors.primary),
                 ),
                 Container(width: 5, height: 34, color: AppColors.card),
                 Expanded(
-                  flex: right,
+                  flex: right.clamp(1, 100),
                   child: Container(height: 34, color: AppColors.secondary),
                 ),
                 const Spacer(flex: 1),

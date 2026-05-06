@@ -4,36 +4,53 @@ import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
 
 class TrendTab extends StatelessWidget {
-  const TrendTab({super.key});
+  const TrendTab({super.key, this.data});
+
+  final Map<String, dynamic>? data;
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
-      key: ValueKey('trend'),
+    final trends = data?['trends'] as Map<String, dynamic>?;
+    final fatigue = _trendValues(trends, 'fatigue');
+    final targetActivation = _trendValues(trends, 'targetActivation');
+    final compensationRate = _trendValues(trends, 'compensationRate');
+    return Column(
+      key: const ValueKey('trend'),
       children: [
         _TrendCard(
           title: '근피로도 추세',
-          values: [40, 45, 55, 50, 62, 70, 68],
+          values: fatigue,
           color: AppColors.warning,
           unit: '%',
         ),
-        SizedBox(height: AppSpacing.md),
+        const SizedBox(height: AppSpacing.md),
         _TrendCard(
           title: '목표근 사용 추세',
-          values: [55, 62, 68, 70, 72, 75, 78],
+          values: targetActivation,
           color: AppColors.primary,
           unit: '%',
         ),
-        SizedBox(height: AppSpacing.md),
+        const SizedBox(height: AppSpacing.md),
         _TrendCard(
           title: '보상동작 추세',
-          values: [5, 4, 6, 3, 4, 2, 3],
+          values: compensationRate,
           color: AppColors.error,
-          unit: '회',
+          unit: '%',
         ),
       ],
     );
   }
+}
+
+List<int> _trendValues(Map<String, dynamic>? trends, String key) {
+  final trend = trends?[key] as Map<String, dynamic>?;
+  final values = (trend?['values'] as List?)
+          ?.whereType<num>()
+          .map((value) => value.round())
+          .take(7)
+          .toList() ??
+      const <int>[];
+  return values;
 }
 
 class _TrendCard extends StatelessWidget {
@@ -63,29 +80,41 @@ class _TrendCard extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                for (var i = 0; i < values.length; i++) ...[
+                for (var i = 0; i < 7; i++) ...[
                   Expanded(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        Text('${values[i]}$unit', style: AppTextStyles.caption),
+                        if (values.isNotEmpty && i < values.length)
+                          Text('${values[i]}$unit', style: AppTextStyles.caption),
                         const SizedBox(height: AppSpacing.xs),
                         Container(
-                          height: 6,
+                          height: values.isNotEmpty && i < values.length ? 6 : 60,
                           decoration: BoxDecoration(
-                            color: color,
+                            color:
+                                values.isNotEmpty && i < values.length
+                                    ? color
+                                    : AppColors.cardSubtle,
                             borderRadius: BorderRadius.circular(
                               AppSpacing.pillRadius,
                             ),
                           ),
                         ),
                         const SizedBox(height: AppSpacing.xs),
-                        Text(_days[i], style: AppTextStyles.caption),
+                        Container(
+                          width: 20,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: AppColors.cardSubtle,
+                            borderRadius: BorderRadius.circular(
+                              AppSpacing.pillRadius,
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ),
-                  if (i != values.length - 1)
-                    const SizedBox(width: AppSpacing.xs),
+                  if (i != 6) const SizedBox(width: AppSpacing.xs),
                 ],
               ],
             ),
@@ -95,5 +124,3 @@ class _TrendCard extends StatelessWidget {
     );
   }
 }
-
-const _days = ['월', '화', '수', '목', '금', '토', '일'];

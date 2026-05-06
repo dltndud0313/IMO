@@ -4,7 +4,9 @@ import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
 
 class HeatmapTab extends StatefulWidget {
-  const HeatmapTab({super.key});
+  const HeatmapTab({super.key, this.data});
+
+  final Map<String, dynamic>? data;
 
   @override
   State<HeatmapTab> createState() => _HeatmapTabState();
@@ -15,6 +17,11 @@ class _HeatmapTabState extends State<HeatmapTab> {
 
   @override
   Widget build(BuildContext context) {
+    final muscles = (widget.data?['muscles'] as List?)
+            ?.whereType<Map<String, dynamic>>()
+            .toList() ??
+        const <Map<String, dynamic>>[];
+
     return ImoCard(
       key: const ValueKey('heatmap'),
       paddingSize: ImoCardPadding.lg,
@@ -38,13 +45,13 @@ class _HeatmapTabState extends State<HeatmapTab> {
                         : Color(0x222563EB),
                   ),
                 ),
-                _MuscleLabel(label: '어깨\n7%\n2일 전', top: 56, left: 8),
-                _MuscleLabel(label: '가슴\n7%\n2일 전', top: 126, left: 8),
-                _MuscleLabel(label: '이두\n7%\n2일 전', top: 196, left: 8),
-                _MuscleLabel(label: '복근\n7%\n2일 전', top: 266, left: 8),
-                _MuscleLabel(label: '상부 승모근\n7%\n2일 전', top: 56, right: 8),
-                _MuscleLabel(label: '전완근\n7%\n2일 전', top: 176, right: 8),
-                _MuscleLabel(label: '햄스트링\n7%\n2일 전', top: 266, right: 8),
+                for (var i = 0; i < muscles.take(7).length; i++)
+                  _MuscleLabel(
+                    label: _muscleLabel(muscles[i]),
+                    top: _labelPositions[i].top,
+                    left: _labelPositions[i].left,
+                    right: _labelPositions[i].right,
+                  ),
               ],
             ),
           ),
@@ -178,6 +185,31 @@ class _MuscleLabel extends StatelessWidget {
       ),
     );
   }
+}
+
+String _muscleLabel(Map<String, dynamic> muscle) {
+  final name = muscle['muscleName']?.toString() ?? muscle['muscleId']?.toString() ?? 'unknown';
+  final activation = ((muscle['avgActivation'] as num?)?.toDouble() ?? 0).round();
+  final sessionCount = muscle['sessionCount'] ?? 0;
+  return '$name\n$activation%\n$sessionCount회';
+}
+
+const _labelPositions = [
+  _LabelPosition(top: 56, left: 8),
+  _LabelPosition(top: 126, left: 8),
+  _LabelPosition(top: 196, left: 8),
+  _LabelPosition(top: 266, left: 8),
+  _LabelPosition(top: 56, right: 8),
+  _LabelPosition(top: 176, right: 8),
+  _LabelPosition(top: 266, right: 8),
+];
+
+class _LabelPosition {
+  const _LabelPosition({required this.top, this.left, this.right});
+
+  final double top;
+  final double? left;
+  final double? right;
 }
 
 class _LegendDot extends StatelessWidget {
