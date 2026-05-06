@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../config/dependencies.dart';
+import '../../../data/repositories/session_history_repository.dart';
+import '../../../domain/models/workout_session.dart';
 import '../../core/layouts/app_scaffold.dart';
 import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
@@ -13,8 +16,20 @@ class HistoryScreen extends StatefulWidget {
 }
 
 class _HistoryScreenState extends State<HistoryScreen> {
-  DateTime _visibleMonth = DateTime(2026, 4);
-  int _selectedDay = 29;
+  DateTime _visibleMonth = DateTime(
+    DateTime.now().year,
+    DateTime.now().month,
+  );
+  int _selectedDay = DateTime.now().day;
+  List<WorkoutSession> _daySessions = const [];
+  bool _loadingSessions = true;
+  String? _sessionLoadError;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSelectedDaySessions();
+  }
 
   void _moveMonth(int delta) {
     setState(() {
@@ -23,6 +38,45 @@ class _HistoryScreenState extends State<HistoryScreen> {
           DateUtils.getDaysInMonth(_visibleMonth.year, _visibleMonth.month);
       _selectedDay = _selectedDay.clamp(1, lastDay);
     });
+    _loadSelectedDaySessions();
+  }
+
+  void _selectDay(int day) {
+    setState(() => _selectedDay = day);
+    _loadSelectedDaySessions();
+  }
+
+  Future<void> _loadSelectedDaySessions() async {
+    setState(() {
+      _loadingSessions = true;
+      _sessionLoadError = null;
+    });
+    try {
+      final sessions = await getIt<SessionHistoryRepository>()
+          .getSessionsByDate(_selectedDateText);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _daySessions = sessions;
+        _loadingSessions = false;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _daySessions = const [];
+        _loadingSessions = false;
+        _sessionLoadError = '운동 기록을 불러오지 못했습니다.';
+      });
+    }
+  }
+
+  String get _selectedDateText {
+    final month = _visibleMonth.month.toString().padLeft(2, '0');
+    final day = _selectedDay.toString().padLeft(2, '0');
+    return '${_visibleMonth.year}-$month-$day';
   }
 
   @override
@@ -42,15 +96,26 @@ class _HistoryScreenState extends State<HistoryScreen> {
           _CalendarCard(
             visibleMonth: _visibleMonth,
             selectedDay: _selectedDay,
-            onDateSelected: (date) => setState(() => _selectedDay = date),
+            onDateSelected: _selectDay,
           ),
           const SizedBox(height: AppSpacing.lg),
-          Text('2026-4-29 요약', style: AppTextStyles.sectionTitle),
+          Text('$_selectedDateText 요약', style: AppTextStyles.sectionTitle),
           const SizedBox(height: AppSpacing.sm),
-          _DaySummaryCard(
-            onTap: () =>
-                context.go('/history-detail?session=sess_20260429_001'),
-          ),
+          if (_loadingSessions)
+            const _HistoryInfoCard(message: '운동 기록을 불러오는 중입니다.')
+          else if (_sessionLoadError != null)
+            _HistoryInfoCard(message: _sessionLoadError!)
+          else if (_daySessions.isEmpty)
+            const _HistoryInfoCard(message: '이 날의 운동 기록이 없습니다.')
+          else
+            for (final session in _daySessions) ...[
+              _DaySummaryCard(
+                session: session,
+                onTap: () =>
+                    context.go('/history-detail?session=${session.sessionId}'),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+            ],
         ],
       ),
     );
@@ -215,9 +280,32 @@ class _DateCell extends StatelessWidget {
   }
 }
 
-class _DaySummaryCard extends StatelessWidget {
-  const _DaySummaryCard({required this.onTap});
+class _HistoryInfoCard extends StatelessWidget {
+  const _HistoryInfoCard({required this.message});
 
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return ImoCard(
+      paddingSize: ImoCardPadding.lg,
+      child: Center(
+        child: Text(
+          message,
+          style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
+        ),
+      ),
+    );
+  }
+}
+
+class _DaySummaryCard extends StatelessWidget {
+  const _DaySummaryCard({
+    required this.session,
+    required this.onTap,
+  });
+
+  final WorkoutSession session;
   final VoidCallback onTap;
 
   @override
@@ -231,9 +319,12 @@ class _DaySummaryCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text('푸시업', style: AppTextStyles.sectionTitle),
+              Text(session.exerciseType.label, style: AppTextStyles.sectionTitle),
               const Spacer(),
-              Text('30회 · 1분', style: AppTextStyles.body),
+              Text(
+                '${session.totalReps}회 · ${session.durationSec ~/ 60}분',
+                style: AppTextStyles.body,
+              ),
             ],
           ),
           const SizedBox(height: AppSpacing.md),
