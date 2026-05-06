@@ -100,6 +100,13 @@ class MuscleMapState {
   }
 }
 
+MuscleActivationLevel resolveMuscleActivationLevel(
+  double value, {
+  MuscleMapValueKind kind = MuscleMapValueKind.activation,
+}) {
+  return _toActivationLevel(classifyMuscleMapValue(value, kind: kind));
+}
+
 double _clampRatio(double value) => value.clamp(0.0, 1.0).toDouble();
 
 MuscleActivationLevel _toActivationLevel(MuscleMapStatus status) {
