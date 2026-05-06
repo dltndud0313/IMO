@@ -26,6 +26,22 @@ class AuthService {
 
   AuthService(this._dio);
 
+  Future<bool> checkEmail(String email) async {
+    try {
+      final res = await _dio.get(
+        '/auth/email/check',
+        queryParameters: {'email': email},
+      );
+      if (res.data['success'] == true) {
+        final data = res.data['data'] as Map<String, dynamic>;
+        return data['available'] == true;
+      }
+      _throwApiError(res.data, 'Email check failed');
+    } on DioException catch (error) {
+      _throwApiError(error.response?.data, 'Email check failed');
+    }
+  }
+
   /// API-01: 회원가입
   Future<AuthTokens> signUp({
     required String email,

@@ -19,11 +19,16 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   final _nicknameController = TextEditingController(text: 'x');
   final _heightController = TextEditingController(text: '170');
   final _weightController = TextEditingController(text: '65');
+  final _currentPasswordController = TextEditingController();
   final _passwordController = TextEditingController();
   final _passwordConfirmController = TextEditingController();
+  String? _currentPasswordError;
+  String? _passwordError;
+  String? _passwordConfirmError;
   String _gender = '여성';
   UserProfile? _profile;
   bool _submitting = false;
+  bool _changingPassword = false;
 
   @override
   void initState() {
@@ -36,6 +41,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     _nicknameController.dispose();
     _heightController.dispose();
     _weightController.dispose();
+    _currentPasswordController.dispose();
     _passwordController.dispose();
     _passwordConfirmController.dispose();
     super.dispose();
@@ -101,6 +107,66 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     }
   }
 
+  Future<void> _changePassword() async {
+    final currentPassword = _currentPasswordController.text;
+    final newPassword = _passwordController.text;
+    final confirmPassword = _passwordConfirmController.text;
+    setState(() {
+      _currentPasswordError =
+          currentPassword.isEmpty ? '현재 비밀번호를 입력해주세요.' : null;
+      _passwordError = newPassword == currentPassword
+          ? '현재 비밀번호와 다른 비밀번호를 입력해주세요.'
+          : _isWeakPassword(newPassword)
+              ? '비밀번호가 너무 약해요. 영문과 숫자를 조합해주세요.'
+              : null;
+      _passwordConfirmError =
+          newPassword != confirmPassword ? '비밀번호가 일치하지 않습니다.' : null;
+    });
+    if (_currentPasswordError != null ||
+        _passwordError != null ||
+        _passwordConfirmError != null) {
+      return;
+    }
+
+    setState(() => _changingPassword = true);
+    try {
+      await getIt<UserProfileRepository>().changePassword(
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+      );
+      if (!mounted) {
+        return;
+      }
+      _currentPasswordController.clear();
+      _passwordController.clear();
+      _passwordConfirmController.clear();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('비밀번호가 변경되었습니다.')),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      final message = error.toString().contains('Current password is incorrect')
+          ? '현재 비밀번호가 올바르지 않습니다.'
+          : '비밀번호 변경에 실패했습니다.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _changingPassword = false);
+      }
+    }
+  }
+
+  bool _isWeakPassword(String password) {
+    return password.isEmpty ||
+        password.length < 8 ||
+        !RegExp('[A-Za-z]').hasMatch(password) ||
+        !RegExp(r'\d').hasMatch(password);
+  }
+
   String get _genderCode {
     return switch (_gender) {
       '남성' => 'MALE',
@@ -139,7 +205,8 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
             child: ImoButton(
               label: '비밀번호 변경',
               variant: ImoButtonVariant.secondary,
-              onPressed: () {},
+              loading: _changingPassword,
+              onPressed: _changingPassword ? null : _changePassword,
             ),
           ),
         ],
@@ -245,16 +312,31 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                 Text('비밀번호', style: AppTextStyles.label),
                 const SizedBox(height: AppSpacing.md),
                 ImoTextField(
-                  label: '비밀번호',
-                  hint: '새 비밀번호',
-                  controller: _passwordController,
+                  label: '현재 비밀번호',
+                  hint: '현재 비밀번호',
+                  controller: _currentPasswordController,
+                  errorText: _currentPasswordError,
                   obscureText: true,
                 ),
                 const SizedBox(height: AppSpacing.md),
                 ImoTextField(
-                  label: '비밀번호 확인',
-                  hint: '비밀번호 재입력',
+                  label: '새 비밀번호',
+                  hint: '8자 이상 입력',
+                  controller: _passwordController,
+                  errorText: _passwordError,
+                  obscureText: true,
+                  onChanged: (value) => setState(() {
+                    _passwordError = _isWeakPassword(value)
+                        ? '비밀번호가 너무 약해요. 영문과 숫자를 조합해주세요.'
+                        : null;
+                  }),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                ImoTextField(
+                  label: '새 비밀번호 확인',
+                  hint: '새 비밀번호 재입력',
                   controller: _passwordConfirmController,
+                  errorText: _passwordConfirmError,
                   obscureText: true,
                 ),
               ],

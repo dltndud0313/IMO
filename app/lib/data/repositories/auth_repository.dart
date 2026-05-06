@@ -44,6 +44,10 @@ class AuthRepository {
   }
 
   /// 로그아웃
+  Future<bool> checkEmailAvailable(String email) async {
+    return _authService.checkEmail(email);
+  }
+
   Future<void> logout() async {
     await _prefsService.clearAuthTokens();
     _updateStatus(AuthStatus.unauthenticated);

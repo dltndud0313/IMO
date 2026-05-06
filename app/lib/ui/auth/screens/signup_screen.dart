@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -19,13 +21,17 @@ class _SignupScreenState extends State<SignupScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _passwordConfirmController = TextEditingController();
+  Timer? _emailCheckTimer;
   String? _emailError;
   String? _passwordError;
   String? _confirmError;
+  bool? _emailAvailable;
+  bool _checkingEmail = false;
   bool _submitting = false;
 
   @override
   void dispose() {
+    _emailCheckTimer?.cancel();
     _emailController.dispose();
     _passwordController.dispose();
     _passwordConfirmController.dispose();
@@ -44,6 +50,9 @@ class _SignupScreenState extends State<SignupScreen> {
     });
 
     if (_emailError != null || _passwordError != null || _confirmError != null) {
+      return;
+    }
+    if (!await _checkEmailAvailability(email)) {
       return;
     }
 
@@ -119,6 +128,67 @@ class _SignupScreenState extends State<SignupScreen> {
     return null;
   }
 
+  void _handleEmailChanged(String value) {
+    _emailCheckTimer?.cancel();
+    final email = value.trim();
+    setState(() {
+      _emailError = null;
+      _emailAvailable = null;
+      _checkingEmail = false;
+    });
+
+    if (_validateEmail(email) != null) {
+      return;
+    }
+
+    _emailCheckTimer = Timer(const Duration(milliseconds: 600), () {
+      _checkEmailAvailability(email);
+    });
+  }
+
+  Future<bool> _checkEmailAvailability(String email) async {
+    if (!mounted) {
+      return false;
+    }
+    setState(() {
+      _checkingEmail = true;
+      _emailError = null;
+    });
+
+    try {
+      final available = await getIt<AuthRepository>().checkEmailAvailable(email);
+      if (!mounted || _emailController.text.trim() != email) {
+        return false;
+      }
+      setState(() {
+        _checkingEmail = false;
+        _emailAvailable = available;
+        _emailError = available ? null : '이미 사용 중인 이메일입니다.';
+      });
+      return available;
+    } catch (_) {
+      if (!mounted || _emailController.text.trim() != email) {
+        return false;
+      }
+      setState(() {
+        _checkingEmail = false;
+        _emailAvailable = null;
+        _emailError = '이메일 중복 확인에 실패했습니다.';
+      });
+      return false;
+    }
+  }
+
+  String? get _emailHelperText {
+    if (_checkingEmail) {
+      return '이메일 중복 확인 중입니다.';
+    }
+    if (_emailAvailable == true && _emailError == null) {
+      return '사용 가능한 이메일입니다.';
+    }
+    return null;
+  }
+
   void _clearErrors() {
     if (_emailError != null || _passwordError != null || _confirmError != null) {
       setState(() {
@@ -145,7 +215,8 @@ class _SignupScreenState extends State<SignupScreen> {
             controller: _emailController,
             clearable: true,
             errorText: _emailError,
-            onChanged: (_) => _clearErrors(),
+            helperText: _emailHelperText,
+            onChanged: _handleEmailChanged,
           ),
           const SizedBox(height: AppSpacing.md),
           ImoTextField(
@@ -169,8 +240,10 @@ class _SignupScreenState extends State<SignupScreen> {
           ImoButton(
             label: '가입하기',
             loading: _submitting,
-            disabled: _submitting,
-            onPressed: _submitting ? null : _submit,
+            disabled: _submitting || _checkingEmail || _emailAvailable == false,
+            onPressed: (_submitting || _checkingEmail || _emailAvailable == false)
+                ? null
+                : _submit,
           ),
           const SizedBox(height: AppSpacing.md),
           Center(
