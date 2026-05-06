@@ -19,6 +19,16 @@ class UserProfileRepository {
     _cachedProfile = updated;
   }
 
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) {
+    return _api.changePassword(
+      currentPassword: currentPassword,
+      newPassword: newPassword,
+    );
+  }
+
   void clearCache() {
     _cachedProfile = null;
   }

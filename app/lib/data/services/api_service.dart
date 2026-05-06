@@ -52,16 +52,35 @@ class ApiService {
     required String currentPassword,
     required String newPassword,
   }) async {
-    final res = await _dio.put(
-      '/users/me/password',
-      data: {
-        'currentPassword': currentPassword,
-        'newPassword': newPassword,
-      },
-    );
-    if (res.data['success'] != true) {
-      throw Exception(res.data['error'] ?? 'changePassword failed');
+    try {
+      final res = await _dio.put(
+        '/users/me/password',
+        data: {
+          'currentPassword': currentPassword,
+          'newPassword': newPassword,
+        },
+      );
+      if (res.data['success'] != true) {
+        throw Exception(_apiErrorMessage(res.data, 'changePassword failed'));
+      }
+    } on DioException catch (error) {
+      throw Exception(
+        _apiErrorMessage(error.response?.data, 'changePassword failed'),
+      );
     }
+  }
+
+  String _apiErrorMessage(dynamic body, String fallbackMessage) {
+    if (body is Map<String, dynamic>) {
+      final error = body['error'];
+      if (error is Map<String, dynamic>) {
+        return error['message']?.toString() ?? fallbackMessage;
+      }
+      if (error is String && error.isNotEmpty) {
+        return error;
+      }
+    }
+    return fallbackMessage;
   }
 
   Future<Map<String, dynamic>> getSettings() async {
