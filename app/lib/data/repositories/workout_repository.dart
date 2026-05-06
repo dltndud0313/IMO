@@ -34,8 +34,11 @@ class WorkoutRepository {
   Stream<WorkoutEventMessage> get workoutEvents =>
       _socket.messagesOf<WorkoutEventMessage>();
 
+  Stream<SessionResultMessage> get sessionResultMessages =>
+      _socket.messagesOf<SessionResultMessage>();
+
   Stream<WorkoutSession> get sessionResult =>
-      _socket.messagesOf<SessionResultMessage>().map((message) {
+      sessionResultMessages.map((message) {
         return message.session;
       });
 

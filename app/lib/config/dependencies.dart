@@ -14,6 +14,7 @@ import '../data/repositories/device_connection_repository.dart';
 import '../data/repositories/session_history_repository.dart';
 import '../data/repositories/user_profile_repository.dart';
 import '../data/repositories/workout_repository.dart';
+import '../domain/use_cases/end_workout_session_usecase.dart';
 import '../ui/home/view_model/home_viewmodel.dart';
 
 final getIt = GetIt.instance;
@@ -68,9 +69,17 @@ Future<void> setupDependencies() async {
   getIt.registerLazySingleton(
     () => DeviceConnectionRepository(getIt<PiSocketService>()),
   );
+  getIt.registerLazySingleton(
+    () => EndWorkoutSessionUseCase(
+      getIt<WorkoutRepository>(),
+      getIt<SessionHistoryRepository>(),
+      getIt<LocalSessionRepository>(),
+    ),
+  );
   getIt.registerFactory(HomeViewModel.new);
 
   await getIt<AuthRepository>().init();
+  getIt<EndWorkoutSessionUseCase>().listenAndSaveAutomatically();
 }
 
 Dio _buildBaseDio() {

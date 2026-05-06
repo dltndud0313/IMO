@@ -433,9 +433,12 @@ class WorkoutEventMessage extends PiMessage {
 class SessionResultMessage extends PiMessage {
   const SessionResultMessage({
     required this.session,
-  }) : super(type: PiMessageType.sessionResult);
+    required Map<String, dynamic> payload,
+  })  : _payload = payload,
+        super(type: PiMessageType.sessionResult);
 
   final WorkoutSession session;
+  final Map<String, dynamic> _payload;
 
   factory SessionResultMessage.fromPayload(Map<String, dynamic> payload) {
     final sessionResult = payload['sessionResult'];
@@ -445,11 +448,12 @@ class SessionResultMessage extends PiMessage {
 
     return SessionResultMessage(
       session: SessionResultDto.fromJson(resultPayload).toDomain(),
+      payload: resultPayload,
     );
   }
 
   @override
-  Map<String, dynamic> get payload => session.toJson();
+  Map<String, dynamic> get payload => _payload;
 }
 
 class PiErrorMessage extends PiMessage {
