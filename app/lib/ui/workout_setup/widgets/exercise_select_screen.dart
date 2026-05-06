@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/layouts/app_scaffold.dart';
 import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
+import 'exercise_catalog_data.dart';
 
 class ExerciseSelectScreen extends StatelessWidget {
   const ExerciseSelectScreen({super.key});
@@ -13,6 +14,7 @@ class ExerciseSelectScreen extends StatelessWidget {
     return AppScaffold(
       title: '운동하기',
       showBackButton: true,
+      onBack: () => context.go('/home'),
       scrollable: true,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -39,12 +41,12 @@ class ExerciseSelectScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '오늘은 어떤 운동을 할까요?',
+                      '어떤 부위를 운동할까요?',
                       style: AppTextStyles.title.copyWith(fontSize: 23),
                     ),
                     const SizedBox(height: AppSpacing.xxs),
                     Text(
-                      '실시간 EMG·IMU 분석을 받을 수 있어요',
+                      '대분류를 먼저 고르면 다음 단계에서 운동 종목을 선택할 수 있어요.',
                       style: AppTextStyles.bodyLg,
                     ),
                   ],
@@ -53,10 +55,12 @@ class ExerciseSelectScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.sectionGap),
-          for (final exercise in _exerciseOptions) ...[
-            _ExerciseOptionCard(
-              option: exercise,
-              onTap: () => context.go('/workout-guide?exercise=${exercise.id}'),
+          for (final category in exerciseCategoryOptions) ...[
+            _ExerciseCategoryCard(
+              category: category,
+              exerciseCount: exercisesByCategory(category.id).length,
+              onTap: () =>
+                  context.go('/workout-exercises?category=${category.id}'),
             ),
             const SizedBox(height: AppSpacing.md),
           ],
@@ -66,14 +70,21 @@ class ExerciseSelectScreen extends StatelessWidget {
   }
 }
 
-class _ExerciseOptionCard extends StatelessWidget {
-  const _ExerciseOptionCard({required this.option, required this.onTap});
+class _ExerciseCategoryCard extends StatelessWidget {
+  const _ExerciseCategoryCard({
+    required this.category,
+    required this.exerciseCount,
+    required this.onTap,
+  });
 
-  final _ExerciseOption option;
+  final ExerciseCategoryOption category;
+  final int exerciseCount;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final hasExercises = exerciseCount > 0;
+
     return ImoCard(
       interactive: true,
       onTap: onTap,
@@ -87,18 +98,18 @@ class _ExerciseOptionCard extends StatelessWidget {
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: option.gradient,
+                colors: category.gradient,
               ),
               borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
               boxShadow: [
                 BoxShadow(
-                  color: option.gradient.last.withValues(alpha: 0.18),
+                  color: category.gradient.last.withValues(alpha: 0.18),
                   blurRadius: 16,
                   offset: const Offset(0, 6),
                 ),
               ],
             ),
-            child: Icon(option.icon, color: AppColors.card, size: 26),
+            child: Icon(category.icon, color: AppColors.card, size: 26),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
@@ -109,20 +120,23 @@ class _ExerciseOptionCard extends StatelessWidget {
                   children: [
                     Flexible(
                       child: Text(
-                        option.title,
+                        category.title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: AppTextStyles.sectionTitle,
                       ),
                     ),
                     const SizedBox(width: AppSpacing.xs),
-                    Text(option.titleEn, style: AppTextStyles.caption),
+                    ImoChip(
+                      label: hasExercises ? '$exerciseCount개 운동' : '준비중',
+                      variant: hasExercises
+                          ? ImoChipVariant.selected
+                          : ImoChipVariant.outline,
+                    ),
                   ],
                 ),
                 const SizedBox(height: AppSpacing.xxs),
-                Text(option.target, style: AppTextStyles.bodyLg),
-                const SizedBox(height: AppSpacing.xs),
-                const ImoChip(label: '초급', variant: ImoChipVariant.selected),
+                Text(category.description, style: AppTextStyles.bodyLg),
               ],
             ),
           ),
@@ -136,48 +150,3 @@ class _ExerciseOptionCard extends StatelessWidget {
     );
   }
 }
-
-class _ExerciseOption {
-  const _ExerciseOption({
-    required this.id,
-    required this.title,
-    required this.titleEn,
-    required this.target,
-    required this.icon,
-    required this.gradient,
-  });
-
-  final String id;
-  final String title;
-  final String titleEn;
-  final String target;
-  final IconData icon;
-  final List<Color> gradient;
-}
-
-const _exerciseOptions = [
-  _ExerciseOption(
-    id: 'pushup',
-    title: '푸시업',
-    titleEn: 'Push-up',
-    target: '가슴 · 삼두 · 어깨',
-    icon: Icons.fitness_center_rounded,
-    gradient: [AppColors.primary, AppColors.primaryStrong],
-  ),
-  _ExerciseOption(
-    id: 'lateral_raise',
-    title: '싸레레',
-    titleEn: 'Lateral Raise',
-    target: '어깨 (측면)',
-    icon: Icons.accessibility_new_rounded,
-    gradient: [AppColors.secondary, Color(0xFF5DC447)],
-  ),
-  _ExerciseOption(
-    id: 'bicep_curl',
-    title: '이두컬',
-    titleEn: 'Bicep Curl',
-    target: '이두근',
-    icon: Icons.sports_gymnastics_rounded,
-    gradient: [Color(0xFFFFB371), AppColors.warning],
-  ),
-];

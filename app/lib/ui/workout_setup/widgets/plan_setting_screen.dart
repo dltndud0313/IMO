@@ -24,12 +24,9 @@ class _PlanSettingScreenState extends State<PlanSettingScreen> {
   List<int> _targetRepsPerSet = [12, 12, 10];
   int _restSeconds = 60;
   bool _submitting = false;
+  bool _perSetMode = false;
 
-  String get _exerciseTitle =>
-      _exerciseNames[widget.exerciseId] ?? _exerciseNames['pushup']!;
-
-  int get _totalReps =>
-      _targetRepsPerSet.fold(0, (sum, reps) => sum + reps);
+  int get _totalReps => _targetRepsPerSet.fold(0, (sum, reps) => sum + reps);
 
   int get _estimatedMinutes =>
       ((_totalReps * 3 + _restSeconds * (_setCount - 1)) / 60).ceil();
@@ -56,6 +53,24 @@ class _PlanSettingScreenState extends State<PlanSettingScreen> {
     });
   }
 
+  void _changeSetReps(int index, int delta) {
+    setState(() {
+      final nextReps = [..._targetRepsPerSet];
+      nextReps[index] = (nextReps[index] + delta).clamp(1, 50);
+      _targetRepsPerSet = nextReps;
+    });
+  }
+
+  void _togglePerSetMode() {
+    setState(() {
+      if (_perSetMode) {
+        final reps = _targetRepsPerSet.first;
+        _targetRepsPerSet = List<int>.filled(_setCount, reps);
+      }
+      _perSetMode = !_perSetMode;
+    });
+  }
+
   Future<void> _submitPlan() async {
     setState(() => _submitting = true);
     try {
@@ -67,10 +82,10 @@ class _PlanSettingScreenState extends State<PlanSettingScreen> {
         targetRepsPerSet: _targetRepsPerSet,
         restSec: _restSeconds,
       );
-      final ack = await repo.planAck.map<Object?>((message) => message).first.timeout(
-        const Duration(seconds: 5),
-        onTimeout: () => null,
-      );
+      final ack = await repo.planAck
+          .map<Object?>((message) => message)
+          .first
+          .timeout(const Duration(seconds: 5), onTimeout: () => null);
       if (ack is PlanAckMessage && !ack.accepted) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -84,9 +99,9 @@ class _PlanSettingScreenState extends State<PlanSettingScreen> {
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Pi connection failed.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Pi connection failed.')));
       }
     } finally {
       if (mounted) {
@@ -98,8 +113,7 @@ class _PlanSettingScreenState extends State<PlanSettingScreen> {
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
-      title: _exerciseTitle,
-      subtitle: '운동 계획 설정',
+      title: '운동 계획 설정',
       showBackButton: true,
       onBack: () => context.go('/workout-guide?exercise=${widget.exerciseId}'),
       scrollable: true,
@@ -116,21 +130,30 @@ class _PlanSettingScreenState extends State<PlanSettingScreen> {
             description: '최대 10세트',
             value: _setCount,
             suffix: '',
-            onDecrease: () =>
-                _syncSetCount((_setCount - 1).clamp(1, 10)),
-            onIncrease: () =>
-                _syncSetCount((_setCount + 1).clamp(1, 10)),
+            onDecrease: () => _syncSetCount((_setCount - 1).clamp(1, 10)),
+            onIncrease: () => _syncSetCount((_setCount + 1).clamp(1, 10)),
           ),
           const SizedBox(height: AppSpacing.md),
           _SettingCard(
             title: '세트당 목표 횟수',
-            description: '모든 세트 동일',
+            description: _perSetMode ? '세트별로 각각 설정' : '모든 세트 동일',
             value: _targetRepsPerSet.first,
             suffix: '',
-            chipLabel: '세트별',
+            chipLabel: _perSetMode ? '전체 동일' : '세트별',
+            chipSelected: _perSetMode,
+            onChipTap: _togglePerSetMode,
             onDecrease: () => _changeAllReps(-1),
             onIncrease: () => _changeAllReps(1),
+            showCounter: !_perSetMode,
           ),
+          if (_perSetMode) ...[
+            const SizedBox(height: AppSpacing.sm),
+            _PerSetRepsCard(
+              repsPerSet: _targetRepsPerSet,
+              onDecrease: (index) => _changeSetReps(index, -1),
+              onIncrease: (index) => _changeSetReps(index, 1),
+            ),
+          ],
           const SizedBox(height: AppSpacing.md),
           _SettingCard(
             title: '세트 간 휴식',
@@ -165,6 +188,9 @@ class _SettingCard extends StatelessWidget {
     required this.onDecrease,
     required this.onIncrease,
     this.chipLabel,
+    this.chipSelected = false,
+    this.onChipTap,
+    this.showCounter = true,
   });
 
   final String title;
@@ -174,6 +200,9 @@ class _SettingCard extends StatelessWidget {
   final VoidCallback onDecrease;
   final VoidCallback onIncrease;
   final String? chipLabel;
+  final bool chipSelected;
+  final VoidCallback? onChipTap;
+  final bool showCounter;
 
   @override
   Widget build(BuildContext context) {
@@ -185,58 +214,143 @@ class _SettingCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: AppTextStyles.bodyLg.copyWith(
-                          color: AppColors.textTertiary,
-                        ),
-                      ),
-                    ),
-                    if (chipLabel != null)
-                      ImoChip(
-                        label: chipLabel!,
-                        variant: ImoChipVariant.defaultChip,
-                        icon: const Icon(Icons.tune_rounded, size: 14),
-                      ),
-                  ],
+                Text(
+                  title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.bodyLg.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.xxs),
                 Text(description, style: AppTextStyles.body),
+                if (chipLabel != null) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  ImoChip(
+                    label: chipLabel!,
+                    selected: chipSelected,
+                    variant: ImoChipVariant.defaultChip,
+                    icon: const Icon(Icons.tune_rounded, size: 14),
+                    onTap: onChipTap,
+                  ),
+                ],
               ],
             ),
           ),
-          const SizedBox(width: AppSpacing.sm),
-          _RoundButton(
-            icon: Icons.remove_rounded,
-            color: AppColors.cardSubtle,
-            iconColor: AppColors.textPrimary,
-            onTap: onDecrease,
-          ),
-          SizedBox(
-            width: suffix.isEmpty ? 48 : 64,
-            child: Text.rich(
-              TextSpan(
-                text: '$value',
-                children: [
-                  if (suffix.isNotEmpty)
-                    TextSpan(text: ' $suffix', style: AppTextStyles.bodySmall),
-                ],
-              ),
-              textAlign: TextAlign.center,
-              style: AppTextStyles.sectionTitle,
+          if (showCounter) ...[
+            const SizedBox(width: AppSpacing.sm),
+            _RoundButton(
+              icon: Icons.remove_rounded,
+              color: AppColors.cardSubtle,
+              iconColor: AppColors.textPrimary,
+              onTap: onDecrease,
             ),
-          ),
-          _RoundButton(
-            icon: Icons.add_rounded,
-            color: AppColors.primary,
-            iconColor: AppColors.card,
-            onTap: onIncrease,
-          ),
+            SizedBox(
+              width: suffix.isEmpty ? 48 : 64,
+              child: Text.rich(
+                TextSpan(
+                  text: '$value',
+                  children: [
+                    if (suffix.isNotEmpty)
+                      TextSpan(
+                        text: ' $suffix',
+                        style: AppTextStyles.bodySmall,
+                      ),
+                  ],
+                ),
+                textAlign: TextAlign.center,
+                style: AppTextStyles.sectionTitle,
+              ),
+            ),
+            _RoundButton(
+              icon: Icons.add_rounded,
+              color: AppColors.primary,
+              iconColor: AppColors.card,
+              onTap: onIncrease,
+            ),
+          ],
         ],
       ),
+    );
+  }
+}
+
+class _PerSetRepsCard extends StatelessWidget {
+  const _PerSetRepsCard({
+    required this.repsPerSet,
+    required this.onDecrease,
+    required this.onIncrease,
+  });
+
+  final List<int> repsPerSet;
+  final ValueChanged<int> onDecrease;
+  final ValueChanged<int> onIncrease;
+
+  @override
+  Widget build(BuildContext context) {
+    return ImoCard(
+      variant: ImoCardVariant.outlined,
+      paddingSize: ImoCardPadding.lg,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('세트별 목표 횟수', style: AppTextStyles.label),
+          const SizedBox(height: AppSpacing.md),
+          for (var index = 0; index < repsPerSet.length; index++) ...[
+            _PerSetRepsRow(
+              index: index,
+              reps: repsPerSet[index],
+              onDecrease: () => onDecrease(index),
+              onIncrease: () => onIncrease(index),
+            ),
+            if (index != repsPerSet.length - 1)
+              const SizedBox(height: AppSpacing.sm),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _PerSetRepsRow extends StatelessWidget {
+  const _PerSetRepsRow({
+    required this.index,
+    required this.reps,
+    required this.onDecrease,
+    required this.onIncrease,
+  });
+
+  final int index;
+  final int reps;
+  final VoidCallback onDecrease;
+  final VoidCallback onIncrease;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(child: Text('${index + 1}세트', style: AppTextStyles.bodyLg)),
+        _RoundButton(
+          icon: Icons.remove_rounded,
+          color: AppColors.cardSubtle,
+          iconColor: AppColors.textPrimary,
+          onTap: onDecrease,
+        ),
+        SizedBox(
+          width: 52,
+          child: Text(
+            '$reps',
+            textAlign: TextAlign.center,
+            style: AppTextStyles.sectionTitle,
+          ),
+        ),
+        _RoundButton(
+          icon: Icons.add_rounded,
+          color: AppColors.primary,
+          iconColor: AppColors.card,
+          onTap: onIncrease,
+        ),
+      ],
     );
   }
 }
@@ -321,9 +435,3 @@ class _SummaryLine extends StatelessWidget {
     );
   }
 }
-
-const _exerciseNames = {
-  'pushup': '푸시업',
-  'lateral_raise': '싸레레',
-  'bicep_curl': '이두컬',
-};

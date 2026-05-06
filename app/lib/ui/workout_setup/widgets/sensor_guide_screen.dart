@@ -38,9 +38,9 @@ class _SensorGuideScreenState extends State<SensorGuideScreen> {
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Pi connection failed.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Pi connection failed.')));
       }
     }
   }
@@ -58,8 +58,7 @@ class _SensorGuideScreenState extends State<SensorGuideScreen> {
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
-      title: _config.title,
-      subtitle: '센서 부착 안내',
+      title: '센서 부착 안내',
       showBackButton: true,
       onBack: () => context.go('/workout-plan?exercise=${widget.exerciseId}'),
       scrollable: true,
@@ -353,37 +352,163 @@ const _sensorConfigs = {
   'pushup': _SensorConfig(
     title: 'Push-up',
     sensors: [
-      _SensorInfo(id: 'emg_1', label: 'EMG 1', position: 'Left pectoralis major', top: 104, left: 96),
-      _SensorInfo(id: 'emg_2', label: 'EMG 2', position: 'Right pectoralis major', top: 142, right: 42),
-      _SensorInfo(id: 'emg_3', label: 'EMG 3', position: 'Left triceps', top: 82, left: 134),
-      _SensorInfo(id: 'emg_4', label: 'EMG 4', position: 'Right triceps', top: 118, right: 96),
-      _SensorInfo(id: 'imu_1', label: 'IMU 1', position: 'Upper back center', top: 172, right: 64),
-      _SensorInfo(id: 'imu_2', label: 'IMU 2', position: 'Left upper arm', top: 218, left: 56),
-      _SensorInfo(id: 'imu_3', label: 'IMU 3', position: 'Right upper arm', top: 218, right: 56),
+      _SensorInfo(
+        id: 'emg_1',
+        label: 'EMG 1',
+        position: 'Left pectoralis major',
+        top: 104,
+        left: 96,
+      ),
+      _SensorInfo(
+        id: 'emg_2',
+        label: 'EMG 2',
+        position: 'Right pectoralis major',
+        top: 142,
+        right: 42,
+      ),
+      _SensorInfo(
+        id: 'emg_3',
+        label: 'EMG 3',
+        position: 'Left triceps',
+        top: 82,
+        left: 134,
+      ),
+      _SensorInfo(
+        id: 'emg_4',
+        label: 'EMG 4',
+        position: 'Right triceps',
+        top: 118,
+        right: 96,
+      ),
+      _SensorInfo(
+        id: 'imu_1',
+        label: 'IMU 1',
+        position: 'Upper back center',
+        top: 172,
+        right: 64,
+      ),
+      _SensorInfo(
+        id: 'imu_2',
+        label: 'IMU 2',
+        position: 'Left upper arm',
+        top: 218,
+        left: 56,
+      ),
+      _SensorInfo(
+        id: 'imu_3',
+        label: 'IMU 3',
+        position: 'Right upper arm',
+        top: 218,
+        right: 56,
+      ),
     ],
   ),
   'lateral_raise': _SensorConfig(
     title: 'Lateral Raise',
     sensors: [
-      _SensorInfo(id: 'emg_1', label: 'EMG 1', position: 'Left lateral deltoid', top: 92, left: 56),
-      _SensorInfo(id: 'emg_2', label: 'EMG 2', position: 'Right lateral deltoid', top: 92, right: 56),
-      _SensorInfo(id: 'emg_3', label: 'EMG 3', position: 'Left upper trapezius', top: 62, left: 114),
-      _SensorInfo(id: 'emg_4', label: 'EMG 4', position: 'Right upper trapezius', top: 62, right: 114),
-      _SensorInfo(id: 'imu_1', label: 'IMU 1', position: 'Left forearm', top: 192, left: 46),
-      _SensorInfo(id: 'imu_2', label: 'IMU 2', position: 'Right forearm', top: 192, right: 46),
-      _SensorInfo(id: 'imu_3', label: 'IMU 3', position: 'Back center', top: 150, right: 92),
+      _SensorInfo(
+        id: 'emg_1',
+        label: 'EMG 1',
+        position: 'Left lateral deltoid',
+        top: 92,
+        left: 56,
+      ),
+      _SensorInfo(
+        id: 'emg_2',
+        label: 'EMG 2',
+        position: 'Right lateral deltoid',
+        top: 92,
+        right: 56,
+      ),
+      _SensorInfo(
+        id: 'emg_3',
+        label: 'EMG 3',
+        position: 'Left upper trapezius',
+        top: 62,
+        left: 114,
+      ),
+      _SensorInfo(
+        id: 'emg_4',
+        label: 'EMG 4',
+        position: 'Right upper trapezius',
+        top: 62,
+        right: 114,
+      ),
+      _SensorInfo(
+        id: 'imu_1',
+        label: 'IMU 1',
+        position: 'Left forearm',
+        top: 192,
+        left: 46,
+      ),
+      _SensorInfo(
+        id: 'imu_2',
+        label: 'IMU 2',
+        position: 'Right forearm',
+        top: 192,
+        right: 46,
+      ),
+      _SensorInfo(
+        id: 'imu_3',
+        label: 'IMU 3',
+        position: 'Back center',
+        top: 150,
+        right: 92,
+      ),
     ],
   ),
   'bicep_curl': _SensorConfig(
     title: 'Bicep Curl',
     sensors: [
-      _SensorInfo(id: 'emg_1', label: 'EMG 1', position: 'Left biceps', top: 136, left: 54),
-      _SensorInfo(id: 'emg_2', label: 'EMG 2', position: 'Right biceps', top: 136, right: 54),
-      _SensorInfo(id: 'emg_3', label: 'EMG 3', position: 'Left forearm flexor', top: 186, left: 48),
-      _SensorInfo(id: 'emg_4', label: 'EMG 4', position: 'Right forearm flexor', top: 186, right: 48),
-      _SensorInfo(id: 'imu_1', label: 'IMU 1', position: 'Left forearm', top: 206, left: 46),
-      _SensorInfo(id: 'imu_2', label: 'IMU 2', position: 'Right forearm', top: 206, right: 46),
-      _SensorInfo(id: 'imu_3', label: 'IMU 3', position: 'Torso', top: 112, right: 58),
+      _SensorInfo(
+        id: 'emg_1',
+        label: 'EMG 1',
+        position: 'Left biceps',
+        top: 136,
+        left: 54,
+      ),
+      _SensorInfo(
+        id: 'emg_2',
+        label: 'EMG 2',
+        position: 'Right biceps',
+        top: 136,
+        right: 54,
+      ),
+      _SensorInfo(
+        id: 'emg_3',
+        label: 'EMG 3',
+        position: 'Left forearm flexor',
+        top: 186,
+        left: 48,
+      ),
+      _SensorInfo(
+        id: 'emg_4',
+        label: 'EMG 4',
+        position: 'Right forearm flexor',
+        top: 186,
+        right: 48,
+      ),
+      _SensorInfo(
+        id: 'imu_1',
+        label: 'IMU 1',
+        position: 'Left forearm',
+        top: 206,
+        left: 46,
+      ),
+      _SensorInfo(
+        id: 'imu_2',
+        label: 'IMU 2',
+        position: 'Right forearm',
+        top: 206,
+        right: 46,
+      ),
+      _SensorInfo(
+        id: 'imu_3',
+        label: 'IMU 3',
+        position: 'Torso',
+        top: 112,
+        right: 58,
+      ),
     ],
   ),
 };

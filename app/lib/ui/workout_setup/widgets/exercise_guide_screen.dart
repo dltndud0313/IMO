@@ -4,21 +4,30 @@ import 'package:go_router/go_router.dart';
 import '../../core/layouts/app_scaffold.dart';
 import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
+import 'exercise_catalog_data.dart';
 
 class ExerciseGuideScreen extends StatelessWidget {
-  const ExerciseGuideScreen({super.key, this.exerciseId = 'pushup'});
+  const ExerciseGuideScreen({
+    super.key,
+    this.exerciseId = 'pushup',
+    this.categoryId,
+  });
 
   final String exerciseId;
+  final String? categoryId;
 
   @override
   Widget build(BuildContext context) {
     final guide = _exerciseGuides[exerciseId] ?? _exerciseGuides['pushup']!;
 
     return AppScaffold(
-      title: guide.title,
-      subtitle: '자세 가이드',
+      title: '자세 가이드',
       showBackButton: true,
-      onBack: () => context.go('/workout-setup'),
+      onBack: () {
+        final resolvedCategoryId =
+            categoryId ?? categoryIdForExercise(exerciseId);
+        context.go('/workout-exercises?category=$resolvedCategoryId');
+      },
       scrollable: true,
       bottom: ImoButton(
         label: '다음',
