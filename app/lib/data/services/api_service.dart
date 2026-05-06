@@ -48,6 +48,22 @@ class ApiService {
   // ═══════════════════════════════════════════════════════════
 
   /// API-13: 사용자 설정 조회
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final res = await _dio.put(
+      '/users/me/password',
+      data: {
+        'currentPassword': currentPassword,
+        'newPassword': newPassword,
+      },
+    );
+    if (res.data['success'] != true) {
+      throw Exception(res.data['error'] ?? 'changePassword failed');
+    }
+  }
+
   Future<Map<String, dynamic>> getSettings() async {
     final res = await _dio.get('/users/me/settings');
     if (res.data['success'] == true) {
