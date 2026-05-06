@@ -9,6 +9,7 @@ import '../../../data/repositories/workout_repository.dart';
 import '../../core/layouts/app_scaffold.dart';
 import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
+import '../view_model/workout_viewmodel.dart';
 
 enum _WorkoutState { running, paused, resting }
 
@@ -24,6 +25,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   StreamSubscription? _connectionSubscription;
   StreamSubscription? _pausedSubscription;
   StreamSubscription? _resumedSubscription;
+  late final WorkoutViewModel _workoutViewModel;
   _WorkoutState _state = _WorkoutState.running;
   bool _piConnected = false;
   bool _esp32Connected = false;
@@ -34,6 +36,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   void initState() {
     super.initState();
     final repo = getIt<WorkoutRepository>();
+    _workoutViewModel = WorkoutViewModel(repo);
     _connectionSubscription =
         getIt<DeviceConnectionRepository>().systemStatus.listen((status) {
       if (mounted) {
@@ -77,12 +80,11 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   }
 
   void _togglePause() {
-    final repo = getIt<WorkoutRepository>();
     try {
       if (_state == _WorkoutState.paused) {
-        repo.resumeWorkout();
+        _workoutViewModel.resumeWorkout();
       } else {
-        repo.pauseWorkout();
+        _workoutViewModel.pauseWorkout();
       }
     } catch (_) {}
     setState(() {
@@ -101,7 +103,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
         danger: true,
         onConfirm: () {
           try {
-            getIt<WorkoutRepository>().stopWorkout();
+            _workoutViewModel.stopWorkout();
           } catch (_) {}
           Navigator.of(dialogContext).pop();
           context.go('/session-result?status=stopped');
@@ -112,7 +114,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
 
   void _emergencyStop() {
     try {
-      getIt<WorkoutRepository>().emergencyStop();
+      _workoutViewModel.emergencyStop();
     } catch (_) {}
     context.go('/session-result?status=emergency_stopped');
   }

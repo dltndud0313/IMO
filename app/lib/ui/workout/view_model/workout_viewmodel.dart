@@ -1,6 +1,29 @@
-// 실시간 운동 ViewModel (핵심)
-// 의존: StartWorkoutSessionUseCase, WorkoutRepository, EndWorkoutSessionUseCase
-// - 실시간 피드백 Stream 구독
-// - 세트 진행 상태, 휴식 타이머, 코칭 메시지
-// FR-24 ~ FR-41
-// TODO: 구현
+import '../../../data/repositories/workout_repository.dart';
+
+class WorkoutViewModel {
+  WorkoutViewModel(this._workoutRepository);
+
+  final WorkoutRepository _workoutRepository;
+
+  void pauseWorkout() {
+    _workoutRepository.pauseWorkout();
+  }
+
+  void resumeWorkout() {
+    _workoutRepository.resumeWorkout();
+  }
+
+  void stopWorkout({
+    String reason = 'user_request',
+    bool saveResult = true,
+  }) {
+    _workoutRepository.stopWorkout(
+      reason: reason,
+      saveResult: saveResult,
+    );
+  }
+
+  void emergencyStop() {
+    _workoutRepository.emergencyStop();
+  }
+}
