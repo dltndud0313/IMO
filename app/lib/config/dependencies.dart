@@ -3,8 +3,10 @@ import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/repositories/auth_repository.dart';
+import '../data/repositories/local_session_repository.dart';
 import '../data/services/api_service.dart';
 import '../data/services/auth_service.dart';
+import '../data/services/local_db_service.dart';
 import '../data/services/pi_socket_service.dart';
 import '../data/services/shared_prefs_service.dart';
 import '../data/repositories/calibration_repository.dart';
@@ -28,6 +30,9 @@ Future<void> setupDependencies() async {
   getIt.registerLazySingleton(
     () => SharedPrefsService(sharedPreferences),
   );
+  final localDbService = LocalDbService();
+  await localDbService.init();
+  getIt.registerSingleton<LocalDbService>(localDbService);
 
   getIt.registerLazySingleton<Dio>(
     _buildBaseDio,
@@ -51,6 +56,9 @@ Future<void> setupDependencies() async {
   );
   getIt.registerLazySingleton(
     () => SessionHistoryRepository(getIt<ApiService>()),
+  );
+  getIt.registerLazySingleton(
+    () => LocalSessionRepository(getIt<LocalDbService>()),
   );
   getIt.registerLazySingleton(PiSocketService.new);
   getIt.registerLazySingleton(() => WorkoutRepository(getIt<PiSocketService>()));
