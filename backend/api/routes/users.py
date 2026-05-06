@@ -7,12 +7,14 @@ from sqlalchemy.future import select
 from core.cache import invalidate_user_stats
 from core.database import get_db
 from core.deps import get_current_user
-from core.exceptions import UserNotFound, ValidationError
+from core.exceptions import Unauthorized, UserNotFound, ValidationError
 from core.responses import success_response
+from core.security import get_password_hash, verify_password
 from models.session import WorkoutSession
 from models.user import User, UserSettings
 from schemas.user import (
     NotificationSettings,
+    PasswordChangeRequest,
     UserDataDeleteRequest,
     UserProfileResponse,
     UserProfileUpdate,
@@ -83,6 +85,26 @@ async def update_user_profile(
 
     payload = _to_profile_response(current_user)
     return success_response(payload.model_dump(by_alias=True, mode="json"))
+
+
+@router.put("/me/password")
+async def change_password(
+    body: PasswordChangeRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """비밀번호 변경 — 로그인된 사용자가 본인 비번 변경.
+
+    현재 비번 검증 후 새 비번으로 교체. 다른 기기 토큰은 무효화하지 않음 (시연 중 자동
+    로그아웃 회피). 시간 남으면 향후 모든 refresh blacklist 추가 검토.
+    """
+    if not verify_password(body.current_password, current_user.hashed_password):
+        raise Unauthorized("Current password is incorrect")
+
+    current_user.hashed_password = get_password_hash(body.new_password)
+    db.add(current_user)
+    await db.commit()
+    return success_response({"changed": True})
 
 
 # ==== Settings (API-13, 14) ====

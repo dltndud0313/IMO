@@ -31,6 +31,12 @@ class UserProfileUpdate(CamelModel):
     profile_image_url: Optional[str] = None
 
 
+# ==== 비밀번호 변경 (신규) ====
+class PasswordChangeRequest(CamelModel):
+    current_password: str = Field(min_length=1)
+    new_password: str = Field(min_length=8)
+
+
 # ==== 설정 (API-13, 14) — 중첩 구조 ====
 
 class WearableSettings(CamelModel):
