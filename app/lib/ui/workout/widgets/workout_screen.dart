@@ -23,8 +23,6 @@ class WorkoutScreen extends StatefulWidget {
 class _WorkoutScreenState extends State<WorkoutScreen> {
   Timer? _timer;
   StreamSubscription? _connectionSubscription;
-  StreamSubscription? _pausedSubscription;
-  StreamSubscription? _resumedSubscription;
   late final WorkoutViewModel _workoutViewModel;
   _WorkoutState _state = _WorkoutState.running;
   bool _piConnected = false;
@@ -47,16 +45,18 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
         });
       }
     });
-    _pausedSubscription = repo.workoutPaused.listen((_) {
-      if (mounted) {
-        setState(() => _state = _WorkoutState.paused);
-      }
-    });
-    _resumedSubscription = repo.workoutResumed.listen((_) {
-      if (mounted) {
-        setState(() => _state = _WorkoutState.running);
-      }
-    });
+    _workoutViewModel.startListening(
+      onPaused: () {
+        if (mounted) {
+          setState(() => _state = _WorkoutState.paused);
+        }
+      },
+      onResumed: () {
+        if (mounted) {
+          setState(() => _state = _WorkoutState.running);
+        }
+      },
+    );
     _startTimer();
   }
 
@@ -64,8 +64,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   void dispose() {
     _timer?.cancel();
     _connectionSubscription?.cancel();
-    _pausedSubscription?.cancel();
-    _resumedSubscription?.cancel();
+    _workoutViewModel.dispose();
     super.dispose();
   }
 
