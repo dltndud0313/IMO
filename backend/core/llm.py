@@ -14,6 +14,7 @@ from google.genai import types
 from google.genai.errors import APIError
 
 from core.config import settings
+from core.exercise_catalog import SUPPORT_SCOPE_SYSTEM_CONTEXT
 
 logger = logging.getLogger("imo.llm")
 
@@ -27,8 +28,9 @@ SYSTEM_PROMPT = """\
 2. 그 외 주제 (정치, 일상, 코딩 등) 는 정중히 거절하고 운동 주제로 유도합니다.
 3. 의학적 진단/처방은 하지 않습니다. 통증/부상 관련은 전문의 상담을 권합니다.
 4. 사용자의 최근 운동 데이터를 적극 인용하여 개인화된 답변을 합니다.
-5. 1~3문장 이내로 짧고 실용적으로 답변합니다.
-6. 데이터가 부족하면 솔직히 "데이터가 부족합니다" 라고 답합니다."""
+5. 지원하지 않는 운동을 앱에서 가능한 것처럼 설명하지 않고, 지원 운동 안에서만 대안을 제시합니다.
+6. 1~3문장 이내로 짧고 실용적으로 답변합니다.
+7. 데이터가 부족하면 솔직히 "데이터가 부족합니다" 라고 답합니다."""
 
 
 FALLBACK_REPLY = "죄송합니다. 지금은 답변할 수 없습니다. 잠시 후 다시 시도해주세요."
@@ -74,7 +76,8 @@ async def chat(
 
     # Gemini system_instruction 은 단일 문자열 — 고정 프롬프트 + 사용자 컨텍스트 결합.
     system_instruction = (
-        f"{SYSTEM_PROMPT}\n\n[사용자 최근 운동 데이터]\n{user_context}"
+        f"{SYSTEM_PROMPT}\n\n[서비스 지원 범위]\n{SUPPORT_SCOPE_SYSTEM_CONTEXT}"
+        f"\n\n[사용자 최근 운동 데이터]\n{user_context}"
     )
 
     contents = [
