@@ -13,12 +13,21 @@ from core.cache import (
 from core.config import settings
 from core.database import get_db
 from core.deps import get_current_user
+from core.exercise_catalog import find_scope_guardrail_reply
 from core.rate_limit import rate_limit_by_ip
 from core.responses import success_response
 from models.user import User
 from schemas.chat import ChatRequest
 
 router = APIRouter()
+
+
+def _guardrail_result(reply: str) -> dict:
+    return {
+        "reply": reply,
+        "model": "guardrail",
+        "tokens_used": {"input": 0, "output": 0, "cached": 0},
+    }
 
 
 @router.post(
@@ -40,13 +49,17 @@ async def chat_send(
     히스토리는 Redis 에 사용자별 1개. 슬라이딩 윈도우로 최대 CHAT_MAX_TURNS 턴.
     """
     history = await get_chat_history(current_user.id)
-    user_ctx = await build_user_workout_context(current_user.id, db)
+    guardrail_reply = find_scope_guardrail_reply(body.message)
 
-    result = await llm.chat(
-        user_message=body.message,
-        history=history,
-        user_context=user_ctx,
-    )
+    if guardrail_reply:
+        result = _guardrail_result(guardrail_reply)
+    else:
+        user_ctx = await build_user_workout_context(current_user.id, db)
+        result = await llm.chat(
+            user_message=body.message,
+            history=history,
+            user_context=user_ctx,
+        )
 
     now = datetime.now(timezone.utc).isoformat()
     new_msgs = [
