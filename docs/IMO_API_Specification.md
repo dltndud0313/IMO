@@ -580,6 +580,47 @@
 
 ---
 
+#### API-18. `PUT /users/me/password` — 비밀번호 변경
+
+| 항목 | 내용 |
+|------|------|
+| **관련 화면** | 마이페이지 - 비밀번호 변경 |
+| **필수 여부** | 선택 |
+| **인증** | ✅ Bearer Token |
+
+**Request Body:**
+
+```json
+{
+  "currentPassword": "oldpass123",
+  "newPassword": "newpass456"
+}
+```
+
+| 필드 | 타입 | 필수 | 유효성 검증 |
+|------|------|------|-------------|
+| `currentPassword` | string | ✅ | 현재 비밀번호 |
+| `newPassword` | string | ✅ | 8자 이상 |
+
+**Response `200 OK`:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "changed": true
+  },
+  "error": null
+}
+```
+
+**Error:**
+- `401 UNAUTHORIZED` — `Current password is incorrect`
+
+**보안 정책:** 비번 변경 후 다른 기기의 refresh 토큰은 무효화하지 않음 (이번 라운드 결정 — 시연 중 자동 로그아웃 회피).
+
+---
+
 ### 3-3. 운동 세션 기록
 
 #### API-06. `POST /sessions` — 세션 결과 저장
@@ -1316,6 +1357,7 @@
 | API-15 | `DELETE` | `/users/me/data` | 데이터 초기화 | 선택 | ✅ |
 | API-16 | `GET` | `/exercises` | 운동 종목 목록 | 필수 | ✅ |
 | API-17 | `GET` | `/auth/email/check` | 이메일 중복 확인 | 선택 | ❌ |
+| API-18 | `PUT` | `/users/me/password` | 비밀번호 변경 | 선택 | ✅ |
 
 ---
 
