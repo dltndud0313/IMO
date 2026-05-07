@@ -95,7 +95,7 @@ const exerciseCatalogItems = [
     description: '상체 전반을 강화하는 기본 운동',
     levelLabel: '초급',
     keywords: ['팔굽혀펴기', '가슴', '삼두근', '대흉근', '어깨'],
-    icon: Icons.fitness_center_rounded,
+    icon: Icons.sports_kabaddi_rounded,
     gradient: [AppColors.primary, AppColors.primaryStrong],
   ),
   ExerciseCatalogItem(
@@ -119,7 +119,7 @@ const exerciseCatalogItems = [
     description: '팔꿈치 축을 유지하며 이두근을 쓰는 운동',
     levelLabel: '초급',
     keywords: ['이두컬', '이두근', '전완근', '팔'],
-    icon: Icons.sports_gymnastics_rounded,
+    icon: Icons.fitness_center_rounded,
     gradient: [Color(0xFFFFB371), AppColors.warning],
   ),
 ];
