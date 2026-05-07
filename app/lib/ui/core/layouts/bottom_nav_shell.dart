@@ -32,6 +32,50 @@ class BottomNavShell extends StatelessWidget {
         onDestinationSelected: (index) => context.go(_tabs[index].path),
         tabs: _tabs,
       ),
+      floatingActionButton: const _ChatbotFab(),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+    );
+  }
+}
+
+class _ChatbotFab extends StatelessWidget {
+  const _ChatbotFab();
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      shape: const CircleBorder(),
+      child: Ink(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [AppColors.primary, AppColors.primaryStrong],
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primaryStrong.withValues(alpha: 0.3),
+              blurRadius: 16,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: InkWell(
+          onTap: () => context.go('/chat'),
+          customBorder: const CircleBorder(),
+          child: const SizedBox(
+            width: 56,
+            height: 56,
+            child: Icon(
+              Icons.smart_toy_rounded,
+              color: Colors.white,
+              size: 26,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
