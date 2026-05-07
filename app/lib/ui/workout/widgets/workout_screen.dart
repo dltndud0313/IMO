@@ -174,21 +174,6 @@ class _WorkoutScreenState extends State<WorkoutScreen>
     context.go('/session-result?status=emergency_stopped');
   }
 
-  String get _stateLabel {
-    switch (_state) {
-      case _WorkoutState.running:
-        return '운동 중';
-      case _WorkoutState.paused:
-        return '일시정지';
-      case _WorkoutState.resting:
-        return '휴식 중';
-      case _WorkoutState.reportWaiting:
-        return '리포트 준비';
-      case _WorkoutState.emergency:
-        return '안전 중단';
-    }
-  }
-
   String get _headline {
     switch (_state) {
       case _WorkoutState.running:
