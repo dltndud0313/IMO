@@ -42,8 +42,7 @@ class _ExerciseCatalogScreenState extends State<ExerciseCatalogScreen> {
     ).isNotEmpty;
 
     return AppScaffold(
-      title: _category.title,
-      subtitle: '운동 종목 선택',
+      title: '운동 종목 선택',
       showBackButton: true,
       onBack: () => context.go('/workout-setup'),
       scrollable: true,
@@ -55,7 +54,7 @@ class _ExerciseCatalogScreenState extends State<ExerciseCatalogScreen> {
           ImoTextField(
             controller: _searchController,
             hint: '운동 이름, 부위로 검색',
-            prefixIcon: const Icon(Icons.search_rounded),
+            suffixIcon: const Icon(Icons.search_rounded),
             clearable: true,
             onChanged: (value) => setState(() => _query = value),
           ),
