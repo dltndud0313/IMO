@@ -2,6 +2,8 @@
 
 import 'package:dio/dio.dart';
 
+import '../../domain/models/chat_message.dart';
+import '../../domain/models/chat_send_result.dart';
 import '../../domain/models/exercise_type.dart';
 import '../../domain/models/user_profile.dart';
 import '../../domain/models/workout_session.dart';
@@ -298,5 +300,60 @@ class ApiService {
       return list.map((e) => ExerciseInfo.fromJson(e as Map<String, dynamic>)).toList();
     }
     throw Exception(res.data['error'] ?? 'getExercises failed');
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  //  챗봇 (API-CHAT)
+  // ═══════════════════════════════════════════════════════════
+
+  /// 챗봇 메시지 전송
+  Future<ChatSendResult> sendChatMessage(String message) async {
+    try {
+      final res = await _dio.post(
+        '/chat',
+        data: {'message': message},
+      );
+      if (res.data['success'] == true) {
+        return ChatSendResult.fromJson(res.data['data'] as Map<String, dynamic>);
+      }
+      throw Exception(_apiErrorMessage(res.data, 'sendChatMessage failed'));
+    } on DioException catch (error) {
+      throw Exception(
+        _apiErrorMessage(error.response?.data, 'sendChatMessage failed'),
+      );
+    }
+  }
+
+  /// 챗봇 대화 히스토리 조회
+  Future<List<ChatMessage>> getChatHistory() async {
+    try {
+      final res = await _dio.get('/chat/history');
+      if (res.data['success'] == true) {
+        final messages = (res.data['data']?['messages'] as List?) ?? const [];
+        return messages
+            .whereType<Map<String, dynamic>>()
+            .map(ChatMessage.fromJson)
+            .toList();
+      }
+      throw Exception(_apiErrorMessage(res.data, 'getChatHistory failed'));
+    } on DioException catch (error) {
+      throw Exception(
+        _apiErrorMessage(error.response?.data, 'getChatHistory failed'),
+      );
+    }
+  }
+
+  /// 챗봇 대화 초기화
+  Future<void> clearChatHistory() async {
+    try {
+      final res = await _dio.delete('/chat');
+      if (res.data['success'] != true) {
+        throw Exception(_apiErrorMessage(res.data, 'clearChatHistory failed'));
+      }
+    } on DioException catch (error) {
+      throw Exception(
+        _apiErrorMessage(error.response?.data, 'clearChatHistory failed'),
+      );
+    }
   }
 }
