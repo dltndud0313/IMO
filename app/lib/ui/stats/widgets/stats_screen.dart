@@ -19,7 +19,6 @@ class StatsScreen extends StatefulWidget {
 }
 
 class _StatsScreenState extends State<StatsScreen> {
-  StatsTab _selectedTab = StatsTab.heatmap;
   late final StatsViewModel _viewModel;
 
   @override
@@ -70,13 +69,13 @@ class _StatsScreenState extends State<StatsScreen> {
                 const SizedBox(height: AppSpacing.lg),
                 if (!_viewModel.loading && _viewModel.loadError == null) ...[
                   StatsTabBar(
-                    selectedTab: _selectedTab,
-                    onChanged: (tab) => setState(() => _selectedTab = tab),
+                    selectedTab: _viewModel.selectedTab,
+                    onChanged: (tab) => _viewModel.selectTab(tab),
                   ),
                   const SizedBox(height: AppSpacing.md),
                   AnimatedSwitcher(
                     duration: const Duration(milliseconds: 180),
-                    child: switch (_selectedTab) {
+                    child: switch (_viewModel.selectedTab) {
                       StatsTab.heatmap => HeatmapTab(data: _viewModel.heatmap),
                       StatsTab.balance => BalanceTab(data: _viewModel.balance),
                       StatsTab.trend => TrendTab(data: _viewModel.weeklyStats),

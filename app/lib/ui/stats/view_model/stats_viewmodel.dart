@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../../../data/repositories/stats_repository.dart';
+import '../widgets/stats_tab_bar.dart';
 
 class StatsViewModel extends ChangeNotifier {
   StatsViewModel(this._repository);
@@ -13,6 +14,7 @@ class StatsViewModel extends ChangeNotifier {
   Map<String, dynamic>? weeklyStats;
   Map<String, dynamic>? heatmap;
   Map<String, dynamic>? balance;
+  StatsTab selectedTab = StatsTab.heatmap;
 
   DateTime get weekStart {
     final today = DateTime.now();
@@ -59,5 +61,10 @@ class StatsViewModel extends ChangeNotifier {
 
   Future<void> loadSelectedWeekStats() {
     return loadStats(weekStartText);
+  }
+
+  void selectTab(StatsTab tab) {
+    selectedTab = tab;
+    notifyListeners();
   }
 }
