@@ -1,4 +1,4 @@
-import '../../data/repositories/workout_repository.dart';
+import '../../domain/repositories/workout_repository_interface.dart';
 import 'check_system_ready_usecase.dart';
 
 class StartWorkoutPlan {
@@ -18,7 +18,7 @@ class StartWorkoutPlan {
 class StartWorkoutSessionUseCase {
   StartWorkoutSessionUseCase(this._workoutRepo, this._checkReady);
 
-  final WorkoutRepository _workoutRepo;
+  final IWorkoutRepository _workoutRepo;
   final CheckSystemReadyUseCase _checkReady;
 
   Future<void> execute(StartWorkoutPlan plan) async {

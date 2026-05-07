@@ -2,7 +2,7 @@ import 'dart:async';
 
 import '../../data/repositories/local_session_repository.dart';
 import '../../data/repositories/session_history_repository.dart';
-import '../../data/repositories/workout_repository.dart';
+import '../../domain/repositories/workout_repository_interface.dart';
 
 class EndWorkoutSessionUseCase {
   EndWorkoutSessionUseCase(
@@ -11,7 +11,7 @@ class EndWorkoutSessionUseCase {
     this._localSessionRepo,
   );
 
-  final WorkoutRepository _workoutRepo;
+  final IWorkoutRepository _workoutRepo;
   final SessionHistoryRepository _historyRepo;
   final LocalSessionRepository _localSessionRepo;
   StreamSubscription<void>? _autoSaveSubscription;
