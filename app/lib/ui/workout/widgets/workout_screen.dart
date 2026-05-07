@@ -1,8 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../config/app_runtime_flags.dart';
 import '../../../config/dependencies.dart';
 import '../../../data/repositories/device_connection_repository.dart';
 import '../../../data/repositories/workout_repository.dart';
@@ -11,7 +13,7 @@ import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../view_model/workout_viewmodel.dart';
 
-enum _WorkoutState { running, paused, resting }
+enum _WorkoutState { running, paused, resting, reportWaiting, emergency }
 
 class WorkoutScreen extends StatefulWidget {
   const WorkoutScreen({super.key});
@@ -20,65 +22,106 @@ class WorkoutScreen extends StatefulWidget {
   State<WorkoutScreen> createState() => _WorkoutScreenState();
 }
 
-class _WorkoutScreenState extends State<WorkoutScreen> {
-  Timer? _timer;
+class _WorkoutScreenState extends State<WorkoutScreen>
+    with SingleTickerProviderStateMixin {
+  static const _activeMascotAssets = [
+    'assets/images/mascot_workout_01.png',
+    'assets/images/mascot_workout_02.png',
+    'assets/images/mascot_workout_03.png',
+  ];
+
   late final WorkoutViewModel _workoutViewModel;
+  late final AnimationController _floatController;
+  late final Animation<double> _floatAnimation;
   _WorkoutState _state = _WorkoutState.running;
-  bool _piConnected = false;
-  bool _esp32Connected = false;
-  bool _glassConnected = false;
-  int _elapsedSeconds = 0;
+  Timer? _mascotFrameTimer;
+  int _mascotFrameIndex = 0;
 
   @override
   void initState() {
     super.initState();
+    _floatController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1600),
+    )..repeat(reverse: true);
+    _floatAnimation = Tween<double>(begin: -5, end: 5).animate(
+      CurvedAnimation(parent: _floatController, curve: Curves.easeInOut),
+    );
     final repo = getIt<WorkoutRepository>();
     _workoutViewModel = WorkoutViewModel(
       repo,
       getIt<DeviceConnectionRepository>(),
     );
     _workoutViewModel.startListening(
-      onConnectionStatus: (status) {
-        if (mounted) {
-          setState(() {
-            _piConnected = status.piConnected;
-            _esp32Connected = status.esp32Connected;
-            _glassConnected = status.glassConnected;
-          });
-        }
-      },
+      onConnectionStatus: (_) {},
       onPaused: () {
         if (mounted) {
           setState(() => _state = _WorkoutState.paused);
+          _syncMascotAnimation();
         }
       },
       onResumed: () {
         if (mounted) {
           setState(() => _state = _WorkoutState.running);
+          _syncMascotAnimation();
         }
       },
     );
-    _startTimer();
+    _syncMascotAnimation();
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
+    _mascotFrameTimer?.cancel();
+    _floatController.dispose();
     _workoutViewModel.dispose();
     super.dispose();
   }
 
-  void _startTimer() {
-    _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted || _state == _WorkoutState.paused) {
+  String get _mascotAsset {
+    if (_state == _WorkoutState.paused) {
+      return 'assets/images/mascot_rest.png';
+    }
+    if (_state == _WorkoutState.reportWaiting ||
+        _state == _WorkoutState.emergency) {
+      return 'assets/images/mascot_default.png';
+    }
+    return _activeMascotAssets[_mascotFrameIndex];
+  }
+
+  void _syncMascotAnimation() {
+    _mascotFrameTimer?.cancel();
+    _mascotFrameTimer = null;
+
+    if (_state != _WorkoutState.running) {
+      return;
+    }
+
+    _mascotFrameTimer = Timer.periodic(const Duration(milliseconds: 900), (_) {
+      if (!mounted || _state != _WorkoutState.running) {
         return;
       }
-      setState(() => _elapsedSeconds++);
+      setState(() {
+        _mascotFrameIndex = (_mascotFrameIndex + 1) % _activeMascotAssets.length;
+      });
     });
   }
 
   void _togglePause() {
+    if (AppRuntimeFlags.uiPreviewMode) {
+      if (_state == _WorkoutState.reportWaiting ||
+          _state == _WorkoutState.emergency) {
+        return;
+      }
+      setState(() {
+        _state = _state == _WorkoutState.paused
+            ? _WorkoutState.running
+            : _WorkoutState.paused;
+      });
+      _syncMascotAnimation();
+      return;
+    }
+
     try {
       if (_state == _WorkoutState.paused) {
         _workoutViewModel.resumeWorkout();
@@ -90,9 +133,16 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       _state =
           _state == _WorkoutState.paused ? _WorkoutState.running : _WorkoutState.paused;
     });
+    _syncMascotAnimation();
   }
 
   Future<void> _finishWorkout() async {
+    if (AppRuntimeFlags.uiPreviewMode) {
+      setState(() => _state = _WorkoutState.reportWaiting);
+      _syncMascotAnimation();
+      return;
+    }
+
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => ImoConfirmDialog(
@@ -112,16 +162,16 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   }
 
   void _emergencyStop() {
+    if (AppRuntimeFlags.uiPreviewMode) {
+      setState(() => _state = _WorkoutState.emergency);
+      _syncMascotAnimation();
+      return;
+    }
+
     try {
       _workoutViewModel.emergencyStop();
     } catch (_) {}
     context.go('/session-result?status=emergency_stopped');
-  }
-
-  String get _timeLabel {
-    final minutes = (_elapsedSeconds ~/ 60).toString().padLeft(2, '0');
-    final seconds = (_elapsedSeconds % 60).toString().padLeft(2, '0');
-    return '$minutes:$seconds';
   }
 
   String get _stateLabel {
@@ -132,165 +182,206 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
         return '일시정지';
       case _WorkoutState.resting:
         return '휴식 중';
+      case _WorkoutState.reportWaiting:
+        return '리포트 준비';
+      case _WorkoutState.emergency:
+        return '안전 중단';
     }
   }
 
-  StatusVariant get _stateVariant {
+  String get _headline {
     switch (_state) {
       case _WorkoutState.running:
-        return StatusVariant.success;
+        return '오늘도 잘하고 있어요';
       case _WorkoutState.paused:
-        return StatusVariant.warning;
+        return '잠깐 쉬어가도 괜찮아요';
       case _WorkoutState.resting:
-        return StatusVariant.info;
+        return '호흡을 고르고 있어요';
+      case _WorkoutState.reportWaiting:
+        return '리포트를 준비하고 있어요';
+      case _WorkoutState.emergency:
+        return '운동을 안전하게 중단했어요';
+    }
+  }
+
+  String get _cheerMessage {
+    switch (_state) {
+      case _WorkoutState.running:
+        return '아이모와 모가 옆에서 응원하고 있어요.';
+      case _WorkoutState.paused:
+        return '준비되면 재개 버튼을 눌러 다시 시작해요.';
+      case _WorkoutState.resting:
+        return '다음 동작을 위해 천천히 숨을 쉬어보세요.';
+      case _WorkoutState.reportWaiting:
+        return '운동 기록을 정리하는 중이에요.';
+      case _WorkoutState.emergency:
+        return '괜찮아요. 안전이 가장 먼저예요.';
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return AppScaffold(
-      title: '푸시업',
-      subtitle: _stateLabel,
-      scrollable: true,
-      bottom: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: ImoButton(
-                  label: _state == _WorkoutState.paused ? '재개' : '일시정지',
-                  variant: ImoButtonVariant.outline,
-                  leftIcon: Icon(
-                    _state == _WorkoutState.paused
-                        ? Icons.play_arrow_rounded
-                        : Icons.pause_rounded,
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        systemNavigationBarColor: Colors.transparent,
+      ),
+      child: AppScaffold(
+        scrollable: false,
+        horizontalPadding: false,
+        safeArea: false,
+        body: LayoutBuilder(
+          builder: (context, _) {
+            return Stack(
+              children: [
+                Positioned.fill(
+                  child: Image.asset(
+                    'assets/images/workout_bg.png',
+                    fit: BoxFit.cover,
+                    filterQuality: FilterQuality.high,
                   ),
-                  onPressed: _togglePause,
                 ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: ImoButton(
-                  label: '종료',
-                  variant: ImoButtonVariant.danger,
-                  leftIcon: const Icon(Icons.stop_rounded),
-                  onPressed: _finishWorkout,
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: AppColors.card.withValues(alpha: 0.03),
+                    ),
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          TextButton.icon(
-            onPressed: _emergencyStop,
-            icon: const Icon(Icons.emergency_rounded, size: 16),
-            label: const Text('비상 종료'),
-            style: TextButton.styleFrom(
-              foregroundColor: AppColors.error,
-              textStyle: AppTextStyles.caption,
-            ),
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          AppColors.card.withValues(alpha: 0.28),
+                          AppColors.card.withValues(alpha: 0.02),
+                          AppColors.card.withValues(alpha: 0.02),
+                          AppColors.card.withValues(alpha: 0.42),
+                        ],
+                        stops: const [0, 0.18, 0.68, 1],
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: MediaQuery.of(context).padding.top + 52,
+                  left: AppSpacing.screenHorizontal,
+                  right: AppSpacing.screenHorizontal,
+                  child: _WorkoutCheerCard(
+                    mascotAsset: _mascotAsset,
+                    floatAnimation: _floatAnimation,
+                    headline: _headline,
+                    message: _cheerMessage,
+                  ),
+                ),
+                Positioned(
+                  left: AppSpacing.screenHorizontal,
+                  right: AppSpacing.screenHorizontal,
+                  bottom: MediaQuery.of(context).padding.bottom + 16,
+                  child: _buildControls(),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildControls() {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.card.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(36),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.heatmapBg.withValues(alpha: 0.12),
+            blurRadius: 28,
+            offset: const Offset(0, 12),
           ),
         ],
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _WorkoutHeroCard(
-            timeLabel: _timeLabel,
-            stateLabel: _stateLabel,
-            stateVariant: _stateVariant,
-          ),
-          const SizedBox(height: AppSpacing.sectionGap),
-          _ConnectionStatusCard(
-            piConnected: _piConnected,
-            esp32Connected: _esp32Connected,
-            glassConnected: _glassConnected,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          const _WorkoutNoticeCard(),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: _ControlDockButton(
+                    label: _state == _WorkoutState.paused ? '재개' : '일시정지',
+                    icon: _state == _WorkoutState.paused
+                        ? Icons.play_arrow_rounded
+                        : Icons.pause_rounded,
+                    onPressed: _togglePause,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: _ControlDockButton(
+                    label: '종료',
+                    icon: Icons.stop_rounded,
+                    danger: true,
+                    onPressed: _finishWorkout,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            TextButton.icon(
+              onPressed: _emergencyStop,
+              icon: const Icon(Icons.emergency_rounded, size: 16),
+              label: const Text('비상 종료'),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.error,
+                textStyle: AppTextStyles.caption,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _WorkoutHeroCard extends StatelessWidget {
-  const _WorkoutHeroCard({
-    required this.timeLabel,
-    required this.stateLabel,
-    required this.stateVariant,
+class _ControlDockButton extends StatelessWidget {
+  const _ControlDockButton({
+    required this.label,
+    required this.icon,
+    required this.onPressed,
+    this.danger = false,
   });
 
-  final String timeLabel;
-  final String stateLabel;
-  final StatusVariant stateVariant;
+  final String label;
+  final IconData icon;
+  final VoidCallback onPressed;
+  final bool danger;
 
   @override
   Widget build(BuildContext context) {
-    return ImoCard(
-      variant: ImoCardVariant.hero,
-      paddingSize: ImoCardPadding.lg,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [AppColors.primary, AppColors.primaryStrong],
+    final background = danger ? AppColors.error : AppColors.card;
+    final foreground = danger ? AppColors.card : AppColors.textPrimary;
+
+    return SizedBox(
+      height: 64,
+      child: TextButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon, size: 20),
+        label: Text(label),
+        style: TextButton.styleFrom(
+          backgroundColor: background,
+          foregroundColor: foreground,
+          textStyle: AppTextStyles.bodyLg.copyWith(
+            fontWeight: FontWeight.w800,
           ),
-          borderRadius: BorderRadius.circular(AppSpacing.heroCardRadius),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.largeCardPadding),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  const Icon(
-                    Icons.view_in_ar_rounded,
-                    color: AppColors.card,
-                    size: 18,
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
-                  Text(
-                    '스마트 글래스 안내 활성화',
-                    style: AppTextStyles.caption.copyWith(
-                      color: AppColors.card.withValues(alpha: 0.88),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const Spacer(),
-                  StatusBadge(
-                    label: stateLabel,
-                    variant: stateVariant,
-                    showDot: false,
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.xxl),
-              Text(
-                '운동 시간',
-                style: AppTextStyles.caption.copyWith(
-                  color: AppColors.card.withValues(alpha: 0.78),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                timeLabel,
-                style: AppTextStyles.metric.copyWith(
-                  color: AppColors.card,
-                  fontSize: 56,
-                  letterSpacing: 0,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Text(
-                'Pi가 운동 진행과 반복 수를 처리합니다.',
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: AppColors.card.withValues(alpha: 0.9),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(32),
+            side: BorderSide(
+              color: danger ? AppColors.error : AppColors.border,
+            ),
           ),
         ),
       ),
@@ -298,6 +389,82 @@ class _WorkoutHeroCard extends StatelessWidget {
   }
 }
 
+class _WorkoutCheerCard extends StatelessWidget {
+  const _WorkoutCheerCard({
+    required this.mascotAsset,
+    required this.floatAnimation,
+    required this.headline,
+    required this.message,
+  });
+
+  final String mascotAsset;
+  final Animation<double> floatAnimation;
+  final String headline;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(
+          headline,
+          textAlign: TextAlign.center,
+          style: AppTextStyles.title.copyWith(color: AppColors.textPrimary),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        AnimatedBuilder(
+          animation: floatAnimation,
+          builder: (context, child) {
+            return Transform.translate(
+              offset: Offset(0, floatAnimation.value),
+              child: child,
+            );
+          },
+          child: SizedBox(
+            width: double.infinity,
+            height: 320,
+            child: Center(
+              child: SizedBox(
+                width: 320,
+                height: 320,
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  transitionBuilder: (child, animation) {
+                    return FadeTransition(
+                      opacity: animation,
+                      child: child,
+                    );
+                  },
+                  child: Align(
+                    key: ValueKey(mascotAsset),
+                    alignment: Alignment.center,
+                    child: Image.asset(
+                      mascotAsset,
+                      fit: BoxFit.contain,
+                      width: 320,
+                      height: 320,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Text(
+          message,
+          textAlign: TextAlign.center,
+          style: AppTextStyles.bodySmall.copyWith(
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ignore: unused_element
 class _ConnectionStatusCard extends StatelessWidget {
   const _ConnectionStatusCard({
     required this.piConnected,
@@ -334,6 +501,7 @@ class _ConnectionStatusCard extends StatelessWidget {
   }
 }
 
+// ignore: unused_element
 class _WorkoutNoticeCard extends StatelessWidget {
   const _WorkoutNoticeCard();
 
