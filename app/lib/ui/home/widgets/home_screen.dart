@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
 import '../../core/layouts/app_scaffold.dart';
 import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
+import '../view_model/home_viewmodel.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -34,7 +36,7 @@ class HomeScreen extends StatelessWidget {
             description: '회복 운동 · 저강도 가동범위',
             icon: Icons.monitor_heart_rounded,
             gradient: const [AppColors.secondary, Color(0xFF5DC447)],
-            onTap: () => context.go('/workout-setup'),
+            onTap: () => _showRehabComingSoon(context),
           ),
         ],
       ),
@@ -42,17 +44,34 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
+void _showRehabComingSoon(BuildContext context) {
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(
+      const SnackBar(
+        content: Text('재활 모드는 준비 중이에요. 곧 만나보실 수 있어요!'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+}
+
 class _HomeGreeting extends StatelessWidget {
   const _HomeGreeting();
 
   @override
   Widget build(BuildContext context) {
+    final vm = context.watch<HomeViewModel>();
+    final nickname =
+        (vm.nickname?.isNotEmpty ?? false) ? vm.nickname! : '사용자';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('꾸준함이 결국 답입니다', style: AppTextStyles.body),
+        Text(vm.greetingSubtitle, style: AppTextStyles.body),
         const SizedBox(height: AppSpacing.xxs),
-        Text('사용자님, 안녕하세요!', style: AppTextStyles.title.copyWith(fontSize: 24)),
+        Text(
+          '$nickname님, 안녕하세요!',
+          style: AppTextStyles.title.copyWith(fontSize: 24),
+        ),
       ],
     );
   }
