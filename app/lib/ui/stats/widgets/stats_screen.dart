@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../config/dependencies.dart';
-import '../../../data/services/api_service.dart';
+import '../../../data/repositories/stats_repository.dart';
 import '../../core/layouts/app_scaffold.dart';
 import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
@@ -38,12 +38,12 @@ class _StatsScreenState extends State<StatsScreen> {
       _loadError = null;
     });
     try {
-      final api = getIt<ApiService>();
+      final statsRepository = getIt<StatsRepository>();
       final weekStart = _weekStartText;
       final results = await Future.wait([
-        api.getWeeklyStats(weekStart),
-        api.getWeeklyHeatmap(weekStart),
-        api.getWeeklyBalance(weekStart),
+        statsRepository.getWeeklyStats(weekStart),
+        statsRepository.getWeeklyHeatmap(weekStart),
+        statsRepository.getWeeklyBalance(weekStart),
       ]);
       if (!mounted) {
         return;

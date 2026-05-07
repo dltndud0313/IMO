@@ -12,6 +12,7 @@ import '../data/services/shared_prefs_service.dart';
 import '../data/repositories/calibration_repository.dart';
 import '../data/repositories/device_connection_repository.dart';
 import '../data/repositories/session_history_repository.dart';
+import '../data/repositories/stats_repository.dart';
 import '../data/repositories/user_profile_repository.dart';
 import '../data/repositories/workout_repository.dart';
 import '../domain/use_cases/end_workout_session_usecase.dart';
@@ -57,6 +58,9 @@ Future<void> setupDependencies() async {
   );
   getIt.registerLazySingleton(
     () => SessionHistoryRepository(getIt<ApiService>()),
+  );
+  getIt.registerLazySingleton(
+    () => StatsRepository(getIt<ApiService>()),
   );
   getIt.registerLazySingleton(
     () => LocalSessionRepository(getIt<LocalDbService>()),
