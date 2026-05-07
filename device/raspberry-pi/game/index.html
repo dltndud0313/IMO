@@ -3,18 +3,20 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Lateral Raise Dodger</title>
+    <title>IMO IMU Brick Breaker</title>
     <style>
       :root {
-        --bg: #071118;
-        --panel: rgba(11, 25, 33, 0.82);
-        --line: rgba(107, 240, 215, 0.24);
-        --accent: #6bf0d7;
-        --accent-strong: #d9ff78;
-        --warn: #ffcf70;
-        --danger: #ff7c66;
-        --text: #ecfff9;
-        --soft: #9ec8bf;
+        --bg-top: #09121a;
+        --bg-bottom: #02060a;
+        --panel: rgba(10, 22, 29, 0.84);
+        --line: rgba(109, 242, 214, 0.22);
+        --accent: #6df2d6;
+        --accent-strong: #dcff78;
+        --text: #f0fff9;
+        --soft: #9ac8bf;
+        --warn: #ffd67c;
+        --danger: #ff8b70;
+        --good: #7cffb7;
       }
 
       * {
@@ -25,49 +27,45 @@
         margin: 0;
         min-height: 100vh;
         font-family: "Space Grotesk", "Pretendard", "Noto Sans KR", sans-serif;
-        background:
-          radial-gradient(circle at top, rgba(107, 240, 215, 0.14), transparent 28%),
-          linear-gradient(180deg, #08131b 0%, #04090d 100%);
         color: var(--text);
+        background:
+          radial-gradient(circle at 50% 10%, rgba(109, 242, 214, 0.12), transparent 24%),
+          linear-gradient(180deg, var(--bg-top) 0%, var(--bg-bottom) 100%);
       }
 
       .page {
-        width: min(1120px, 100%);
+        width: min(1240px, 100%);
         margin: 0 auto;
-        padding: 24px 20px 32px;
+        padding: 28px 22px 34px;
       }
 
       .hero {
-        display: flex;
-        justify-content: space-between;
-        align-items: end;
-        gap: 16px;
-        margin-bottom: 18px;
+        margin-bottom: 20px;
       }
 
       .eyebrow {
-        font-size: 12px;
+        font-size: 11px;
         letter-spacing: 0.18em;
         text-transform: uppercase;
         color: var(--soft);
       }
 
       h1 {
-        margin: 10px 0 0;
-        font-size: clamp(32px, 5vw, 54px);
-        line-height: 0.95;
+        margin: 12px 0 0;
+        font-size: clamp(34px, 5vw, 56px);
+        line-height: 0.94;
       }
 
       .sub {
         margin-top: 12px;
+        max-width: 760px;
+        line-height: 1.7;
         color: var(--soft);
-        max-width: 680px;
-        line-height: 1.6;
       }
 
       .layout {
         display: grid;
-        grid-template-columns: 300px 1fr;
+        grid-template-columns: 320px 1fr;
         gap: 18px;
       }
 
@@ -79,9 +77,10 @@
         backdrop-filter: blur(12px);
       }
 
-      .stats {
+      .sidebar {
         display: grid;
         gap: 14px;
+        align-content: start;
       }
 
       .metric {
@@ -91,50 +90,52 @@
         border: 1px solid rgba(255, 255, 255, 0.04);
       }
 
-      .metric .label {
-        font-size: 12px;
-        text-transform: uppercase;
+      .metric-label {
+        font-size: 11px;
         letter-spacing: 0.14em;
+        text-transform: uppercase;
         color: var(--soft);
       }
 
-      .metric .value {
-        margin-top: 8px;
+      .metric-value {
+        margin-top: 10px;
         font-size: 34px;
         font-weight: 700;
+        line-height: 1;
       }
 
-      .metric .subvalue {
-        margin-top: 8px;
-        color: var(--soft);
+      .metric-note {
+        margin-top: 10px;
         font-size: 14px;
+        color: var(--soft);
+        line-height: 1.55;
       }
 
-      .status {
-        padding: 12px 14px;
-        border-radius: 16px;
-        background: rgba(107, 240, 215, 0.08);
+      .status-card {
+        padding: 14px 16px;
+        border-radius: 18px;
+        background: rgba(109, 242, 214, 0.08);
         color: var(--accent);
         font-weight: 600;
+        line-height: 1.55;
       }
 
-      .status.warn {
-        background: rgba(255, 207, 112, 0.12);
+      .status-card.warn {
+        background: rgba(255, 214, 124, 0.12);
         color: var(--warn);
       }
 
-      .status.danger {
-        background: rgba(255, 124, 102, 0.14);
+      .status-card.danger {
+        background: rgba(255, 139, 112, 0.14);
         color: var(--danger);
       }
 
-      .legend {
+      .signal {
         display: grid;
         gap: 10px;
-        margin-top: 12px;
       }
 
-      .legend-item {
+      .signal-row {
         display: flex;
         justify-content: space-between;
         gap: 12px;
@@ -142,10 +143,15 @@
         color: var(--soft);
       }
 
+      .signal-strong {
+        color: var(--text);
+        font-weight: 600;
+      }
+
       .game-shell {
         position: relative;
         overflow: hidden;
-        min-height: 720px;
+        min-height: 760px;
       }
 
       canvas {
@@ -154,8 +160,8 @@
         display: block;
         border-radius: 22px;
         background:
-          linear-gradient(180deg, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.4)),
-          linear-gradient(180deg, #10212c 0%, #071118 100%);
+          linear-gradient(180deg, rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.38)),
+          linear-gradient(180deg, #0f212c 0%, #071118 100%);
       }
 
       .overlay {
@@ -172,6 +178,7 @@
         display: flex;
         justify-content: space-between;
         gap: 12px;
+        flex-wrap: wrap;
       }
 
       .chip {
@@ -182,116 +189,205 @@
         font-size: 13px;
       }
 
-      .center-notice {
+      .notice {
         align-self: center;
+        width: min(620px, 100%);
+        padding: 22px 24px;
+        border-radius: 24px;
+        background: rgba(7, 17, 24, 0.78);
+        border: 1px solid rgba(109, 242, 214, 0.18);
         text-align: center;
-        padding: 18px 24px;
-        border-radius: 20px;
-        background: rgba(7, 17, 24, 0.72);
-        border: 1px solid rgba(107, 240, 215, 0.18);
-        max-width: 540px;
       }
 
-      .center-notice h2 {
+      .notice h2 {
         margin: 0;
         font-size: 30px;
       }
 
-      .center-notice p {
+      .notice p {
         margin: 12px 0 0;
+        color: var(--soft);
+        line-height: 1.65;
+      }
+
+      .notice .hint {
+        color: var(--accent-strong);
+      }
+
+      .countdown-pop {
+        margin: 18px auto 0;
+        width: 140px;
+        height: 140px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        background:
+          radial-gradient(circle, rgba(220, 255, 120, 0.2) 0%, rgba(220, 255, 120, 0.05) 52%, transparent 72%),
+          rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(220, 255, 120, 0.18);
+        box-shadow:
+          0 0 0 12px rgba(109, 242, 214, 0.04),
+          0 0 42px rgba(220, 255, 120, 0.08);
+      }
+
+      .countdown-value {
+        font-size: 54px;
+        font-weight: 700;
+        line-height: 1;
+        color: var(--accent-strong);
+      }
+
+      .calibration-banner {
+        margin-top: 18px;
+        padding: 18px 20px;
+        border-radius: 20px;
+        border: 1px solid rgba(109, 242, 214, 0.16);
+        background: rgba(255, 255, 255, 0.03);
+      }
+
+      .calibration-label {
+        font-size: 12px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--soft);
+      }
+
+      .calibration-stage {
+        margin-top: 12px;
+        font-size: 34px;
+        font-weight: 700;
+        line-height: 1;
+      }
+
+      .calibration-detail {
+        margin-top: 10px;
         color: var(--soft);
         line-height: 1.6;
       }
 
-      .hint {
-        margin-top: 10px;
+      .calibration-count {
+        margin-top: 12px;
+        font-size: 44px;
+        font-weight: 700;
         color: var(--accent-strong);
+        line-height: 1;
       }
 
-      @media (max-width: 960px) {
+      @media (max-width: 980px) {
         .layout {
           grid-template-columns: 1fr;
-        }
-
-        .game-shell {
-          min-height: auto;
         }
       }
     </style>
   </head>
   <body>
     <div class="page">
-      <div class="hero">
-        <div>
-          <div class="eyebrow">IMU Game Prototype</div>
-          <h1>Lateral Raise Dodger</h1>
-          <div class="sub">
-            왼팔과 오른팔의 IMU 움직임으로 레인을 이동하는 1차 게임 프로토타입입니다.
-            몸통 반동이 크면 페널티가 쌓이도록 설계했습니다.
-          </div>
+      <header class="hero">
+        <div class="eyebrow">Smart Glass Game Prototype</div>
+        <h1>IMU Brick Breaker</h1>
+        <div class="sub">
+          양팔 IMU를 이용해 하단 3분할 패널을 활성화하는 벽돌깨기 프로토타입입니다.
+          앱에서 게임 화면이 준비된 뒤, 양팔을 함께 들어 올리면 게임이 시작됩니다.
+          왼팔은 왼쪽, 오른팔은 오른쪽, 양팔은 가운데 패널을 활성화하며
+          레벨이 올라갈수록 공 속도와 벽돌 수가 증가합니다. 시작 전에는 시작 자세를
+          잠깐 유지해 자동 baseline 캘리브레이션을 진행합니다.
         </div>
-      </div>
+      </header>
 
       <div class="layout">
-        <section class="panel stats">
-          <div class="metric">
-            <div class="label">Connection</div>
-            <div id="ws-status" class="value">Waiting</div>
-            <div id="frame-status" class="subvalue">frame waiting</div>
-          </div>
+        <aside class="panel sidebar">
+          <section class="metric">
+            <div class="metric-label">Connection</div>
+            <div id="ws-status" class="metric-value">대기</div>
+            <div id="frame-status" class="metric-note">frame waiting</div>
+          </section>
 
-          <div class="metric">
-            <div class="label">Score</div>
-            <div id="score" class="value">0</div>
-            <div id="speed" class="subvalue">speed x1.00</div>
-          </div>
+          <section class="metric">
+            <div class="metric-label">Level / Score</div>
+            <div id="level-value" class="metric-value">1</div>
+            <div id="score-value" class="metric-note">score 0</div>
+            <div id="lives-value" class="metric-note">lives 3</div>
+          </section>
 
-          <div class="metric">
-            <div class="label">Body Sway Penalty</div>
-            <div id="penalty" class="value">0</div>
-            <div class="subvalue">몸통 흔들림이 크면 위험합니다.</div>
-          </div>
-
-          <div id="status-card" class="status">센서 연결 대기 중</div>
-
-          <div class="metric">
-            <div class="label">Live IMU Input</div>
-            <div id="left-input" class="subvalue">Left arm: 0.00</div>
-            <div id="right-input" class="subvalue">Right arm: 0.00</div>
-            <div id="torso-input" class="subvalue">Torso: 0.00</div>
-          </div>
-
-          <div class="metric">
-            <div class="label">Input Rule</div>
-            <div class="legend">
-              <div class="legend-item"><span>왼팔 빠른 올리기</span><span>왼쪽 이동</span></div>
-              <div class="legend-item"><span>오른팔 빠른 올리기</span><span>오른쪽 이동</span></div>
-              <div class="legend-item"><span>몸통 흔들림 큼</span><span>페널티</span></div>
+          <section class="metric">
+            <div class="metric-label">Gesture State</div>
+            <div id="gesture-value" class="metric-value">대기</div>
+            <div id="gesture-note" class="metric-note">
+              시작 자세를 2초 정도 안정적으로 유지하면 baseline을 자동 측정합니다.
             </div>
-          </div>
-        </section>
+          </section>
 
-        <section class="panel game-shell">
-          <canvas id="game" width="760" height="720"></canvas>
+          <section id="status-card" class="status-card warn">
+            센서 연결과 baseline 측정을 기다리는 중입니다.
+          </section>
+
+          <section class="metric">
+            <div class="metric-label">Live IMU Input</div>
+            <div class="signal">
+              <div class="signal-row">
+                <span>왼팔</span>
+                <span id="left-arm" class="signal-strong">0.00</span>
+              </div>
+              <div class="signal-row">
+                <span>오른팔</span>
+                <span id="right-arm" class="signal-strong">0.00</span>
+              </div>
+              <div class="signal-row">
+                <span>몸통</span>
+                <span id="torso" class="signal-strong">0.00</span>
+              </div>
+            </div>
+          </section>
+
+          <section class="metric">
+            <div class="metric-label">Control Rule</div>
+            <div class="metric-note">
+              시작 자세 2초 유지: 캘리브레이션<br />
+              양팔 올림: 시작 / 다음 레벨 / 재시작<br />
+              왼팔 올림: 왼쪽 패널 활성화<br />
+              오른팔 올림: 오른쪽 패널 활성화<br />
+              양팔 올림: 가운데 패널 활성화 / 시작 제스처<br />
+              몸통 흔들림: 시작 제스처 무효 처리
+            </div>
+          </section>
+        </aside>
+
+        <main class="panel game-shell">
+          <canvas id="game" width="840" height="760"></canvas>
           <div class="overlay">
             <div class="topbar">
-              <div class="chip" id="mode-chip">mode: lateral_raise</div>
-              <div class="chip" id="phase-chip">phase: waiting</div>
+              <div id="phase-chip" class="chip">phase: waiting</div>
+              <div id="control-chip" class="chip">control: neutral</div>
+              <div id="ball-chip" class="chip">ball: ready</div>
             </div>
-            <div class="center-notice" id="notice">
+
+            <div id="notice" class="notice">
               <h2>게임 준비</h2>
               <p>
-                브리지를 연결한 뒤 앱 또는 `ws_control_demo.py`로 운동을 선택하세요.
+                센서를 부착하고 스마트글래스를 쓴 뒤, 시작 자세를 2초 정도 안정적으로 유지하세요.
               </p>
-              <p class="hint">권장 입력: `lateral_raise`</p>
+              <p class="hint">
+                baseline 완료 후 양팔을 동시에 들어 올리면 1레벨이 시작됩니다.
+              </p>
+              <div class="calibration-banner">
+                <div class="calibration-label">Calibration</div>
+                <div id="calibration-stage" class="calibration-stage">준비 대기</div>
+                <div id="calibration-detail" class="calibration-detail">
+                  움직임이 적은 시작 자세가 들어오면 자동으로 baseline 측정을 시작합니다.
+                </div>
+                <div class="countdown-pop">
+                  <div id="calibration-count" class="countdown-value">--</div>
+                </div>
+              </div>
             </div>
+
             <div class="bottombar">
               <div class="chip">IMU1: left arm</div>
               <div class="chip">IMU2: right arm</div>
               <div class="chip">IMU3: torso</div>
             </div>
           </div>
-        </section>
+        </main>
       </div>
     </div>
 
@@ -307,315 +403,652 @@
       const ui = {
         wsStatus: document.getElementById("ws-status"),
         frameStatus: document.getElementById("frame-status"),
-        score: document.getElementById("score"),
-        speed: document.getElementById("speed"),
-        penalty: document.getElementById("penalty"),
+        levelValue: document.getElementById("level-value"),
+        scoreValue: document.getElementById("score-value"),
+        livesValue: document.getElementById("lives-value"),
+        gestureValue: document.getElementById("gesture-value"),
+        gestureNote: document.getElementById("gesture-note"),
         statusCard: document.getElementById("status-card"),
-        leftInput: document.getElementById("left-input"),
-        rightInput: document.getElementById("right-input"),
-        torsoInput: document.getElementById("torso-input"),
-        modeChip: document.getElementById("mode-chip"),
+        leftArm: document.getElementById("left-arm"),
+        rightArm: document.getElementById("right-arm"),
+        torso: document.getElementById("torso"),
         phaseChip: document.getElementById("phase-chip"),
+        controlChip: document.getElementById("control-chip"),
+        ballChip: document.getElementById("ball-chip"),
         notice: document.getElementById("notice"),
+        calibrationStage: document.getElementById("calibration-stage"),
+        calibrationDetail: document.getElementById("calibration-detail"),
+        calibrationCount: document.getElementById("calibration-count"),
       };
+
+      const baseline = {
+        frames: [],
+        accels: null,
+        gyros: null,
+        ready: false,
+        requiredFrames: 60,
+        stableCount: 0,
+        stableRequiredFrames: 45,
+        previousFrame: null,
+      };
+
+      const sensor = {
+        leftScore: 0,
+        rightScore: 0,
+        torsoScore: 0,
+        leftRaised: false,
+        rightRaised: false,
+        bothRaised: false,
+        bothRaisedSince: null,
+        lastSeq: null,
+      };
+
+      const calibration = {
+        accelStableThreshold: 0.09,
+        gyroStableThreshold: 1.35,
+      };
+
+      const levels = [
+        { rows: 4, cols: 6, ballSpeed: 4.2, color: "#6df2d6" },
+        { rows: 5, cols: 8, ballSpeed: 5.1, color: "#d8ff7d" },
+        { rows: 6, cols: 10, ballSpeed: 6.2, color: "#ff9d7f" },
+      ];
 
       const game = {
-        laneCount: 3,
-        playerLane: 1,
-        obstacles: [],
+        level: 0,
+        maxLevel: levels.length,
         score: 0,
-        penalty: 0,
-        speed: 1,
-        running: false,
+        lives: 3,
         phase: "waiting",
-        exerciseType: null,
+        control: "center",
+        paddle: { x: 0, y: canvas.height - 48, width: 0, height: 28, activeIndex: 1 },
+        ball: { x: canvas.width / 2, y: canvas.height - 70, vx: 0, vy: 0, r: 10, stuck: true },
+        bricks: [],
         wsConnected: false,
-        cooldownMs: 460,
-        lastLeftTrigger: 0,
-        lastRightTrigger: 0,
-        leftInput: 0,
-        rightInput: 0,
-        torsoInput: 0,
-        lastFrameSeq: null,
-        lastSpawnAt: 0,
       };
 
-      function laneCenter(laneIndex) {
-        const trackWidth = canvas.width * 0.64;
-        const left = (canvas.width - trackWidth) / 2;
-        const laneWidth = trackWidth / game.laneCount;
-        return left + laneWidth * laneIndex + laneWidth / 2;
-      }
-
-      function resetGameState() {
-        game.playerLane = 1;
-        game.obstacles = [];
-        game.score = 0;
-        game.penalty = 0;
-        game.speed = 1;
-        game.lastSpawnAt = performance.now();
-      }
-
-      function startGameIfReady() {
-        const ready = game.exerciseType === "lateral_raise" && game.phase === "monitoring";
-        game.running = ready;
-        ui.notice.style.display = ready ? "none" : "block";
-        if (ready && game.obstacles.length === 0) {
-          resetGameState();
-        }
-      }
-
-      function updateStatusCard(text, tone = "normal") {
+      function status(text, tone = "normal") {
         ui.statusCard.textContent = text;
-        ui.statusCard.className = "status";
+        ui.statusCard.className = "status-card";
         if (tone === "warn") ui.statusCard.classList.add("warn");
         if (tone === "danger") ui.statusCard.classList.add("danger");
       }
 
-      function triggerLane(direction) {
-        if (!game.running) return;
-        if (direction === "left") {
-          game.playerLane = Math.max(0, game.playerLane - 1);
-        } else {
-          game.playerLane = Math.min(game.laneCount - 1, game.playerLane + 1);
-        }
+      function updateCalibrationUi(stage, detail, countText = "--") {
+        ui.calibrationStage.textContent = stage;
+        ui.calibrationDetail.textContent = detail;
+        ui.calibrationCount.textContent = countText;
       }
 
-      function evaluateInput(leftScore, rightScore, torsoScore) {
-        const now = performance.now();
-        game.leftInput = leftScore;
-        game.rightInput = rightScore;
-        game.torsoInput = torsoScore;
+      function vectorDeltaNorm(current, baselineVec) {
+        return (
+          Math.abs(current[0] - baselineVec[0]) +
+          Math.abs(current[1] - baselineVec[1]) +
+          Math.abs(current[2] - baselineVec[2])
+        );
+      }
 
-        if (leftScore > 7.0 && leftScore > rightScore * 1.18 && now - game.lastLeftTrigger > game.cooldownMs) {
-          triggerLane("left");
-          game.lastLeftTrigger = now;
+      function meanFrames(frames, extractor) {
+        const sums = [
+          [0, 0, 0],
+          [0, 0, 0],
+          [0, 0, 0],
+        ];
+        for (const frame of frames) {
+          const values = extractor(frame);
+          for (let i = 0; i < 3; i++) {
+            for (let axis = 0; axis < 3; axis++) {
+              sums[i][axis] += values[i][axis];
+            }
+          }
+        }
+        return sums.map((row) => row.map((value) => value / frames.length));
+      }
+
+      function captureBaseline(payload) {
+        const imus = payload.imus || [];
+        if (imus.length < 3) return;
+
+        const currentFrame = {
+          accels: imus.map((imu) => imu.accel),
+          gyros: imus.map((imu) => imu.gyro),
+        };
+
+        if (baseline.previousFrame == null) {
+          baseline.previousFrame = currentFrame;
+          ui.gestureValue.textContent = "준비 자세 확인";
+          ui.gestureNote.textContent = "시작 자세를 안정적으로 유지하면 baseline 측정이 시작됩니다.";
+          updateCalibrationUi(
+            "준비 대기",
+            "움직임이 적은 시작 자세가 들어오면 자동으로 baseline 측정을 시작합니다.",
+            "--",
+          );
+          status("센서 입력 확인 중입니다. 시작 자세를 유지하세요.", "warn");
+          return;
         }
 
-        if (rightScore > 7.0 && rightScore > leftScore * 1.18 && now - game.lastRightTrigger > game.cooldownMs) {
-          triggerLane("right");
-          game.lastRightTrigger = now;
+        const armAccelDrift =
+          vectorDeltaNorm(currentFrame.accels[0], baseline.previousFrame.accels[0]) +
+          vectorDeltaNorm(currentFrame.accels[1], baseline.previousFrame.accels[1]);
+        const torsoAccelDrift = vectorDeltaNorm(currentFrame.accels[2], baseline.previousFrame.accels[2]);
+        const armGyroDrift =
+          vectorDeltaNorm(currentFrame.gyros[0], baseline.previousFrame.gyros[0]) +
+          vectorDeltaNorm(currentFrame.gyros[1], baseline.previousFrame.gyros[1]);
+        const torsoGyroDrift = vectorDeltaNorm(currentFrame.gyros[2], baseline.previousFrame.gyros[2]);
+
+        const stableNow =
+          armAccelDrift + torsoAccelDrift <= calibration.accelStableThreshold &&
+          armGyroDrift + torsoGyroDrift <= calibration.gyroStableThreshold;
+
+        baseline.previousFrame = currentFrame;
+
+        if (!stableNow) {
+          baseline.stableCount = 0;
+          baseline.frames = [];
+          ui.gestureValue.textContent = "자세 조정";
+          ui.gestureNote.textContent = "움직임이 감지되었습니다. 팔을 내린 시작 자세를 다시 유지하세요.";
+          updateCalibrationUi(
+            "자세 조정",
+            "움직임이 감지되었습니다. 팔을 내리고 다시 안정적으로 자세를 맞춰주세요.",
+            "--",
+          );
+          status("캘리브레이션 전 자세가 흔들리고 있습니다. 잠시 가만히 있어주세요.", "warn");
+          return;
         }
 
-        if (torsoScore > 8.0) {
-          game.penalty += 1;
-          updateStatusCard("BODY SWAY detected", "danger");
-        } else if (leftScore > 7.0 || rightScore > 7.0) {
-          updateStatusCard("Good arm input", "normal");
+        baseline.stableCount += 1;
+
+        if (baseline.stableCount < baseline.stableRequiredFrames) {
+          ui.gestureValue.textContent = "안정화 중";
+          ui.gestureNote.textContent =
+            `시작 자세 유지 ${baseline.stableCount}/${baseline.stableRequiredFrames}`;
+          const remainSec = Math.max(
+            1,
+            Math.ceil((baseline.stableRequiredFrames - baseline.stableCount) / 20),
+          );
+          updateCalibrationUi(
+            "안정화 중",
+            "시작 자세를 유지하면서 baseline 측정 준비를 진행합니다.",
+            `${remainSec}`,
+          );
+          status("시작 자세가 안정적인지 확인하는 중입니다.", "warn");
+          return;
+        }
+
+        baseline.frames.push({
+          accels: currentFrame.accels,
+          gyros: currentFrame.gyros,
+        });
+
+        if (baseline.frames.length < baseline.requiredFrames) {
+          const progress = `${baseline.frames.length}/${baseline.requiredFrames}`;
+          ui.gestureValue.textContent = "측정 중";
+          ui.gestureNote.textContent = `시작 자세를 유지하세요. baseline ${progress}`;
+          const remainSec = Math.max(
+            1,
+            Math.ceil((baseline.requiredFrames - baseline.frames.length) / 20),
+          );
+          updateCalibrationUi(
+            "측정 중",
+            "기준 자세 baseline을 수집하는 중입니다. 계속 가만히 유지해주세요.",
+            `${remainSec}`,
+          );
+          status("게임 입력 기준값을 수집 중입니다.", "warn");
+          return;
+        }
+
+        baseline.accels = meanFrames(baseline.frames, (frame) => frame.accels);
+        baseline.gyros = meanFrames(baseline.frames, (frame) => frame.gyros);
+        baseline.ready = true;
+        baseline.frames = [];
+        baseline.stableCount = baseline.stableRequiredFrames;
+        ui.gestureValue.textContent = "준비 완료";
+        ui.gestureNote.textContent = "양팔을 동시에 들어 올리면 게임을 시작할 수 있습니다.";
+        updateCalibrationUi(
+          "측정 완료",
+          "baseline 캘리브레이션이 끝났습니다. 양팔을 동시에 들어 올려 게임을 시작하세요.",
+          "OK",
+        );
+        status("baseline 측정 완료. 양팔 올리기 제스처를 기다립니다.");
+      }
+
+      function buildBricks(levelIndex) {
+        const config = levels[levelIndex];
+        const top = 90;
+        const side = 54;
+        const gap = 10;
+        const totalWidth = canvas.width - side * 2;
+        const brickWidth = (totalWidth - gap * (config.cols - 1)) / config.cols;
+        const brickHeight = 24;
+        const bricks = [];
+
+        for (let row = 0; row < config.rows; row++) {
+          for (let col = 0; col < config.cols; col++) {
+            bricks.push({
+              x: side + col * (brickWidth + gap),
+              y: top + row * (brickHeight + gap),
+              width: brickWidth,
+              height: brickHeight,
+              alive: true,
+            });
+          }
+        }
+        return bricks;
+      }
+
+      function updatePaddleLayout() {
+        game.paddle.width = Math.min(canvas.width - 36, canvas.width * 0.94);
+        game.paddle.x = (canvas.width - game.paddle.width) / 2;
+      }
+
+      function resetBall(stuck = true) {
+        const segmentWidth = game.paddle.width / 3;
+        game.ball.x = game.paddle.x + segmentWidth * (game.paddle.activeIndex + 0.5);
+        game.ball.y = game.paddle.y - game.ball.r - 4;
+        game.ball.vx = 0;
+        game.ball.vy = 0;
+        game.ball.stuck = stuck;
+      }
+
+      function loadLevel(levelIndex) {
+        game.level = levelIndex;
+        game.bricks = buildBricks(levelIndex);
+        updatePaddleLayout();
+        game.paddle.activeIndex = 1;
+        game.control = "center";
+        resetBall(true);
+        game.phase = levelIndex === 0 ? "ready" : "level_ready";
+        ui.levelValue.textContent = `${levelIndex + 1}`;
+        ui.gestureValue.textContent = "시작 대기";
+        ui.gestureNote.textContent = `양팔을 동시에 들어 올리면 ${levelIndex + 1}레벨이 시작됩니다.`;
+        ui.notice.style.display = "block";
+        ui.notice.querySelector("h2").textContent = `${levelIndex + 1}레벨 준비`;
+        ui.notice.querySelectorAll("p")[0].textContent =
+          `레벨 ${levelIndex + 1}은 벽돌 ${game.bricks.length}개와 더 빠른 공 속도로 진행됩니다.`;
+        ui.notice.querySelectorAll("p")[1].textContent =
+          "양팔을 동시에 들어 올리면 볼이 발사되고 가운데 패널이 활성화됩니다.";
+        ui.phaseChip.textContent = `phase: ${game.phase}`;
+        ui.ballChip.textContent = "ball: ready";
+        ui.controlChip.textContent = "control: center";
+        status("양팔 올리기 시작 제스처를 기다리는 중입니다.", "warn");
+      }
+
+      function startLevel() {
+        const speed = levels[game.level].ballSpeed;
+        game.ball.vx = speed * 0.7;
+        game.ball.vy = -speed;
+        game.ball.stuck = false;
+        game.paddle.activeIndex = 1;
+        game.control = "center";
+        game.phase = "running";
+        ui.notice.style.display = "none";
+        ui.phaseChip.textContent = "phase: running";
+        ui.ballChip.textContent = "ball: active";
+        ui.controlChip.textContent = "control: center";
+        status("게임 진행 중");
+      }
+
+      function startNextLevelOrWin() {
+        if (game.level + 1 >= game.maxLevel) {
+          game.phase = "victory";
+          ui.notice.style.display = "block";
+          ui.notice.querySelector("h2").textContent = "클리어";
+          ui.notice.querySelectorAll("p")[0].textContent =
+            `3단계를 모두 완료했습니다. 최종 점수는 ${game.score}점입니다.`;
+          ui.notice.querySelectorAll("p")[1].textContent =
+            "양팔을 동시에 들어 올리면 1레벨부터 다시 시작합니다.";
+          ui.phaseChip.textContent = "phase: victory";
+          ui.ballChip.textContent = "ball: done";
+          ui.gestureValue.textContent = "재시작 가능";
+          ui.gestureNote.textContent = "양팔 올리기로 1레벨부터 다시 시작합니다.";
+          status("모든 레벨을 완료했습니다.");
+          return;
+        }
+        loadLevel(game.level + 1);
+      }
+
+      function restartGame() {
+        game.score = 0;
+        game.lives = 3;
+        ui.scoreValue.textContent = "score 0";
+        ui.livesValue.textContent = "lives 3";
+        loadLevel(0);
+      }
+
+      function loseLife() {
+        game.lives = Math.max(0, game.lives - 1);
+        ui.livesValue.textContent = `lives ${game.lives}`;
+        if (game.lives <= 0) {
+          game.phase = "game_over";
+          ui.notice.style.display = "block";
+          ui.notice.querySelector("h2").textContent = "게임 오버";
+          ui.notice.querySelectorAll("p")[0].textContent =
+            `점수 ${game.score}점으로 종료되었습니다.`;
+          ui.notice.querySelectorAll("p")[1].textContent =
+            "양팔을 동시에 들어 올리면 1레벨부터 다시 시작합니다.";
+          ui.phaseChip.textContent = "phase: game_over";
+          ui.ballChip.textContent = "ball: lost";
+          ui.gestureValue.textContent = "재시작 가능";
+          ui.gestureNote.textContent = "양팔 올리기로 다시 시작합니다.";
+          status("볼을 놓쳤습니다. 게임 오버입니다.", "danger");
+          return;
+        }
+        game.phase = "ready";
+        resetBall(true);
+        ui.notice.style.display = "block";
+        ui.notice.querySelector("h2").textContent = "재시도 준비";
+        ui.notice.querySelectorAll("p")[0].textContent =
+          `남은 라이프는 ${game.lives}개입니다.`;
+        ui.notice.querySelectorAll("p")[1].textContent =
+          "양팔을 동시에 들어 올리면 다시 시작합니다.";
+        ui.phaseChip.textContent = "phase: ready";
+        ui.ballChip.textContent = "ball: ready";
+        ui.gestureValue.textContent = "재시도 가능";
+        ui.gestureNote.textContent = "양팔 올리기로 볼을 다시 발사합니다.";
+        status("볼이 바닥에 닿았습니다. 다시 시작 제스처를 기다립니다.", "warn");
+      }
+
+      function processGesture(payload) {
+        const imus = payload.imus || [];
+        if (imus.length < 3 || !baseline.ready) return;
+
+        const accel0 = imus[0].accel;
+        const accel1 = imus[1].accel;
+        const accel2 = imus[2].accel;
+        const gyro0 = imus[0].gyro;
+        const gyro1 = imus[1].gyro;
+        const gyro2 = imus[2].gyro;
+
+        const leftAccel = vectorDeltaNorm(accel0, baseline.accels[0]);
+        const rightAccel = vectorDeltaNorm(accel1, baseline.accels[1]);
+        const torsoAccel = vectorDeltaNorm(accel2, baseline.accels[2]);
+        const leftGyro = vectorDeltaNorm(gyro0, baseline.gyros[0]);
+        const rightGyro = vectorDeltaNorm(gyro1, baseline.gyros[1]);
+        const torsoGyro = vectorDeltaNorm(gyro2, baseline.gyros[2]);
+
+        sensor.leftScore = leftAccel + leftGyro * 0.08;
+        sensor.rightScore = rightAccel + rightGyro * 0.08;
+        sensor.torsoScore = torsoAccel + torsoGyro * 0.05;
+
+        sensor.leftRaised = sensor.leftScore >= 0.78;
+        sensor.rightRaised = sensor.rightScore >= 0.78;
+        sensor.bothRaised =
+          sensor.leftRaised && sensor.rightRaised && sensor.torsoScore < 0.95;
+
+        ui.leftArm.textContent = sensor.leftScore.toFixed(2);
+        ui.rightArm.textContent = sensor.rightScore.toFixed(2);
+        ui.torso.textContent = sensor.torsoScore.toFixed(2);
+
+        if (sensor.leftRaised && sensor.rightRaised) {
+          game.control = "center";
+          game.paddle.activeIndex = 1;
+          ui.controlChip.textContent = "control: center";
+        } else if (sensor.leftRaised && !sensor.rightRaised) {
+          game.control = "left";
+          game.paddle.activeIndex = 0;
+          ui.controlChip.textContent = "control: left";
+        } else if (sensor.rightRaised && !sensor.leftRaised) {
+          game.control = "right";
+          game.paddle.activeIndex = 2;
+          ui.controlChip.textContent = "control: right";
         } else {
-          updateStatusCard("Input waiting", "warn");
+          game.control = "neutral";
+          ui.controlChip.textContent = "control: neutral";
+        }
+
+        const now = performance.now();
+        if (sensor.bothRaised) {
+          if (sensor.bothRaisedSince == null) sensor.bothRaisedSince = now;
+          const heldMs = now - sensor.bothRaisedSince;
+          ui.gestureValue.textContent = "인식 중";
+          ui.gestureNote.textContent = `양팔 올림 유지 ${Math.min(600, Math.round(heldMs))}ms`;
+          if (heldMs >= 420) {
+            if (game.phase === "ready" || game.phase === "level_ready") {
+              startLevel();
+            } else if (game.phase === "victory" || game.phase === "game_over") {
+              restartGame();
+            }
+            sensor.bothRaisedSince = null;
+          }
+        } else {
+          sensor.bothRaisedSince = null;
+          if (baseline.ready) {
+            ui.gestureValue.textContent = "준비 완료";
+            ui.gestureNote.textContent = "왼팔=왼쪽, 오른팔=오른쪽, 양팔=가운데 패널";
+          }
         }
       }
 
       function handleSensorFrame(message) {
-        const imus = message.payload.imus || [];
-        const leftGyro = imus[0]?.gyro || [0, 0, 0];
-        const rightGyro = imus[1]?.gyro || [0, 0, 0];
-        const torsoGyro = imus[2]?.gyro || [0, 0, 0];
+        const payload = message.payload || {};
+        sensor.lastSeq = payload.seq;
+        ui.frameStatus.textContent = `seq ${payload.seq} / ts ${payload.timestamp_ms}ms`;
 
-        const leftScore = Math.abs(leftGyro[0]) + Math.abs(leftGyro[1]) + Math.abs(leftGyro[2]);
-        const rightScore = Math.abs(rightGyro[0]) + Math.abs(rightGyro[1]) + Math.abs(rightGyro[2]);
-        const torsoScore = Math.abs(torsoGyro[0]) + Math.abs(torsoGyro[1]) + Math.abs(torsoGyro[2]);
-
-        evaluateInput(leftScore, rightScore, torsoScore);
-        game.lastFrameSeq = message.payload.seq;
-        ui.frameStatus.textContent = `seq ${message.payload.seq} / ts ${message.payload.timestamp_ms}ms`;
-      }
-
-      function handleSessionState(message) {
-        game.exerciseType = message.payload.exercise_type;
-        game.phase = message.payload.phase;
-        ui.modeChip.textContent = `mode: ${game.exerciseType || "waiting"}`;
-        ui.phaseChip.textContent = `phase: ${game.phase}`;
-
-        if (game.exerciseType === "lateral_raise" && game.phase === "monitoring") {
-          ui.notice.style.display = "none";
-          updateStatusCard("Game running", "normal");
-        } else {
-          ui.notice.style.display = "block";
-          updateStatusCard("Choose lateral_raise and finish calibration", "warn");
+        if (!baseline.ready) {
+          captureBaseline(payload);
+          return;
         }
 
-        startGameIfReady();
+        processGesture(payload);
       }
 
       function handleConnectionStatus(message) {
-        const connected = message.payload.esp32_connected;
+        const connected = Boolean(message.payload?.esp32_connected);
         game.wsConnected = connected;
-        ui.wsStatus.textContent = connected ? "Connected" : "Waiting";
+        ui.wsStatus.textContent = connected ? "온라인" : "오프라인";
         if (!connected) {
-          updateStatusCard("ESP32 disconnected", "warn");
+          status("ESP32 연결이 끊어졌습니다.", "warn");
         }
       }
 
-      function spawnObstacle(now) {
-        if (!game.running) return;
-        const interval = 1200 / game.speed;
-        if (now - game.lastSpawnAt < interval) return;
-
-        game.obstacles.push({
-          lane: Math.floor(Math.random() * game.laneCount),
-          y: -80,
-          passed: false,
-        });
-        game.lastSpawnAt = now;
+      function clamp(value, min, max) {
+        return Math.max(min, Math.min(max, value));
       }
 
-      function updateGame(now, deltaMs) {
-        if (!game.running) return;
-        game.speed = 1 + game.score * 0.015;
-        spawnObstacle(now);
+      function updateBall(deltaMs) {
+        if (game.ball.stuck) {
+          const segmentWidth = game.paddle.width / 3;
+          game.ball.x = game.paddle.x + segmentWidth * (game.paddle.activeIndex + 0.5);
+          game.ball.y = game.paddle.y - game.ball.r - 4;
+          return;
+        }
 
-        const velocity = 0.28 * game.speed * deltaMs;
-        for (const obstacle of game.obstacles) {
-          obstacle.y += velocity;
+        const moveScale = deltaMs * 0.06;
+        game.ball.x += game.ball.vx * moveScale;
+        game.ball.y += game.ball.vy * moveScale;
 
-          if (!obstacle.passed && obstacle.y > canvas.height - 180) {
-            obstacle.passed = true;
-            if (obstacle.lane === game.playerLane) {
-              game.penalty += 12;
-              updateStatusCard("Hit obstacle", "danger");
-            } else {
-              game.score += 10;
-            }
+        if (game.ball.x <= 28 || game.ball.x >= canvas.width - 28) {
+          game.ball.vx *= -1;
+          game.ball.x = clamp(game.ball.x, 28, canvas.width - 28);
+        }
+
+        if (game.ball.y <= 34) {
+          game.ball.vy *= -1;
+          game.ball.y = 34;
+        }
+
+        if (
+          game.ball.y + game.ball.r >= game.paddle.y &&
+          game.ball.y - game.ball.r <= game.paddle.y + game.paddle.height &&
+          game.ball.x >= game.paddle.x &&
+          game.ball.x <= game.paddle.x + game.paddle.width &&
+          game.ball.vy > 0
+        ) {
+          const segmentWidth = game.paddle.width / 3;
+          const segmentIndex = clamp(
+            Math.floor((game.ball.x - game.paddle.x) / segmentWidth),
+            0,
+            2,
+          );
+
+          if (segmentIndex === game.paddle.activeIndex) {
+            const segmentCenter = game.paddle.x + segmentWidth * (segmentIndex + 0.5);
+            const localRatio = (game.ball.x - segmentCenter) / (segmentWidth / 2);
+            game.ball.vx = clamp(localRatio * 5.8 + (segmentIndex - 1) * 1.6, -7.2, 7.2);
+            game.ball.vy = -Math.abs(game.ball.vy);
+            status("활성 패널로 공을 받아냈습니다.");
+          } else {
+            loseLife();
+            return;
           }
         }
 
-        game.obstacles = game.obstacles.filter((obstacle) => obstacle.y < canvas.height + 120);
-      }
-
-      function drawTrack() {
-        const trackWidth = canvas.width * 0.64;
-        const left = (canvas.width - trackWidth) / 2;
-        const laneWidth = trackWidth / game.laneCount;
-
-        ctx.fillStyle = "rgba(11, 25, 33, 0.86)";
-        ctx.fillRect(left, 40, trackWidth, canvas.height - 80);
-
-        ctx.strokeStyle = "rgba(107, 240, 215, 0.18)";
-        ctx.lineWidth = 2;
-        for (let i = 0; i <= game.laneCount; i++) {
-          const x = left + laneWidth * i;
-          ctx.beginPath();
-          ctx.moveTo(x, 40);
-          ctx.lineTo(x, canvas.height - 40);
-          ctx.stroke();
-        }
-
-        ctx.strokeStyle = "rgba(217, 255, 120, 0.25)";
-        ctx.strokeRect(left, 40, trackWidth, canvas.height - 80);
-      }
-
-      function drawPlayer() {
-        const x = laneCenter(game.playerLane);
-        const y = canvas.height - 120;
-
-        ctx.fillStyle = "#d9ff78";
-        ctx.beginPath();
-        ctx.moveTo(x, y - 34);
-        ctx.lineTo(x - 28, y + 32);
-        ctx.lineTo(x + 28, y + 32);
-        ctx.closePath();
-        ctx.fill();
-
-        ctx.shadowColor = "rgba(217, 255, 120, 0.4)";
-        ctx.shadowBlur = 26;
-        ctx.fillRect(x - 4, y + 36, 8, 18);
-        ctx.shadowBlur = 0;
-      }
-
-      function drawObstacles() {
-        for (const obstacle of game.obstacles) {
-          const x = laneCenter(obstacle.lane);
-          const y = obstacle.y;
-          ctx.fillStyle = "#ff7c66";
-          ctx.fillRect(x - 26, y - 26, 52, 52);
-          ctx.strokeStyle = "rgba(255,255,255,0.12)";
-          ctx.strokeRect(x - 26, y - 26, 52, 52);
+        if (game.ball.y - game.ball.r > canvas.height) {
+          loseLife();
         }
       }
 
-      function drawHud() {
-        ui.score.textContent = String(game.score);
-        ui.speed.textContent = `speed x${game.speed.toFixed(2)}`;
-        ui.penalty.textContent = String(game.penalty);
-        ui.leftInput.textContent = `Left arm: ${game.leftInput.toFixed(2)}`;
-        ui.rightInput.textContent = `Right arm: ${game.rightInput.toFixed(2)}`;
-        ui.torsoInput.textContent = `Torso: ${game.torsoInput.toFixed(2)}`;
+      function updateBricks() {
+        let aliveCount = 0;
+        for (const brick of game.bricks) {
+          if (!brick.alive) continue;
+          aliveCount += 1;
+
+          const withinX = game.ball.x + game.ball.r >= brick.x && game.ball.x - game.ball.r <= brick.x + brick.width;
+          const withinY = game.ball.y + game.ball.r >= brick.y && game.ball.y - game.ball.r <= brick.y + brick.height;
+
+          if (withinX && withinY) {
+            brick.alive = false;
+            aliveCount -= 1;
+            game.score += 15;
+            ui.scoreValue.textContent = `score ${game.score}`;
+            game.ball.vy *= -1;
+          }
+        }
+
+        if (aliveCount === 0 && game.phase === "running") {
+          startNextLevelOrWin();
+        }
       }
 
-      function renderBackgroundGrid() {
+      function drawBackground() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-        grad.addColorStop(0, "#143140");
-        grad.addColorStop(1, "#050b10");
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        ctx.strokeStyle = "rgba(107, 240, 215, 0.06)";
-        for (let y = 0; y < canvas.height; y += 36) {
+        ctx.strokeStyle = "rgba(109, 242, 214, 0.08)";
+        ctx.lineWidth = 1;
+        for (let y = 60; y < canvas.height; y += 54) {
           ctx.beginPath();
-          ctx.moveTo(0, y);
-          ctx.lineTo(canvas.width, y);
+          ctx.moveTo(28, y);
+          ctx.lineTo(canvas.width - 28, y);
           ctx.stroke();
         }
       }
 
-      let lastTs = performance.now();
-      function loop(now) {
-        const delta = now - lastTs;
-        lastTs = now;
+      function drawBricks() {
+        const color = levels[game.level].color;
+        for (const brick of game.bricks) {
+          if (!brick.alive) continue;
+          ctx.fillStyle = color;
+          ctx.fillRect(brick.x, brick.y, brick.width, brick.height);
+          ctx.strokeStyle = "rgba(255,255,255,0.16)";
+          ctx.strokeRect(brick.x, brick.y, brick.width, brick.height);
+        }
+      }
 
-        updateGame(now, delta);
-        renderBackgroundGrid();
-        drawTrack();
-        drawObstacles();
-        drawPlayer();
-        drawHud();
+      function drawPaddle() {
+        const segmentWidth = game.paddle.width / 3;
+        ctx.fillStyle = "rgba(255,255,255,0.08)";
+        ctx.fillRect(game.paddle.x, game.paddle.y, game.paddle.width, game.paddle.height);
 
-        requestAnimationFrame(loop);
+        ctx.strokeStyle = "rgba(255,255,255,0.12)";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(game.paddle.x, game.paddle.y, game.paddle.width, game.paddle.height);
+
+        for (let i = 0; i < 3; i++) {
+          const x = game.paddle.x + segmentWidth * i;
+          const width = i === 2 ? game.paddle.x + game.paddle.width - x : segmentWidth;
+          const active = i === game.paddle.activeIndex;
+          if (active) {
+            ctx.fillStyle = "#d8ff7d";
+            ctx.fillRect(x, game.paddle.y, width, game.paddle.height);
+            ctx.strokeStyle = "rgba(255,255,255,0.7)";
+            ctx.strokeRect(x, game.paddle.y, width, game.paddle.height);
+          }
+        }
+
+        ctx.strokeStyle = "rgba(255,255,255,0.24)";
+        ctx.lineWidth = 3;
+        for (let i = 1; i < 3; i++) {
+          const dividerX = game.paddle.x + segmentWidth * i;
+          ctx.beginPath();
+          ctx.moveTo(dividerX, game.paddle.y);
+          ctx.lineTo(dividerX, game.paddle.y + game.paddle.height);
+          ctx.stroke();
+        }
+      }
+
+      function drawBall() {
+        ctx.beginPath();
+        ctx.fillStyle = "#ffffff";
+        ctx.arc(game.ball.x, game.ball.y, game.ball.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      function updateHud() {
+        ui.levelValue.textContent = `${game.level + 1}`;
+        ui.scoreValue.textContent = `score ${game.score}`;
+        ui.livesValue.textContent = `lives ${game.lives}`;
+        ui.phaseChip.textContent = `phase: ${game.phase}`;
+        ui.ballChip.textContent = game.ball.stuck ? "ball: ready" : "ball: active";
+      }
+
+      function gameLoop(now) {
+        if (!gameLoop.lastTime) gameLoop.lastTime = now;
+        const deltaMs = now - gameLoop.lastTime;
+        gameLoop.lastTime = now;
+
+        if (game.phase === "running") {
+          updateBall(deltaMs);
+          updateBricks();
+        } else if (game.ball.stuck) {
+          updateBall(deltaMs);
+        }
+
+        drawBackground();
+        drawBricks();
+        drawPaddle();
+        drawBall();
+        updateHud();
+
+        requestAnimationFrame(gameLoop);
       }
 
       function connect() {
         const ws = new WebSocket(wsUrl);
-        ui.wsStatus.textContent = "Connecting";
+        ui.wsStatus.textContent = "연결 중";
+        ui.frameStatus.textContent = wsUrl;
 
         ws.onopen = () => {
-          ui.wsStatus.textContent = "Connected";
-          updateStatusCard("WebSocket connected", "normal");
+          ui.wsStatus.textContent = "온라인";
+          status("센서 프레임을 수신 중입니다. 시작 자세를 유지해 캘리브레이션을 시작하세요.");
           ws.send(JSON.stringify({ type: "ping", payload: {} }));
         };
 
         ws.onmessage = (event) => {
           const message = JSON.parse(event.data);
-          if (message.type === "connection_status") {
-            handleConnectionStatus(message);
-          }
-          if (message.type === "glass_session_state") {
-            handleSessionState(message);
-          }
           if (message.type === "sensor_frame") {
             handleSensorFrame(message);
           }
-          if (message.type === "error") {
-            updateStatusCard(message.payload.message || "Bridge error", "danger");
+          if (message.type === "connection_status") {
+            handleConnectionStatus(message);
           }
         };
 
         ws.onclose = () => {
-          ui.wsStatus.textContent = "Disconnected";
-          updateStatusCard("WebSocket disconnected", "warn");
+          ui.wsStatus.textContent = "연결 끊김";
+          status("브리지와의 연결이 끊겨 재연결을 기다립니다.", "warn");
           setTimeout(connect, 1200);
         };
 
         ws.onerror = () => {
-          updateStatusCard("WebSocket error", "danger");
+          ui.wsStatus.textContent = "연결 오류";
+          status("WebSocket 연결 오류가 발생했습니다.", "danger");
         };
       }
 
+      loadLevel(0);
       connect();
-      requestAnimationFrame(loop);
+      requestAnimationFrame(gameLoop);
     </script>
   </body>
 </html>

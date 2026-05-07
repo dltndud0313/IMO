@@ -9,6 +9,7 @@ import json
 import math
 import threading
 import time
+import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from functools import partial
@@ -41,6 +42,9 @@ from glass_metrics import SENSOR_CONFIGS, analyze_frame, build_phase_result, bui
 
 
 UI_DIR = Path(__file__).with_name("glass-ui")
+EMG_DETACHED_THRESHOLD = 0.99
+CALIBRATION_REST_FRAMES = 100
+CALIBRATION_MVC_FRAMES = 100
 EXERCISE_LABELS = {
     "pushup": "Push-up",
     "bicep_curl": "Bicep Curl",
@@ -68,6 +72,7 @@ class SessionSnapshot:
     rest_sec: int
     rest_remaining_sec: int
     current_rep: Optional[int]
+    current_speed_label: str
     sensors_attached: bool
 
 
@@ -75,6 +80,7 @@ class SessionSnapshot:
 class CalibrationData:
     exercise_type: Optional[str] = None
     emg_rest_baseline: list[float] = field(default_factory=lambda: [0.0] * 4)
+    emg_mvc: list[float] = field(default_factory=lambda: [1.0] * 4)
     emg_activation_threshold: list[float] = field(default_factory=lambda: [0.05] * 4)
     imu_rest_accel: list[list[float]] = field(
         default_factory=lambda: [[0.0, 0.0, 0.0] for _ in range(3)]
@@ -83,6 +89,33 @@ class CalibrationData:
         default_factory=lambda: [[0.0, 0.0, 0.0] for _ in range(3)]
     )
     ready: bool = False
+
+
+@dataclass
+class SetSummary:
+    set_index: int
+    target_reps: int
+    actual_reps: int
+    compensation_count: int
+    avg_speed: str
+    started_at: str
+    ended_at: str
+
+
+@dataclass
+class SessionAccumulator:
+    session_id: Optional[str] = None
+    started_at: Optional[str] = None
+    ended_at: Optional[str] = None
+    status: str = "completed"
+    end_reason: str = "auto_completed"
+    current_set_started_at: Optional[str] = None
+    normalized_sums: list[float] = field(default_factory=lambda: [0.0] * 4)
+    normalized_counts: list[int] = field(default_factory=lambda: [0] * 4)
+    actual_reps_per_set: list[int] = field(default_factory=list)
+    set_results: list[SetSummary] = field(default_factory=list)
+    valid_rep_count: int = 0
+    active_frame_count: int = 0
 
 
 class BridgeState:
@@ -103,10 +136,15 @@ class BridgeState:
         self._sensors_attached = False
         self._motion_active = False
         self._last_rep_timestamp_ms: Optional[int] = None
+        self._current_set_rep_intervals_ms: list[int] = []
+        self._last_rep_speed_label = "분석 중"
         self._last_device_rep_index: Optional[int] = None
         self._calibration_data = CalibrationData()
         self._calibration_frames: list[DecodedFrame] = []
         self._calibration_collecting = False
+        self._calibration_stage = "idle"
+        self._session_accumulator = SessionAccumulator()
+        self._pending_session_result: Optional[dict[str, Any]] = None
 
     def update_frame(self, frame: DecodedFrame) -> list[dict[str, Any]]:
         with self._lock:
@@ -150,10 +188,18 @@ class BridgeState:
             self._sensors_attached = False
             self._motion_active = False
             self._last_rep_timestamp_ms = None
+            self._current_set_rep_intervals_ms = []
+            self._last_rep_speed_label = "분석 중"
             self._last_device_rep_index = None
             self._calibration_data = CalibrationData(exercise_type=exercise_type)
             self._calibration_frames = []
             self._calibration_collecting = False
+            self._calibration_stage = "idle"
+            self._session_accumulator = SessionAccumulator(
+                session_id=f"sess_{uuid.uuid4().hex[:12]}",
+                actual_reps_per_set=[0] * set_count,
+            )
+            self._pending_session_result = None
 
     def mark_sensors_attached(self) -> None:
         with self._lock:
@@ -166,6 +212,7 @@ class BridgeState:
             self._calibration_frames = []
             self._calibration_collecting = True
             self._calibration_data.ready = False
+            self._calibration_stage = "rest"
             self._phase = "calibrating"
 
     def mark_paused(self) -> None:
@@ -195,6 +242,8 @@ class BridgeState:
         with self._lock:
             self._phase = "completed"
             self._rest_deadline_monotonic = None
+            if self._session_accumulator.ended_at is None:
+                self._session_accumulator.ended_at = now_iso()
 
     def mark_esp32_disconnected(self) -> None:
         with self._lock:
@@ -222,6 +271,7 @@ class BridgeState:
                 rest_sec=self._rest_sec,
                 rest_remaining_sec=self._rest_remaining_sec_locked(),
                 current_rep=self._current_rep,
+                current_speed_label=self._last_rep_speed_label,
                 sensors_attached=self._sensors_attached,
             )
 
@@ -230,17 +280,268 @@ class BridgeState:
             return CalibrationData(
                 exercise_type=self._calibration_data.exercise_type,
                 emg_rest_baseline=list(self._calibration_data.emg_rest_baseline),
+                emg_mvc=list(self._calibration_data.emg_mvc),
                 emg_activation_threshold=list(self._calibration_data.emg_activation_threshold),
                 imu_rest_accel=[list(v) for v in self._calibration_data.imu_rest_accel],
                 imu_rest_gyro=[list(v) for v in self._calibration_data.imu_rest_gyro],
                 ready=self._calibration_data.ready,
             )
 
+    def consume_pending_session_result(self) -> Optional[dict[str, Any]]:
+        with self._lock:
+            payload = self._pending_session_result
+            self._pending_session_result = None
+            return payload
+
+    def finalize_session(self, status: str, end_reason: str) -> None:
+        with self._lock:
+            self._finalize_session_locked(status, end_reason)
+
+    def _valid_emg_values(self, frame: DecodedFrame) -> list[Optional[float]]:
+        values: list[Optional[float]] = []
+        for value in frame.emg:
+            values.append(None if value >= EMG_DETACHED_THRESHOLD else value)
+        return values
+
+    def _normalized_emg_values_locked(self, frame: DecodedFrame) -> list[float]:
+        valid_emg = self._valid_emg_values(frame)
+        normalized = [0.0] * 4
+        for index, value in enumerate(valid_emg):
+            if value is None:
+                continue
+            baseline = self._calibration_data.emg_rest_baseline[index]
+            mvc = self._calibration_data.emg_mvc[index]
+            denominator = max(mvc - baseline, 1e-6)
+            normalized[index] = max(0.0, min(1.0, (value - baseline) / denominator))
+        return normalized
+
+    def _max_accel_delta_locked(self, frame: DecodedFrame) -> float:
+        accel_delta = 0.0
+        for imu_index, imu_accel in enumerate(frame.imu_accels[:3]):
+            baseline = self._calibration_data.imu_rest_accel[imu_index]
+            accel_delta = max(
+                accel_delta,
+                abs(imu_accel[0] - baseline[0])
+                + abs(imu_accel[1] - baseline[1])
+                + abs(imu_accel[2] - baseline[2]),
+            )
+        return accel_delta
+
+    def _gyro_delta_locked(self, frame: DecodedFrame) -> float:
+        imu_gyro = frame.imu_gyros[0] if frame.imu_gyros else (0.0, 0.0, 0.0)
+        gyro_baseline = self._calibration_data.imu_rest_gyro[0]
+        return (
+            math.fabs(imu_gyro[0] - gyro_baseline[0])
+            + math.fabs(imu_gyro[1] - gyro_baseline[1])
+            + math.fabs(imu_gyro[2] - gyro_baseline[2])
+        )
+
+    def _ensure_session_started_locked(self) -> None:
+        if self._session_accumulator.started_at is None:
+            timestamp = now_iso()
+            self._session_accumulator.started_at = timestamp
+            self._session_accumulator.current_set_started_at = timestamp
+
+    def _current_set_start_locked(self) -> str:
+        self._ensure_session_started_locked()
+        if self._session_accumulator.current_set_started_at is None:
+            self._session_accumulator.current_set_started_at = now_iso()
+        return self._session_accumulator.current_set_started_at
+
+    def _track_active_frame_locked(self, frame: DecodedFrame) -> None:
+        if not self._calibration_data.ready:
+            return
+        normalized = self._normalized_emg_values_locked(frame)
+        if max(normalized, default=0.0) <= 0.05:
+            return
+        self._ensure_session_started_locked()
+        self._session_accumulator.active_frame_count += 1
+        for index, value in enumerate(normalized):
+            self._session_accumulator.normalized_sums[index] += value
+            self._session_accumulator.normalized_counts[index] += 1
+
+    def _record_set_completion_locked(self, set_index: int, actual_rep: int, target_rep: int) -> None:
+        self._ensure_session_started_locked()
+        if 0 <= set_index - 1 < len(self._session_accumulator.actual_reps_per_set):
+            self._session_accumulator.actual_reps_per_set[set_index - 1] = actual_rep
+        started_at = self._current_set_start_locked()
+        ended_at = now_iso()
+        self._session_accumulator.valid_rep_count += actual_rep
+        avg_speed = self._average_speed_label_locked()
+        self._session_accumulator.set_results.append(
+            SetSummary(
+                set_index=set_index,
+                target_reps=target_rep,
+                actual_reps=actual_rep,
+                compensation_count=0,
+                avg_speed=avg_speed,
+                started_at=started_at,
+                ended_at=ended_at,
+            )
+        )
+        self._session_accumulator.current_set_started_at = None
+        self._current_set_rep_intervals_ms = []
+        self._last_rep_speed_label = "분석 중"
+
+    def _classify_speed_label_locked(self, interval_ms: int) -> str:
+        if interval_ms < 900:
+            return "빠름"
+        if interval_ms < 1800:
+            return "적정"
+        return "느림"
+
+    def _average_speed_label_locked(self) -> str:
+        if not self._current_set_rep_intervals_ms:
+            if self._last_rep_speed_label == "분석 중":
+                return "normal"
+            return {"빠름": "fast", "적정": "normal", "느림": "slow"}.get(
+                self._last_rep_speed_label,
+                "normal",
+            )
+        avg_interval = sum(self._current_set_rep_intervals_ms) / len(self._current_set_rep_intervals_ms)
+        return {
+            "빠름": "fast",
+            "적정": "normal",
+            "느림": "slow",
+        }[self._classify_speed_label_locked(int(avg_interval))]
+
+    def _update_last_rep_speed_locked(self, timestamp_ms: int) -> None:
+        if self._last_rep_timestamp_ms is None:
+            self._last_rep_speed_label = "분석 중"
+            return
+        interval_ms = max(0, timestamp_ms - self._last_rep_timestamp_ms)
+        if interval_ms <= 0:
+            return
+        self._current_set_rep_intervals_ms.append(interval_ms)
+        self._last_rep_speed_label = self._classify_speed_label_locked(interval_ms)
+
+    def _channel_average_locked(self, index: int) -> float:
+        count = self._session_accumulator.normalized_counts[index]
+        if count <= 0:
+            return 0.0
+        return self._session_accumulator.normalized_sums[index] / count
+
+    def _build_muscle_map_locked(self) -> dict[str, float]:
+        ch1 = self._channel_average_locked(0)
+        ch2 = self._channel_average_locked(1)
+        ch3 = self._channel_average_locked(2)
+        ch4 = self._channel_average_locked(3)
+        if self._exercise_type == "pushup":
+            return {
+                "chest": (ch1 + ch2) / 2.0,
+                "left_shoulder": 0.0,
+                "right_shoulder": 0.0,
+                "left_triceps": ch3,
+                "right_triceps": ch4,
+            }
+        if self._exercise_type == "lateral_raise":
+            return {
+                "chest": 0.0,
+                "left_shoulder": ch1,
+                "right_shoulder": ch2,
+                "left_triceps": 0.0,
+                "right_triceps": 0.0,
+            }
+        return {
+            "chest": 0.0,
+            "left_biceps": ch1,
+            "right_biceps": ch2,
+            "left_forearm": ch3,
+            "right_forearm": ch4,
+        }
+
+    def _build_session_result_locked(self, status: str, end_reason: str) -> dict[str, Any]:
+        ended_at = now_iso()
+        self._session_accumulator.ended_at = ended_at
+        self._session_accumulator.status = status
+        self._session_accumulator.end_reason = end_reason
+        started_at = self._session_accumulator.started_at or ended_at
+        total_reps = sum(self._session_accumulator.actual_reps_per_set)
+        muscle_map = self._build_muscle_map_locked()
+        avg_target = 0.0
+        avg_assist = 0.0
+        avg_comp = 0.0
+        if self._exercise_type == "pushup":
+            avg_target = (muscle_map["chest"] + muscle_map["left_triceps"] + muscle_map["right_triceps"]) / 3.0
+        elif self._exercise_type == "lateral_raise":
+            avg_target = (muscle_map["left_shoulder"] + muscle_map["right_shoulder"]) / 2.0
+            avg_assist = (muscle_map["left_triceps"] + muscle_map["right_triceps"]) / 2.0
+        elif self._exercise_type == "bicep_curl":
+            avg_target = (muscle_map["left_biceps"] + muscle_map["right_biceps"]) / 2.0
+            avg_assist = (muscle_map["left_forearm"] + muscle_map["right_forearm"]) / 2.0
+
+        balance_enabled = self._exercise_type in {"lateral_raise", "bicep_curl"}
+        if self._exercise_type == "bicep_curl":
+            left_balance = muscle_map["left_biceps"] if balance_enabled else None
+            right_balance = muscle_map["right_biceps"] if balance_enabled else None
+        else:
+            left_balance = muscle_map["left_shoulder"] if balance_enabled else None
+            right_balance = muscle_map["right_shoulder"] if balance_enabled else None
+        diff_balance = None
+        balance_label = None
+        if left_balance is not None and right_balance is not None:
+            diff_balance = abs(left_balance - right_balance)
+            if diff_balance <= 0.1:
+                balance_label = "BALANCED"
+            elif diff_balance <= 0.25:
+                balance_label = "MILD_IMBALANCE"
+            else:
+                balance_label = "SIGNIFICANT_IMBALANCE"
+
+        payload = {
+            "session_id": self._session_accumulator.session_id,
+            "exercise_type": self._exercise_type,
+            "status": status,
+            "end_reason": end_reason,
+            "started_at": started_at,
+            "ended_at": ended_at,
+            "duration_sec": max(0, int((datetime.fromisoformat(ended_at) - datetime.fromisoformat(started_at)).total_seconds())),
+            "set_count": self._set_count,
+            "target_reps_per_set": list(self._target_reps_per_set),
+            "actual_reps_per_set": list(self._session_accumulator.actual_reps_per_set),
+            "rest_sec": self._rest_sec,
+            "total_reps": total_reps,
+            "valid_reps": self._session_accumulator.valid_rep_count,
+            "avg_target_muscle": round(avg_target, 4),
+            "avg_assist_muscle": round(avg_assist, 4),
+            "avg_compensator": round(avg_comp, 4),
+            "compensation_count": 0,
+            "fatigue_onset_set": None,
+            "fatigue_onset_rep": None,
+            "comment": "MVC normalized mean activation",
+            "calibration_summary": {
+                "ch1_mvc": round(self._calibration_data.emg_mvc[0], 4),
+                "ch2_mvc": round(self._calibration_data.emg_mvc[1], 4),
+                "ch3_mvc": round(self._calibration_data.emg_mvc[2], 4),
+                "ch4_mvc": round(self._calibration_data.emg_mvc[3], 4),
+            },
+            "muscle_map": {key: round(value, 4) for key, value in muscle_map.items()},
+            "balance_summary": {
+                "enabled": balance_enabled,
+                "reason": "left_right_activation_pairing" if balance_enabled else "no_left_right_pairing",
+                "left_value": None if left_balance is None else round(left_balance, 4),
+                "right_value": None if right_balance is None else round(right_balance, 4),
+                "diff_value": None if diff_balance is None else round(diff_balance, 4),
+                "balance_label": balance_label,
+            },
+            "set_results": [asdict(result) for result in self._session_accumulator.set_results],
+        }
+        return payload
+
+    def _finalize_session_locked(self, status: str, end_reason: str) -> None:
+        if self._pending_session_result is not None or self._exercise_type is None:
+            return
+        self._pending_session_result = wrap_message(
+            "session_result",
+            self._build_session_result_locked(status, end_reason),
+        )
+
     def _apply_device_rep_index_locked(self, frame: DecodedFrame) -> list[dict[str, Any]]:
         events: list[dict[str, Any]] = []
         if self._last_device_rep_index is None:
             self._last_device_rep_index = frame.rep_index
             if self._phase == "monitoring":
+                self._update_last_rep_speed_locked(frame.timestamp_ms)
                 self._current_rep = frame.rep_index + 1
                 self._last_rep_timestamp_ms = frame.timestamp_ms
                 return self._maybe_advance_workout_locked(frame.timestamp_ms)
@@ -249,6 +550,7 @@ class BridgeState:
         if frame.rep_index < self._last_device_rep_index:
             self._last_device_rep_index = frame.rep_index
             if self._phase == "monitoring":
+                self._update_last_rep_speed_locked(frame.timestamp_ms)
                 self._current_rep = frame.rep_index + 1
                 self._last_rep_timestamp_ms = frame.timestamp_ms
                 return self._maybe_advance_workout_locked(frame.timestamp_ms)
@@ -264,6 +566,7 @@ class BridgeState:
             return events
 
         next_rep = 0 if self._current_rep is None else self._current_rep
+        self._update_last_rep_speed_locked(frame.timestamp_ms)
         self._current_rep = next_rep + delta
         self._last_rep_timestamp_ms = frame.timestamp_ms
         return self._maybe_advance_workout_locked(frame.timestamp_ms)
@@ -272,11 +575,22 @@ class BridgeState:
         if self._phase != "monitoring":
             return []
 
+        normalized_emg = self._normalized_emg_values_locked(frame)
+        valid_emg = [value for value in normalized_emg if value > 0.0]
+        if not valid_emg:
+            self._motion_active = False
+            return []
+
         motion_detected = bool(frame.flags & 0x04)
-        primary_emg = max(frame.emg[0], frame.emg[1], frame.emg[2], frame.emg[3])
-        imu_gyro = frame.imu_gyros[0] if frame.imu_gyros else (0.0, 0.0, 0.0)
-        gyro_norm = math.fabs(imu_gyro[0]) + math.fabs(imu_gyro[1]) + math.fabs(imu_gyro[2])
-        active_now = motion_detected and primary_emg >= 0.06 and gyro_norm >= 2.2
+        primary_emg = max(valid_emg)
+        emg_threshold = 0.12
+        accel_delta = self._max_accel_delta_locked(frame)
+        gyro_norm = self._gyro_delta_locked(frame)
+        active_now = primary_emg >= emg_threshold and (
+            motion_detected or accel_delta >= 0.18 or gyro_norm >= 2.2
+        )
+        if active_now:
+            self._track_active_frame_locked(frame)
 
         if active_now and not self._motion_active:
             enough_gap = (
@@ -284,6 +598,7 @@ class BridgeState:
                 or frame.timestamp_ms - self._last_rep_timestamp_ms >= 700
             )
             if enough_gap:
+                self._update_last_rep_speed_locked(frame.timestamp_ms)
                 self._current_rep = 1 if self._current_rep is None else self._current_rep + 1
                 self._last_rep_timestamp_ms = frame.timestamp_ms
                 self._motion_active = active_now
@@ -313,6 +628,8 @@ class BridgeState:
         self._rest_deadline_monotonic = None
         self._phase = "monitoring"
         self._current_rep = 0
+        self._last_rep_speed_label = "분석 중"
+        self._session_accumulator.current_set_started_at = now_iso()
         return [
             {
                 "event": "rest_finished",
@@ -327,6 +644,7 @@ class BridgeState:
 
         actual_rep = self._current_rep
         completed_set_index = self._current_set_index + 1
+        self._record_set_completion_locked(completed_set_index, actual_rep, target_rep)
         events = [
             {
                 "event": "set_completed",
@@ -340,6 +658,7 @@ class BridgeState:
         if completed_set_index >= self._set_count:
             self._phase = "completed"
             self._rest_deadline_monotonic = None
+            self._finalize_session_locked("completed", "auto_completed")
             events.append(
                 {
                     "event": "workout_completed",
@@ -362,31 +681,44 @@ class BridgeState:
         )
         return events
 
-    def maybe_collect_calibration_frame(self, frame: DecodedFrame) -> bool:
+    def maybe_collect_calibration_frame(self, frame: DecodedFrame) -> Optional[str]:
         with self._lock:
             if not self._calibration_collecting:
-                return False
+                return None
 
             self._calibration_frames.append(frame)
+            if self._calibration_stage == "rest":
+                if len(self._calibration_frames) < CALIBRATION_REST_FRAMES:
+                    return None
+                self._finalize_rest_calibration_locked()
+                self._calibration_frames = []
+                self._calibration_stage = "mvc"
+                self._phase = "calibrating_mvc"
+                return "rest_complete"
 
-            if len(self._calibration_frames) < 100:
-                return False
+            if len(self._calibration_frames) < CALIBRATION_MVC_FRAMES:
+                return None
 
-            self._finalize_calibration_locked()
-            return True
+            self._finalize_mvc_calibration_locked()
+            return "mvc_complete"
 
-    def _finalize_calibration_locked(self) -> None:
+    def _finalize_rest_calibration_locked(self) -> None:
         frames = self._calibration_frames
         if not frames:
             return
 
         emg_sums = [0.0, 0.0, 0.0, 0.0]
+        emg_counts = [0, 0, 0, 0]
         imu_acc_sums = [[0.0, 0.0, 0.0] for _ in range(3)]
         imu_gyro_sums = [[0.0, 0.0, 0.0] for _ in range(3)]
 
         for frame in frames:
             for channel_index in range(4):
-                emg_sums[channel_index] += frame.emg[channel_index]
+                emg_value = frame.emg[channel_index]
+                if emg_value >= EMG_DETACHED_THRESHOLD:
+                    continue
+                emg_sums[channel_index] += emg_value
+                emg_counts[channel_index] += 1
             for imu_index in range(3):
                 if imu_index < len(frame.imu_accels):
                     for axis in range(3):
@@ -396,7 +728,10 @@ class BridgeState:
                         imu_gyro_sums[imu_index][axis] += frame.imu_gyros[imu_index][axis]
 
         frame_count = float(len(frames))
-        self._calibration_data.emg_rest_baseline = [value / frame_count for value in emg_sums]
+        self._calibration_data.emg_rest_baseline = [
+            (emg_sums[index] / emg_counts[index]) if emg_counts[index] > 0 else 0.0
+            for index in range(4)
+        ]
         self._calibration_data.emg_activation_threshold = [
             baseline + 0.03 for baseline in self._calibration_data.emg_rest_baseline
         ]
@@ -406,11 +741,40 @@ class BridgeState:
         self._calibration_data.imu_rest_gyro = [
             [value / frame_count for value in imu_values] for imu_values in imu_gyro_sums
         ]
-        self._calibration_data.ready = True
+        self._calibration_data.ready = False
 
+    def _finalize_mvc_calibration_locked(self) -> None:
+        frames = self._calibration_frames
+        if not frames:
+            return
+        top_values: list[list[float]] = [[] for _ in range(4)]
+        for channel_index in range(4):
+            samples = sorted(
+                [
+                    frame.emg[channel_index]
+                    for frame in frames
+                    if frame.emg[channel_index] < EMG_DETACHED_THRESHOLD
+                ]
+            )
+            if not samples:
+                top_values[channel_index] = [self._calibration_data.emg_rest_baseline[channel_index] + 0.1]
+                continue
+            top_count = max(1, math.ceil(len(samples) * 0.1))
+            top_values[channel_index] = samples[-top_count:]
+
+        self._calibration_data.emg_mvc = [
+            max(
+                self._calibration_data.emg_rest_baseline[index] + 0.05,
+                sum(top_values[index]) / len(top_values[index]),
+            )
+            for index in range(4)
+        ]
+        self._calibration_data.ready = True
         self._calibration_collecting = False
         self._calibration_frames = []
+        self._calibration_stage = "done"
         self._phase = "monitoring"
+        self._ensure_session_started_locked()
 
     @staticmethod
     def _phase_label(phase: str) -> str:
@@ -418,7 +782,8 @@ class BridgeState:
             "idle": "운동 선택 대기",
             "ready_for_calibration": "센서 부착 대기",
             "sensors_ready": "캘리브레이션 준비",
-            "calibrating": "캘리브레이션 진행 중",
+            "calibrating": "안정 자세 측정 중",
+            "calibrating_mvc": "최대 수축 측정 중",
             "monitoring": "실시간 측정 중",
             "resting": "세트 간 휴식 중",
             "paused": "일시정지",
@@ -479,6 +844,7 @@ def build_glass_display_data(
             "phase_label": session.phase_label,
             "current_set_index": session.current_set_index,
             "current_rep": session.current_rep,
+            "current_speed_label": session.current_speed_label,
             "target_rep": session.target_rep,
             "target_reps_per_set": session.target_reps_per_set,
             "rest_remaining_sec": session.rest_remaining_sec,
@@ -734,16 +1100,18 @@ class SensorBridge:
             return
 
         if msg_type == "start_calibration":
-            if session.phase != "sensors_ready":
+            if session.exercise_type is None or session.phase not in {"ready_for_calibration", "sensors_ready"}:
                 await websocket.send(
                     json.dumps(
                         build_error_message(
                             "INVALID_STATE",
-                            "start_calibration must be sent after sensors_attached.",
+                            "start_calibration must be sent after a workout plan is accepted.",
                         )
                     )
                 )
                 return
+            if session.phase == "ready_for_calibration":
+                self._state.mark_sensors_attached()
             self._state.start_calibration_collection()
             self._emit_from_thread(build_glass_session_state(self._state.session_snapshot()))
             self._emit_from_thread(
@@ -757,7 +1125,7 @@ class SensorBridge:
                 json.dumps(
                     build_calibration_status(
                         status="started",
-                        message="센서 기준값 측정을 시작합니다.",
+                        message="안정 자세 기준값 측정을 시작합니다. 이후 최대 수축 측정으로 자동 전환됩니다.",
                         request_id=request_id,
                     )
                 )
@@ -765,7 +1133,7 @@ class SensorBridge:
             return
 
         if msg_type == "pause_workout":
-            if session.phase not in {"monitoring", "resting", "calibrating"}:
+            if session.phase not in {"monitoring", "resting", "calibrating", "calibrating_mvc"}:
                 await websocket.send(
                     json.dumps(
                         build_error_message(
@@ -820,6 +1188,10 @@ class SensorBridge:
                 )
                 return
             self._state.mark_completed()
+            self._state.finalize_session(
+                "stopped" if msg_type == "stop_workout" else "emergency_stopped",
+                "user_request" if msg_type == "stop_workout" else "user_emergency",
+            )
             self._emit_from_thread(build_glass_session_state(self._state.session_snapshot()))
             self._emit_from_thread(
                 build_glass_display_data(
@@ -835,6 +1207,9 @@ class SensorBridge:
                     {"request_id": request_id},
                 )
             )
+            session_result = self._state.consume_pending_session_result()
+            if session_result is not None:
+                self._emit_from_thread(session_result)
             return
 
         await websocket.send(
@@ -977,7 +1352,7 @@ class SensorBridge:
                     previous_phase = self._state.session_snapshot().phase
                     workout_events = self._state.update_frame(decoded)
                     self._last_frame = decoded
-                    calibration_completed = self._state.maybe_collect_calibration_frame(decoded)
+                    calibration_update = self._state.maybe_collect_calibration_frame(decoded)
                     if first_connected:
                         self._emit_from_thread(build_connection_status(self._state.connection_snapshot()))
                     current_session = self._state.session_snapshot()
@@ -1001,14 +1376,33 @@ class SensorBridge:
                                 details,
                             )
                         )
-                    if calibration_completed:
+                    session_result = self._state.consume_pending_session_result()
+                    if session_result is not None:
+                        self._emit_from_thread(session_result)
+                    if calibration_update == "rest_complete":
+                        self._emit_from_thread(
+                            build_calibration_status(
+                                status="started",
+                                message="안정 자세 측정이 끝났습니다. 이제 최대 수축을 3초간 유지하세요.",
+                            )
+                        )
+                        self._emit_from_thread(build_glass_session_state(self._state.session_snapshot()))
+                        self._emit_from_thread(
+                            build_glass_display_data(
+                                self._state.session_snapshot(),
+                                decoded,
+                                self._state.calibration_snapshot(),
+                            )
+                        )
+                    if calibration_update == "mvc_complete":
                         calibration = self._state.calibration_snapshot()
                         self._emit_from_thread(
                             build_calibration_status(
                                 status="success",
-                                message="기준값 측정 완료",
+                                message="REST/MVC 기준값 측정 완료",
                                 calibration_summary={
                                     "emg_rest_baseline": calibration.emg_rest_baseline,
+                                    "emg_mvc": calibration.emg_mvc,
                                     "emg_activation_threshold": calibration.emg_activation_threshold,
                                     "imu_rest_accel": calibration.imu_rest_accel,
                                     "imu_rest_gyro": calibration.imu_rest_gyro,

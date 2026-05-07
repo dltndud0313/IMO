@@ -7,34 +7,45 @@ from typing import Any, Optional
 
 from esp32_serial_receiver import DecodedFrame
 
+EMG_DETACHED_THRESHOLD = 0.99
+
+# Fixed channel contract used across app / Pi / glass HUD:
+# - EMG1: left prime mover
+# - EMG2: right prime mover
+# - EMG3: left assist / compensator
+# - EMG4: right assist / compensator
+# - IMU1: left arm
+# - IMU2: right arm
+# - IMU3: torso
+# Exercise type changes the semantic meaning of each fixed channel.
 
 SENSOR_CONFIGS = {
     "pushup": [
-        ("EMG 1", "Left chest"),
-        ("EMG 2", "Right chest"),
+        ("EMG 1", "Left pectoralis major"),
+        ("EMG 2", "Right pectoralis major"),
         ("EMG 3", "Left triceps"),
         ("EMG 4", "Right triceps"),
-        ("IMU 1", "Left upper arm"),
-        ("IMU 2", "Right upper arm"),
-        ("IMU 3", "Upper torso"),
+        ("IMU 1", "Left upper arm outer side"),
+        ("IMU 2", "Right upper arm outer side"),
+        ("IMU 3", "Upper thoracic / torso center"),
     ],
     "lateral_raise": [
-        ("EMG 1", "Left side deltoid"),
-        ("EMG 2", "Right side deltoid"),
+        ("EMG 1", "Left lateral deltoid"),
+        ("EMG 2", "Right lateral deltoid"),
         ("EMG 3", "Left upper trapezius"),
         ("EMG 4", "Right upper trapezius"),
-        ("IMU 1", "Left forearm"),
-        ("IMU 2", "Right forearm"),
-        ("IMU 3", "Upper torso"),
+        ("IMU 1", "Left wrist / forearm"),
+        ("IMU 2", "Right wrist / forearm"),
+        ("IMU 3", "Upper thoracic / back center"),
     ],
     "bicep_curl": [
         ("EMG 1", "Left biceps"),
         ("EMG 2", "Right biceps"),
         ("EMG 3", "Left forearm"),
         ("EMG 4", "Right forearm"),
-        ("IMU 1", "Left forearm"),
-        ("IMU 2", "Right forearm"),
-        ("IMU 3", "Upper torso"),
+        ("IMU 1", "Left wrist / forearm"),
+        ("IMU 2", "Right wrist / forearm"),
+        ("IMU 3", "Upper torso / chest center"),
     ],
 }
 
@@ -64,9 +75,13 @@ class FrameFeatures:
     left_arm_motion: float
     right_arm_motion: float
     arm_motion_gap: float
+    left_arm_accel_change: float
+    right_arm_accel_change: float
+    arm_accel_gap: float
     torso_motion: float
     torso_tilt: float
     motion_detected: bool
+    detached_emg_channels: int
 
 
 def _activation_level(level: float) -> str:
@@ -85,6 +100,21 @@ def _gyro_norm(gyro: tuple[float, float, float]) -> float:
     return abs(gyro[0]) + abs(gyro[1]) + abs(gyro[2])
 
 
+def _accel_delta_norm(accel: tuple[float, float, float]) -> float:
+    return abs(accel[0]) + abs(accel[1]) + abs(accel[2])
+
+
+def _normalize_emg_channel(value: float, baseline: float) -> tuple[float, bool]:
+    if value >= EMG_DETACHED_THRESHOLD:
+        return 0.0, True
+    return max(0.0, value - baseline), False
+
+
+def _normalize_emg_ratio(value: float, baseline: float, mvc: float) -> float:
+    denominator = max(mvc - baseline, 1e-6)
+    return _clamp01((value - baseline) / denominator)
+
+
 def _extract_features(frame: DecodedFrame, calibration: Optional[Any]) -> FrameFeatures:
     emg = frame.emg
     imu_gyros = list(frame.imu_gyros)
@@ -97,17 +127,28 @@ def _extract_features(frame: DecodedFrame, calibration: Optional[Any]) -> FrameF
         imu_accels.append(zero_vec)
 
     emg_baseline = [0.0, 0.0, 0.0, 0.0]
+    emg_mvc = [1.0, 1.0, 1.0, 1.0]
     imu_accel_baseline = [[0.0, 0.0, 0.0] for _ in range(3)]
     imu_gyro_baseline = [[0.0, 0.0, 0.0] for _ in range(3)]
     if calibration is not None and getattr(calibration, "ready", False):
         emg_baseline = list(calibration.emg_rest_baseline)
+        emg_mvc = list(getattr(calibration, "emg_mvc", emg_mvc))
         imu_accel_baseline = [list(v) for v in calibration.imu_rest_accel]
         imu_gyro_baseline = [list(v) for v in calibration.imu_rest_gyro]
 
-    left_primary = max(0.0, emg[0] - emg_baseline[0])
-    right_primary = max(0.0, emg[1] - emg_baseline[1])
-    left_secondary = max(0.0, emg[2] - emg_baseline[2])
-    right_secondary = max(0.0, emg[3] - emg_baseline[3])
+    left_primary, left_primary_detached = _normalize_emg_channel(emg[0], emg_baseline[0])
+    right_primary, right_primary_detached = _normalize_emg_channel(emg[1], emg_baseline[1])
+    left_secondary, left_secondary_detached = _normalize_emg_channel(emg[2], emg_baseline[2])
+    right_secondary, right_secondary_detached = _normalize_emg_channel(emg[3], emg_baseline[3])
+
+    if not left_primary_detached:
+        left_primary = _normalize_emg_ratio(emg[0], emg_baseline[0], emg_mvc[0])
+    if not right_primary_detached:
+        right_primary = _normalize_emg_ratio(emg[1], emg_baseline[1], emg_mvc[1])
+    if not left_secondary_detached:
+        left_secondary = _normalize_emg_ratio(emg[2], emg_baseline[2], emg_mvc[2])
+    if not right_secondary_detached:
+        right_secondary = _normalize_emg_ratio(emg[3], emg_baseline[3], emg_mvc[3])
     primary_avg = (left_primary + right_primary) / 2.0
     secondary_avg = (left_secondary + right_secondary) / 2.0
 
@@ -131,6 +172,8 @@ def _extract_features(frame: DecodedFrame, calibration: Optional[Any]) -> FrameF
 
     left_arm_motion = _gyro_norm(adj_imu_gyros[0])
     right_arm_motion = _gyro_norm(adj_imu_gyros[1])
+    left_arm_accel_change = _accel_delta_norm(adj_imu_accels[0])
+    right_arm_accel_change = _accel_delta_norm(adj_imu_accels[1])
     torso_motion = _gyro_norm(adj_imu_gyros[2])
 
     return FrameFeatures(
@@ -145,9 +188,20 @@ def _extract_features(frame: DecodedFrame, calibration: Optional[Any]) -> FrameF
         left_arm_motion=left_arm_motion,
         right_arm_motion=right_arm_motion,
         arm_motion_gap=abs(left_arm_motion - right_arm_motion),
+        left_arm_accel_change=left_arm_accel_change,
+        right_arm_accel_change=right_arm_accel_change,
+        arm_accel_gap=abs(left_arm_accel_change - right_arm_accel_change),
         torso_motion=torso_motion,
         torso_tilt=abs(adj_imu_accels[2][0]) + abs(adj_imu_accels[2][1]),
         motion_detected=bool(frame.flags & 0x04),
+        detached_emg_channels=sum(
+            (
+                left_primary_detached,
+                right_primary_detached,
+                left_secondary_detached,
+                right_secondary_detached,
+            )
+        ),
     )
 
 
@@ -198,6 +252,17 @@ def build_phase_result(phase: str) -> Optional[HeuristicResult]:
             pose_detail="움직임을 최소화하고 센서가 흔들리지 않도록 유지하세요.",
             pose_tone="warn",
         )
+    if phase == "calibrating_mvc":
+        return HeuristicResult(
+            activation_percent=0,
+            activation_level="LOW",
+            usage_text="최대 수축 기준값을 측정 중입니다. 안내된 자세로 강하게 힘을 주세요.",
+            usage_tone="warn",
+            pose_badge="MVC",
+            pose_title="최대 수축 측정 중",
+            pose_detail="운동별 목표 근육에 최대한 힘을 준 상태를 잠시 유지하세요.",
+            pose_tone="warn",
+        )
     if phase == "resting":
         return HeuristicResult(
             activation_percent=0,
@@ -243,6 +308,9 @@ def _analyze_pushup(features: FrameFeatures) -> HeuristicResult:
     elif features.primary_gap > 0.18:
         usage_text = "좌우 가슴 사용 균형이 무너집니다."
         usage_tone = "danger"
+    elif features.arm_accel_gap > 0.55:
+        usage_text = "좌우 팔의 내려간 시작 자세 대비 움직임 차이가 큽니다."
+        usage_tone = "warn"
     elif features.secondary_gap > 0.20:
         usage_text = "좌우 삼두 사용 차이가 큽니다."
         usage_tone = "warn"
@@ -254,6 +322,8 @@ def _analyze_pushup(features: FrameFeatures) -> HeuristicResult:
         pose = ("Posture", "상체 정렬 주의", "몸통 기울어짐이 큽니다. 머리부터 발끝까지 일직선을 유지하세요.", "danger")
     elif features.torso_motion > 10.0:
         pose = ("Control", "몸통 흔들림 감지", "코어를 더 단단히 고정하고 반동을 줄여보세요.", "warn")
+    elif features.arm_accel_gap > 0.55:
+        pose = ("Balance", "좌우 팔 높이 차이", "양팔이 시작 자세 대비 비슷한 높이로 이동하는지 확인하세요.", "warn")
     elif features.arm_motion_gap > 7.0:
         pose = ("Balance", "좌우 팔 속도 차이", "양팔이 같은 속도로 밀어내는지 확인하세요.", "warn")
     else:
@@ -280,6 +350,9 @@ def _analyze_bicep_curl(features: FrameFeatures) -> HeuristicResult:
     elif features.secondary_avg > features.primary_avg * 1.05:
         usage_text = "전완 개입이 더 큽니다. 손목 힘보다 이두 수축에 집중하세요."
         usage_tone = "danger"
+    elif features.arm_accel_gap > 0.45:
+        usage_text = "좌우 팔의 컬 범위가 다릅니다. 한쪽만 더 높게 들리지 않는지 확인하세요."
+        usage_tone = "warn"
     elif features.primary_gap > 0.16:
         usage_text = "좌우 이두 사용 차이가 큽니다."
         usage_tone = "warn"
@@ -289,6 +362,8 @@ def _analyze_bicep_curl(features: FrameFeatures) -> HeuristicResult:
 
     if features.torso_motion > 8.0:
         pose = ("Control", "몸통 반동 주의", "몸통을 고정하고 팔꿈치를 축으로 컬 동작을 유지하세요.", "danger")
+    elif features.arm_accel_gap > 0.45:
+        pose = ("Balance", "좌우 컬 높이 차이", "양팔이 시작 자세 대비 비슷한 범위로 접히는지 확인하세요.", "warn")
     elif features.arm_motion_gap > 6.0:
         pose = ("Balance", "좌우 컬 속도 차이", "양팔 컬 속도와 리듬을 맞춰보세요.", "warn")
     elif not features.motion_detected and features.primary_avg > 0.08:
@@ -317,6 +392,9 @@ def _analyze_lateral_raise(features: FrameFeatures) -> HeuristicResult:
     elif features.secondary_avg > features.primary_avg * 0.90:
         usage_text = "승모근 보상이 큽니다. 어깨를 끌어올리지 않도록 주의하세요."
         usage_tone = "danger"
+    elif features.arm_accel_gap > 0.35:
+        usage_text = "좌우 팔이 시작 자세 대비 다른 높이로 올라가고 있습니다."
+        usage_tone = "warn"
     elif features.primary_gap > 0.16:
         usage_text = "좌우 삼각근 사용 차이가 큽니다."
         usage_tone = "warn"
@@ -326,6 +404,8 @@ def _analyze_lateral_raise(features: FrameFeatures) -> HeuristicResult:
 
     if features.torso_motion > 8.0:
         pose = ("Tempo", "몸통 반동 감지", "몸통 반동을 줄이고 팔을 부드럽게 들어 올리세요.", "danger")
+    elif features.arm_accel_gap > 0.35:
+        pose = ("Balance", "좌우 리프팅 높이 차이", "양팔이 시작 자세 대비 같은 각도로 올라가는지 확인하세요.", "warn")
     elif features.arm_motion_gap > 5.0:
         pose = ("Balance", "좌우 높이 차이 주의", "양팔이 같은 속도와 각도로 올라가는지 확인하세요.", "warn")
     elif features.secondary_gap > 0.14:
@@ -354,6 +434,18 @@ def analyze_frame(
         return build_waiting_result()
 
     features = _extract_features(frame, calibration)
+
+    if features.detached_emg_channels > 0:
+        return HeuristicResult(
+            activation_percent=0,
+            activation_level="LOW",
+            usage_text="EMG 센서 일부가 분리되어 근활성 값을 신뢰할 수 없습니다.",
+            usage_tone="danger",
+            pose_badge="Sensor",
+            pose_title="센서 재부착 필요",
+            pose_detail="EMG 값이 1.000에 가까운 채널이 있습니다. 전극 부착 상태를 먼저 확인하세요.",
+            pose_tone="danger",
+        )
 
     if exercise_type == "pushup":
         return _analyze_pushup(features)
