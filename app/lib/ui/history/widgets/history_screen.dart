@@ -17,11 +17,6 @@ class HistoryScreen extends StatefulWidget {
 }
 
 class _HistoryScreenState extends State<HistoryScreen> {
-  DateTime _visibleMonth = DateTime(
-    DateTime.now().year,
-    DateTime.now().month,
-  );
-  int _selectedDay = DateTime.now().day;
   late final HistoryViewModel _viewModel;
 
   @override
@@ -46,29 +41,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   void _moveMonth(int delta) {
-    setState(() {
-      _visibleMonth = DateTime(_visibleMonth.year, _visibleMonth.month + delta);
-      final lastDay =
-          DateUtils.getDaysInMonth(_visibleMonth.year, _visibleMonth.month);
-      _selectedDay = _selectedDay.clamp(1, lastDay);
-    });
-    _loadSelectedDaySessions();
+    _viewModel.moveMonth(delta);
   }
 
   void _selectDay(int day) {
-    setState(() => _selectedDay = day);
-    _loadSelectedDaySessions();
+    _viewModel.selectDay(day);
   }
 
   Future<void> _loadSelectedDaySessions() {
-    return _viewModel.loadSessionsByDate(_selectedDateText);
+    return _viewModel.loadSelectedDaySessions();
   }
 
-  String get _selectedDateText {
-    final month = _visibleMonth.month.toString().padLeft(2, '0');
-    final day = _selectedDay.toString().padLeft(2, '0');
-    return '${_visibleMonth.year}-$month-$day';
-  }
+  String get _selectedDateText => _viewModel.selectedDateText;
 
   @override
   Widget build(BuildContext context) {
@@ -79,14 +63,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _MonthSelector(
-            visibleMonth: _visibleMonth,
+            visibleMonth: _viewModel.visibleMonth,
             onPrevious: () => _moveMonth(-1),
             onNext: () => _moveMonth(1),
           ),
           const SizedBox(height: AppSpacing.md),
           _CalendarCard(
-            visibleMonth: _visibleMonth,
-            selectedDay: _selectedDay,
+            visibleMonth: _viewModel.visibleMonth,
+            selectedDay: _viewModel.selectedDay,
             onDateSelected: _selectDay,
           ),
           const SizedBox(height: AppSpacing.lg),
