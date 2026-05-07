@@ -6,6 +6,7 @@ import '../../../data/repositories/calibration_repository.dart';
 import '../../core/layouts/app_scaffold.dart';
 import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
+import '../view_model/workout_setup_viewmodel.dart';
 
 class SensorGuideScreen extends StatefulWidget {
   const SensorGuideScreen({super.key, this.exerciseId = 'pushup'});
@@ -18,6 +19,7 @@ class SensorGuideScreen extends StatefulWidget {
 
 class _SensorGuideScreenState extends State<SensorGuideScreen> {
   final Set<String> _checkedSensorIds = {};
+  late final WorkoutSetupViewModel _viewModel;
 
   _SensorConfig get _config =>
       _sensorConfigs[widget.exerciseId] ?? _sensorConfigs['pushup']!;
@@ -25,12 +27,19 @@ class _SensorGuideScreenState extends State<SensorGuideScreen> {
   bool get _allChecked =>
       _config.sensors.every((sensor) => _checkedSensorIds.contains(sensor.id));
 
+  @override
+  void initState() {
+    super.initState();
+    _viewModel = WorkoutSetupViewModel.withCalibration(
+      getIt<CalibrationRepository>(),
+    );
+  }
+
   Future<void> _startCalibration() async {
     try {
-      final repo = getIt<CalibrationRepository>();
-      await repo.connect();
-      repo.markSensorsAttached();
-      repo.startCalibration(exerciseType: widget.exerciseId);
+      await _viewModel.completeSensorAttachmentAndStartCalibration(
+        exerciseType: widget.exerciseId,
+      );
       if (mounted) {
         context.go(
           '/workout-calibration?exercise=${widget.exerciseId}&autoStart=true',

@@ -1,3 +1,4 @@
+import '../../../data/repositories/calibration_repository.dart';
 import '../../../data/repositories/workout_repository.dart';
 import '../../../data/services/pi_message.dart';
 
@@ -18,9 +19,17 @@ class WorkoutPlanSubmitResult {
 }
 
 class WorkoutSetupViewModel {
-  WorkoutSetupViewModel(this._workoutRepository);
+  WorkoutSetupViewModel(WorkoutRepository workoutRepository)
+      : _workoutRepository = workoutRepository,
+        _calibrationRepository = null;
 
-  final WorkoutRepository _workoutRepository;
+  WorkoutSetupViewModel.withCalibration(
+    CalibrationRepository calibrationRepository,
+  )   : _workoutRepository = null,
+        _calibrationRepository = calibrationRepository;
+
+  final WorkoutRepository? _workoutRepository;
+  final CalibrationRepository? _calibrationRepository;
 
   Future<WorkoutPlanSubmitResult> submitWorkoutPlan({
     required String exerciseType,
@@ -28,15 +37,20 @@ class WorkoutSetupViewModel {
     required List<int> targetRepsPerSet,
     required int restSec,
   }) async {
-    await _workoutRepository.connect();
-    _workoutRepository.submitWorkoutPlan(
+    final workoutRepository = _workoutRepository;
+    if (workoutRepository == null) {
+      throw StateError('WorkoutRepository is required.');
+    }
+
+    await workoutRepository.connect();
+    workoutRepository.submitWorkoutPlan(
       exerciseType: exerciseType,
       setCount: setCount,
       targetRepsPerSet: targetRepsPerSet,
       restSec: restSec,
     );
 
-    final ack = await _workoutRepository.planAck
+    final ack = await workoutRepository.planAck
         .map<Object?>((message) => message)
         .first
         .timeout(const Duration(seconds: 5), onTimeout: () => null);
@@ -45,5 +59,18 @@ class WorkoutSetupViewModel {
     }
 
     return const WorkoutPlanSubmitResult.accepted();
+  }
+
+  Future<void> completeSensorAttachmentAndStartCalibration({
+    required String exerciseType,
+  }) async {
+    final calibrationRepository = _calibrationRepository;
+    if (calibrationRepository == null) {
+      throw StateError('CalibrationRepository is required.');
+    }
+
+    await calibrationRepository.connect();
+    calibrationRepository.markSensorsAttached();
+    calibrationRepository.startCalibration(exerciseType: exerciseType);
   }
 }
