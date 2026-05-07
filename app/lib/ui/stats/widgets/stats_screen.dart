@@ -8,6 +8,7 @@ import '../../core/widgets/common_widgets.dart';
 import '../tabs/balance_tab.dart';
 import '../tabs/heatmap_tab.dart';
 import '../tabs/trend_tab.dart';
+import '../view_model/stats_viewmodel.dart';
 import 'stats_tab_bar.dart';
 
 class StatsScreen extends StatefulWidget {
@@ -20,49 +21,31 @@ class StatsScreen extends StatefulWidget {
 class _StatsScreenState extends State<StatsScreen> {
   StatsTab _selectedTab = StatsTab.heatmap;
   int _weekOffset = 0;
-  bool _loading = true;
-  String? _loadError;
-  Map<String, dynamic>? _weeklyStats;
-  Map<String, dynamic>? _heatmap;
-  Map<String, dynamic>? _balance;
+  late final StatsViewModel _viewModel;
 
   @override
   void initState() {
     super.initState();
+    _viewModel = StatsViewModel(getIt<StatsRepository>());
+    _viewModel.addListener(_handleViewModelChanged);
     _loadStats();
   }
 
-  Future<void> _loadStats() async {
-    setState(() {
-      _loading = true;
-      _loadError = null;
-    });
-    try {
-      final statsRepository = getIt<StatsRepository>();
-      final weekStart = _weekStartText;
-      final results = await Future.wait([
-        statsRepository.getWeeklyStats(weekStart),
-        statsRepository.getWeeklyHeatmap(weekStart),
-        statsRepository.getWeeklyBalance(weekStart),
-      ]);
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _weeklyStats = results[0];
-        _heatmap = results[1];
-        _balance = results[2];
-        _loading = false;
-      });
-    } catch (_) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _loading = false;
-        _loadError = '통계 정보를 불러오지 못했습니다.';
-      });
+  @override
+  void dispose() {
+    _viewModel.removeListener(_handleViewModelChanged);
+    _viewModel.dispose();
+    super.dispose();
+  }
+
+  void _handleViewModelChanged() {
+    if (mounted) {
+      setState(() {});
     }
+  }
+
+  Future<void> _loadStats() {
+    return _viewModel.loadStats(_weekStartText);
   }
 
   void _moveWeek(int delta) {
@@ -101,7 +84,7 @@ class _StatsScreenState extends State<StatsScreen> {
                   onNext: _weekOffset < 0 ? () => _moveWeek(1) : null,
                 ),
                 const SizedBox(height: AppSpacing.lg),
-                if (!_loading && _loadError == null) ...[
+                if (!_viewModel.loading && _viewModel.loadError == null) ...[
                   StatsTabBar(
                     selectedTab: _selectedTab,
                     onChanged: (tab) => setState(() => _selectedTab = tab),
@@ -110,18 +93,18 @@ class _StatsScreenState extends State<StatsScreen> {
                   AnimatedSwitcher(
                     duration: const Duration(milliseconds: 180),
                     child: switch (_selectedTab) {
-                      StatsTab.heatmap => HeatmapTab(data: _heatmap),
-                      StatsTab.balance => BalanceTab(data: _balance),
-                      StatsTab.trend => TrendTab(data: _weeklyStats),
+                      StatsTab.heatmap => HeatmapTab(data: _viewModel.heatmap),
+                      StatsTab.balance => BalanceTab(data: _viewModel.balance),
+                      StatsTab.trend => TrendTab(data: _viewModel.weeklyStats),
                     },
                   ),
-                ] else if (_loadError != null) ...[
-                  _StatsInfoCard(message: _loadError!),
+                ] else if (_viewModel.loadError != null) ...[
+                  _StatsInfoCard(message: _viewModel.loadError!),
                 ],
               ],
             ),
           ),
-          if (_loading)
+          if (_viewModel.loading)
             Positioned.fill(
               child: Container(
                 color: Colors.black.withValues(alpha: 0.35),
