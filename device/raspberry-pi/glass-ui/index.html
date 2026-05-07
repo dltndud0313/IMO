@@ -3,21 +3,22 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>IMO Glass Viewer</title>
+    <title>IMO Glass HUD</title>
     <style>
       :root {
-        --bg: #081217;
-        --panel: rgba(8, 22, 28, 0.74);
-        --panel-strong: rgba(10, 28, 35, 0.86);
-        --line: rgba(91, 224, 198, 0.26);
-        --line-strong: rgba(91, 224, 198, 0.6);
-        --text-main: #ecfff7;
-        --text-soft: #a8cfc4;
-        --accent: #5be0c6;
-        --accent-2: #f7c66d;
-        --danger: #ff7b65;
-        --warn: #ffcc70;
-        --good: #6ef0a7;
+        --bg-top: #071118;
+        --bg-bottom: #02070a;
+        --panel: rgba(8, 18, 24, 0.78);
+        --panel-strong: rgba(9, 20, 26, 0.92);
+        --line: rgba(112, 232, 205, 0.22);
+        --line-strong: rgba(112, 232, 205, 0.52);
+        --text-main: #f1fff9;
+        --text-soft: #9fc7bd;
+        --accent: #70e8cd;
+        --accent-2: #f4cc72;
+        --good: #7bffb2;
+        --warn: #ffd37f;
+        --danger: #ff886f;
       }
 
       * {
@@ -27,56 +28,54 @@
       body {
         margin: 0;
         min-height: 100vh;
+        overflow: hidden;
         font-family: "Space Grotesk", "Pretendard", "Noto Sans KR", sans-serif;
         color: var(--text-main);
         background:
-          radial-gradient(circle at 50% 50%, rgba(91, 224, 198, 0.1), transparent 30%),
-          linear-gradient(135deg, #091419 0%, #0d2028 48%, #061014 100%);
-        overflow: hidden;
+          radial-gradient(circle at 50% 42%, rgba(112, 232, 205, 0.1), transparent 26%),
+          linear-gradient(180deg, var(--bg-top) 0%, var(--bg-bottom) 100%);
       }
 
       .hud {
         position: relative;
         min-height: 100vh;
-        padding: 24px;
+        padding: 28px;
         display: grid;
-        grid-template-columns: 280px 1fr 240px;
-        grid-template-rows: 180px 1fr 220px;
+        grid-template-columns: 300px minmax(520px, 1fr) 280px;
+        grid-template-rows: auto 1fr auto;
         gap: 18px;
       }
 
-      .grid-ring {
+      .back-grid {
         position: absolute;
         inset: 0;
         background-image:
-          linear-gradient(rgba(91, 224, 198, 0.03) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(91, 224, 198, 0.03) 1px, transparent 1px);
-        background-size: 46px 46px;
+          linear-gradient(rgba(112, 232, 205, 0.025) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(112, 232, 205, 0.025) 1px, transparent 1px);
+        background-size: 52px 52px;
         pointer-events: none;
       }
 
-      .halo {
+      .crosshair {
         position: absolute;
-        width: 54vw;
-        height: 54vw;
-        left: 50%;
-        top: 50%;
-        transform: translate(-50%, -48%);
+        inset: 50% auto auto 50%;
+        width: 520px;
+        height: 520px;
+        transform: translate(-50%, -50%);
         border-radius: 50%;
-        border: 1px solid rgba(91, 224, 198, 0.12);
+        border: 1px solid rgba(112, 232, 205, 0.08);
         box-shadow:
-          0 0 0 28px rgba(91, 224, 198, 0.03),
-          inset 0 0 40px rgba(91, 224, 198, 0.06);
+          0 0 0 28px rgba(112, 232, 205, 0.02),
+          0 0 0 72px rgba(112, 232, 205, 0.015);
         pointer-events: none;
       }
 
       .panel {
         position: relative;
-        background: var(--panel);
         border: 1px solid var(--line);
         border-radius: 24px;
+        background: var(--panel);
         backdrop-filter: blur(10px);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
         overflow: hidden;
       }
 
@@ -84,66 +83,34 @@
         content: "";
         position: absolute;
         inset: 0;
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 40%);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 38%);
         pointer-events: none;
-      }
-
-      .corner {
-        position: absolute;
-        width: 20px;
-        height: 20px;
-        border-color: var(--line-strong);
-        border-style: solid;
-        opacity: 0.72;
-      }
-
-      .corner.tl {
-        left: 12px;
-        top: 12px;
-        border-width: 2px 0 0 2px;
-      }
-
-      .corner.tr {
-        right: 12px;
-        top: 12px;
-        border-width: 2px 2px 0 0;
-      }
-
-      .corner.bl {
-        left: 12px;
-        bottom: 12px;
-        border-width: 0 0 2px 2px;
-      }
-
-      .corner.br {
-        right: 12px;
-        bottom: 12px;
-        border-width: 0 2px 2px 0;
       }
 
       .section {
         position: relative;
-        padding: 22px 24px;
         z-index: 1;
+        padding: 22px 24px;
       }
 
       .eyebrow {
-        color: var(--text-soft);
-        font-size: 12px;
+        font-size: 11px;
         letter-spacing: 0.18em;
         text-transform: uppercase;
+        color: var(--text-soft);
       }
 
-      .exercise-panel {
+      .workout-panel {
         grid-column: 1;
         grid-row: 1;
       }
 
-      .exercise-name {
+      .workout-name {
         margin-top: 14px;
-        font-size: 38px;
-        line-height: 0.95;
+        font-size: 40px;
+        line-height: 0.94;
         font-weight: 700;
+        word-break: keep-all;
       }
 
       .phase-chip {
@@ -151,143 +118,87 @@
         margin-top: 16px;
         padding: 8px 14px;
         border-radius: 999px;
-        border: 1px solid rgba(91, 224, 198, 0.24);
+        border: 1px solid rgba(112, 232, 205, 0.24);
         color: var(--accent);
         font-size: 13px;
       }
 
-      .rep-panel {
-        grid-column: 3;
-        grid-row: 1;
-        text-align: right;
-      }
-
-      .rep-count {
-        margin-top: 12px;
-        font-size: 84px;
-        line-height: 0.9;
-        font-weight: 700;
-        color: var(--accent-2);
-      }
-
-      .rep-target {
-        margin-top: 8px;
-        font-size: 18px;
-        color: var(--text-soft);
-      }
-
-      .rep-meta {
-        margin-top: 12px;
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        align-items: flex-end;
-        font-size: 14px;
-        color: var(--text-soft);
-      }
-
-      .center-panel {
-        grid-column: 2;
-        grid-row: 1 / span 3;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 0;
-        background: transparent;
-        border: 0;
-        box-shadow: none;
-        backdrop-filter: none;
-      }
-
-      .center-stack {
-        width: min(70vw, 760px);
-        aspect-ratio: 1 / 1;
-        display: grid;
-        place-items: center;
-        position: relative;
-      }
-
-      .pulse-ring,
-      .pulse-ring::before,
-      .pulse-ring::after {
-        position: absolute;
-        border-radius: 50%;
-        border: 1px solid rgba(91, 224, 198, 0.18);
-        content: "";
-      }
-
-      .pulse-ring {
-        width: 76%;
-        height: 76%;
-      }
-
-      .pulse-ring::before {
-        inset: 9%;
-      }
-
-      .pulse-ring::after {
-        inset: 18%;
-      }
-
-      .pose-card {
-        width: 64%;
-        min-height: 280px;
-        border-radius: 32px;
-        background: var(--panel-strong);
-        border: 1px solid rgba(91, 224, 198, 0.22);
-        padding: 28px;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        text-align: center;
-        box-shadow:
-          0 24px 80px rgba(0, 0, 0, 0.28),
-          inset 0 1px 0 rgba(255, 255, 255, 0.03);
-      }
-
-      .pose-badge {
-        align-self: center;
-        padding: 7px 14px;
-        border-radius: 999px;
-        font-size: 12px;
-        letter-spacing: 0.16em;
-        text-transform: uppercase;
-        border: 1px solid rgba(91, 224, 198, 0.24);
-        color: var(--accent);
-      }
-
-      .pose-title {
-        margin-top: 18px;
-        font-size: 44px;
-        line-height: 1;
-        font-weight: 700;
-      }
-
-      .pose-detail {
-        margin-top: 16px;
-        font-size: 18px;
+      .phase-copy {
+        margin-top: 14px;
+        font-size: 15px;
         line-height: 1.6;
         color: var(--text-soft);
       }
 
-      .activation-panel {
-        grid-column: 1;
-        grid-row: 3;
+      .kpi-strip {
+        grid-column: 2 / 4;
+        grid-row: 1;
+        display: grid;
+        grid-template-columns: 1.2fr 0.9fr 0.9fr 1fr;
+        gap: 16px;
       }
 
-      .metric-label {
-        font-size: 14px;
+      .kpi {
+        min-height: 160px;
+      }
+
+      .kpi-value {
+        margin-top: 12px;
+        font-weight: 700;
+        line-height: 0.92;
+      }
+
+      .kpi-value.rep {
+        font-size: 88px;
+        color: var(--accent-2);
+      }
+
+      .kpi-value.metric {
+        font-size: 50px;
+      }
+
+      .kpi-note {
+        margin-top: 12px;
+        color: var(--text-soft);
+        font-size: 15px;
+      }
+
+      .rep-target {
+        margin-top: 10px;
+        font-size: 18px;
         color: var(--text-soft);
       }
 
-      .activation-value {
+      .mini-stack {
         margin-top: 16px;
-        font-size: 52px;
-        line-height: 0.95;
-        font-weight: 700;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        color: var(--text-soft);
+        font-size: 14px;
       }
 
-      .bar {
+      .speed-pill {
+        margin-top: 12px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 9px 14px;
+        border-radius: 999px;
+        background: rgba(112, 232, 205, 0.08);
+        border: 1px solid rgba(112, 232, 205, 0.18);
+        font-size: 16px;
+      }
+
+      .speed-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--accent);
+        box-shadow: 0 0 16px rgba(112, 232, 205, 0.55);
+      }
+
+      .activation-bar {
         margin-top: 18px;
         height: 14px;
         border-radius: 999px;
@@ -295,48 +206,154 @@
         overflow: hidden;
       }
 
-      .bar-fill {
+      .activation-fill {
         height: 100%;
         width: 0%;
-        background: linear-gradient(90deg, #43d9c2 0%, #a8ff9d 100%);
-        box-shadow: 0 0 20px rgba(91, 224, 198, 0.4);
+        background: linear-gradient(90deg, #51ddc5 0%, #b7ff9a 100%);
+        box-shadow: 0 0 22px rgba(112, 232, 205, 0.42);
         transition: width 160ms ease-out;
       }
 
-      .usage-status {
-        margin-top: 16px;
-        font-size: 17px;
-        line-height: 1.5;
+      .center-panel {
+        grid-column: 2;
+        grid-row: 2;
+        background: transparent;
+        border: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
 
-      .sensor-panel {
+      .focus-shell {
+        position: relative;
+        width: min(74vw, 760px);
+        aspect-ratio: 1 / 1;
+        display: grid;
+        place-items: center;
+      }
+
+      .focus-shell::before,
+      .focus-shell::after {
+        content: "";
+        position: absolute;
+        border-radius: 50%;
+        border: 1px solid rgba(112, 232, 205, 0.14);
+      }
+
+      .focus-shell::before {
+        inset: 10%;
+      }
+
+      .focus-shell::after {
+        inset: 20%;
+      }
+
+      .pose-card {
+        width: 66%;
+        min-height: 316px;
+        border-radius: 34px;
+        padding: 30px;
+        text-align: center;
+        background: var(--panel-strong);
+        border: 1px solid rgba(112, 232, 205, 0.18);
+        box-shadow:
+          0 24px 82px rgba(0, 0, 0, 0.36),
+          inset 0 1px 0 rgba(255, 255, 255, 0.03);
+      }
+
+      .pose-badge {
+        display: inline-flex;
+        padding: 8px 14px;
+        border-radius: 999px;
+        border: 1px solid rgba(112, 232, 205, 0.22);
+        color: var(--accent);
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        font-size: 12px;
+      }
+
+      .pose-title {
+        margin-top: 18px;
+        font-size: 46px;
+        line-height: 1;
+        font-weight: 700;
+      }
+
+      .pose-detail {
+        margin-top: 18px;
+        font-size: 18px;
+        line-height: 1.65;
+        color: var(--text-soft);
+      }
+
+      .side-stack {
         grid-column: 3;
-        grid-row: 3;
+        grid-row: 2;
+        display: grid;
+        gap: 16px;
+        align-content: start;
+      }
+
+      .activation-panel .section,
+      .guide-panel .section {
+        padding-bottom: 24px;
+      }
+
+      .activation-copy {
+        margin-top: 14px;
+        font-size: 16px;
+        line-height: 1.55;
       }
 
       .sensor-list {
         margin-top: 16px;
-        display: flex;
-        flex-direction: column;
+        display: grid;
         gap: 10px;
       }
 
       .sensor-item {
         display: flex;
         justify-content: space-between;
-        gap: 12px;
+        gap: 10px;
         padding: 12px 14px;
         border-radius: 16px;
-        background: rgba(255, 255, 255, 0.03);
+        background: rgba(255, 255, 255, 0.035);
       }
 
       .sensor-name {
-        font-size: 14px;
+        font-size: 13px;
       }
 
       .sensor-position {
-        font-size: 14px;
+        font-size: 13px;
         color: var(--text-soft);
+        text-align: right;
+      }
+
+      .footer-panel {
+        grid-column: 1 / 4;
+        grid-row: 3;
+        display: grid;
+        grid-template-columns: 1.2fr 1fr 1fr;
+        gap: 16px;
+      }
+
+      .footer-item {
+        min-height: 116px;
+      }
+
+      .footer-value {
+        margin-top: 12px;
+        font-size: 24px;
+        font-weight: 700;
+        line-height: 1.25;
+      }
+
+      .footer-note {
+        margin-top: 10px;
+        color: var(--text-soft);
+        font-size: 14px;
+        line-height: 1.55;
       }
 
       .status-good {
@@ -351,123 +368,165 @@
         color: var(--danger);
       }
 
-      .footer-strip {
-        position: absolute;
-        left: 28px;
-        right: 28px;
-        bottom: 18px;
-        display: flex;
-        justify-content: space-between;
-        gap: 16px;
-        color: rgba(236, 255, 247, 0.62);
-        font-size: 12px;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-      }
-
-      @media (max-width: 1100px) {
+      @media (max-width: 1180px) {
         .hud {
           grid-template-columns: 1fr;
-          grid-template-rows: auto auto auto auto;
-          padding: 14px;
+          grid-template-rows: auto;
         }
 
-        .exercise-panel,
-        .rep-panel,
-        .activation-panel,
-        .sensor-panel,
-        .center-panel {
+        .workout-panel,
+        .kpi-strip,
+        .center-panel,
+        .side-stack,
+        .footer-panel {
           grid-column: 1;
           grid-row: auto;
         }
 
-        .center-stack {
+        .kpi-strip,
+        .footer-panel {
+          grid-template-columns: 1fr;
+        }
+
+        .focus-shell {
           width: 100%;
+          min-height: 420px;
           aspect-ratio: auto;
-          min-height: 360px;
         }
 
         .pose-card {
-          width: min(100%, 620px);
-        }
-
-        .rep-panel {
-          text-align: left;
+          width: min(100%, 680px);
         }
       }
     </style>
   </head>
   <body>
     <main class="hud">
-      <div class="grid-ring"></div>
-      <div class="halo"></div>
+      <div class="back-grid"></div>
+      <div class="crosshair"></div>
 
-      <section class="panel exercise-panel">
-        <div class="corner tl"></div>
-        <div class="corner br"></div>
+      <section class="panel workout-panel">
         <div class="section">
-          <div class="eyebrow">Workout</div>
-          <div id="exercise-name" class="exercise-name">Waiting</div>
+          <div class="eyebrow">Workout Focus</div>
+          <div id="exercise-name" class="workout-name">Waiting</div>
           <div id="phase-chip" class="phase-chip">운동 선택 대기</div>
-        </div>
-      </section>
-
-      <section class="panel rep-panel">
-        <div class="corner tr"></div>
-        <div class="corner bl"></div>
-        <div class="section">
-          <div class="eyebrow">Rep Count</div>
-          <div id="rep-count" class="rep-count">-</div>
-          <div id="rep-target" class="rep-target">target -</div>
-          <div class="rep-meta">
-            <div id="set-progress">set - / -</div>
-            <div id="rest-status">rest -</div>
+          <div id="phase-copy" class="phase-copy">
+            앱에서 운동 계획을 보내면 이 영역에 현재 준비 단계를 간단하게 안내합니다.
           </div>
         </div>
       </section>
 
+      <section class="kpi-strip">
+        <article class="panel kpi">
+          <div class="section">
+            <div class="eyebrow">Rep Count</div>
+            <div id="rep-count" class="kpi-value rep">-</div>
+            <div id="rep-target" class="rep-target">target -</div>
+            <div class="mini-stack">
+              <div id="set-progress">set - / -</div>
+              <div id="rest-status">rest -</div>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel kpi">
+          <div class="section">
+            <div class="eyebrow">Current Pace</div>
+            <div id="speed-value" class="kpi-value metric">-</div>
+            <div class="speed-pill">
+              <span id="speed-dot" class="speed-dot"></span>
+              <span id="speed-chip">분석 중</span>
+            </div>
+            <div class="kpi-note">최근 반복 속도를 기준으로 빠름/적정/느림을 표시합니다.</div>
+          </div>
+        </article>
+
+        <article class="panel kpi">
+          <div class="section">
+            <div class="eyebrow">Activation</div>
+            <div id="activation-value-top" class="kpi-value metric">0%</div>
+            <div class="activation-bar">
+              <div id="activation-fill-top" class="activation-fill"></div>
+            </div>
+            <div id="activation-level-note" class="kpi-note">근활성도 해석 대기 중</div>
+          </div>
+        </article>
+
+        <article class="panel kpi">
+          <div class="section">
+            <div class="eyebrow">Glass Status</div>
+            <div id="ws-status" class="kpi-value metric" style="font-size: 36px;">대기</div>
+            <div id="frame-status" class="kpi-note">frame waiting</div>
+          </div>
+        </article>
+      </section>
+
       <section class="center-panel">
-        <div class="center-stack">
-          <div class="pulse-ring"></div>
+        <div class="focus-shell">
           <article class="pose-card">
             <div id="pose-badge" class="pose-badge">System</div>
             <div id="pose-title" class="pose-title">앱에서 운동을 선택하세요</div>
             <div id="pose-detail" class="pose-detail">
-              센서 위치 안내를 확인한 뒤 부착 완료와 캘리브레이션을 진행하면
-              실시간 자세 판단이 이 중앙 영역에 표시됩니다.
+              센서 위치 안내를 확인한 뒤 부착 완료와 캘리브레이션을 진행하면,
+              실시간 자세 피드백이 이 중앙 영역에 크게 표시됩니다.
             </div>
           </article>
         </div>
       </section>
 
-      <section class="panel activation-panel">
-        <div class="corner tl"></div>
-        <div class="corner br"></div>
-        <div class="section">
-          <div class="eyebrow">Muscle Activation</div>
-          <div id="activation-value" class="activation-value">0%</div>
-          <div class="bar">
-            <div id="activation-fill" class="bar-fill"></div>
+      <section class="side-stack">
+        <article class="panel activation-panel">
+          <div class="section">
+            <div class="eyebrow">Muscle Feedback</div>
+            <div id="activation-value-side" class="kpi-value metric">0%</div>
+            <div class="activation-bar">
+              <div id="activation-fill-side" class="activation-fill"></div>
+            </div>
+            <div id="usage-status" class="activation-copy">
+              목표 근육 사용 여부를 기다리는 중입니다.
+            </div>
           </div>
-          <div id="usage-status" class="usage-status">
-            목표 근육 사용 여부를 기다리는 중입니다.
+        </article>
+
+        <article class="panel guide-panel">
+          <div class="section">
+            <div class="eyebrow">Sensor Placement</div>
+            <div id="sensor-list" class="sensor-list"></div>
           </div>
-        </div>
+        </article>
       </section>
 
-      <section class="panel sensor-panel">
-        <div class="corner tr"></div>
-        <div class="corner bl"></div>
-        <div class="section">
-          <div class="eyebrow">Sensor Placement</div>
-          <div id="sensor-list" class="sensor-list"></div>
-        </div>
-      </section>
+      <section class="footer-panel">
+        <article class="panel footer-item">
+          <div class="section">
+            <div class="eyebrow">Summary</div>
+            <div id="summary-title" class="footer-value">운동 안내 준비 중</div>
+            <div id="summary-note" class="footer-note">
+              운동이 시작되면 횟수, 속도, 근활성도가 이 HUD 전체에 반영됩니다.
+            </div>
+          </div>
+        </article>
 
-      <div class="footer-strip">
-        <span id="ws-status">WS disconnected</span>
-        <span id="frame-status">frame waiting</span>
-      </div>
+        <article class="panel footer-item">
+          <div class="section">
+            <div class="eyebrow">Balance</div>
+            <div id="balance-title" class="footer-value">좌우 정렬 대기</div>
+            <div id="balance-note" class="footer-note">
+              좌우 팔 움직임 차이와 자세 불균형을 감지하면 이 영역에 요약합니다.
+            </div>
+          </div>
+        </article>
+
+        <article class="panel footer-item">
+          <div class="section">
+            <div class="eyebrow">Timing</div>
+            <div id="timing-title" class="footer-value">세트 정보 대기</div>
+            <div id="timing-note" class="footer-note">
+              휴식 타이머와 현재 세트 진행도가 이 영역에 정리됩니다.
+            </div>
+          </div>
+        </article>
+      </section>
     </main>
 
     <script>
@@ -481,6 +540,7 @@
         targetRep: null,
         restRemainingSec: 0,
         targetRepsPerSet: [],
+        currentSpeedLabel: "분석 중",
         sensors: [],
       };
 
@@ -492,19 +552,32 @@
       const els = {
         exerciseName: document.getElementById("exercise-name"),
         phaseChip: document.getElementById("phase-chip"),
+        phaseCopy: document.getElementById("phase-copy"),
         repCount: document.getElementById("rep-count"),
         repTarget: document.getElementById("rep-target"),
         setProgress: document.getElementById("set-progress"),
         restStatus: document.getElementById("rest-status"),
+        speedValue: document.getElementById("speed-value"),
+        speedChip: document.getElementById("speed-chip"),
+        speedDot: document.getElementById("speed-dot"),
+        activationValueTop: document.getElementById("activation-value-top"),
+        activationValueSide: document.getElementById("activation-value-side"),
+        activationFillTop: document.getElementById("activation-fill-top"),
+        activationFillSide: document.getElementById("activation-fill-side"),
+        activationLevelNote: document.getElementById("activation-level-note"),
         poseBadge: document.getElementById("pose-badge"),
         poseTitle: document.getElementById("pose-title"),
         poseDetail: document.getElementById("pose-detail"),
-        activationValue: document.getElementById("activation-value"),
-        activationFill: document.getElementById("activation-fill"),
         usageStatus: document.getElementById("usage-status"),
         sensorList: document.getElementById("sensor-list"),
         wsStatus: document.getElementById("ws-status"),
         frameStatus: document.getElementById("frame-status"),
+        summaryTitle: document.getElementById("summary-title"),
+        summaryNote: document.getElementById("summary-note"),
+        balanceTitle: document.getElementById("balance-title"),
+        balanceNote: document.getElementById("balance-note"),
+        timingTitle: document.getElementById("timing-title"),
+        timingNote: document.getElementById("timing-note"),
       };
 
       function renderSensorList() {
@@ -531,45 +604,110 @@
         }
       }
 
-      function render() {
-        els.exerciseName.textContent = state.exerciseLabel;
-        els.phaseChip.textContent = state.phaseLabel;
-        const rep = state.currentRep;
-        els.repCount.textContent = rep ?? "-";
-        els.repTarget.textContent = `target ${state.targetRep ?? "-"}`;
-        els.setProgress.textContent = `set ${state.currentSetIndex || "-"} / ${state.setCount || "-"}`;
-        if (state.restRemainingSec > 0) {
-          els.restStatus.textContent = `rest ${state.restRemainingSec}s`;
-        } else {
-          els.restStatus.textContent = "rest -";
-        }
+      function speedColor(label) {
+        if (label === "빠름") return "var(--warn)";
+        if (label === "느림") return "var(--danger)";
+        if (label === "적정") return "var(--good)";
+        return "var(--accent)";
+      }
 
+      function toneClass(tone) {
+        if (tone === "danger" || tone === "warn" || tone === "good") {
+          return `status-${tone}`;
+        }
+        return "";
+      }
+
+      function activationLevelText(percent) {
+        if (percent >= 80) return "목표 근육이 강하게 활성화되고 있습니다.";
+        if (percent >= 55) return "목표 근육 사용이 안정적으로 유지되고 있습니다.";
+        if (percent >= 30) return "근활성도가 올라오는 중입니다.";
+        if (percent > 0) return "근활성도가 낮아 자세와 힘 조절을 함께 확인하세요.";
+        return "근활성도 해석 대기 중";
+      }
+
+      function phaseDescription(phaseLabel) {
+        if (!phaseLabel) return "운동 준비 상태를 기다리는 중입니다.";
+        if (phaseLabel.includes("휴식")) return "현재는 세트 사이 휴식 정보가 우선 표시됩니다.";
+        if (phaseLabel.includes("측정")) return "센서 기준값을 바탕으로 실시간 운동 데이터를 분석 중입니다.";
+        if (phaseLabel.includes("준비")) return "센서 위치와 자세를 정리한 뒤 다음 단계로 넘어가세요.";
+        return "현재 운동 단계에 맞는 핵심 상태를 이 영역에 유지합니다.";
+      }
+
+      function render() {
         const display = state.display || {};
         const levelPercent = display.activation_percent ?? 0;
-        els.activationValue.textContent = `${levelPercent}% ${display.activation_level || "LOW"}`;
-        els.activationFill.style.width = `${levelPercent}%`;
-        els.usageStatus.textContent = display.usage_text || "목표 근육 사용 여부를 기다리는 중입니다.";
-        els.usageStatus.className = `usage-status ${display.usage_tone ? `status-${display.usage_tone}` : ""}`;
+        const activationLevel = display.activation_level || "LOW";
+        const speedLabel = state.currentSpeedLabel || "분석 중";
+        const poseToneClass = toneClass(display.pose_tone);
+        const usageToneClass = toneClass(display.usage_tone);
+
+        els.exerciseName.textContent = state.exerciseLabel;
+        els.phaseChip.textContent = state.phaseLabel;
+        els.phaseCopy.textContent = phaseDescription(state.phaseLabel);
+
+        els.repCount.textContent = state.currentRep ?? "-";
+        els.repTarget.textContent = `target ${state.targetRep ?? "-"}`;
+        els.setProgress.textContent = `set ${state.currentSetIndex || "-"} / ${state.setCount || "-"}`;
+        els.restStatus.textContent =
+          state.restRemainingSec > 0 ? `rest ${state.restRemainingSec}s` : "rest -";
+
+        els.speedValue.textContent = speedLabel;
+        els.speedChip.textContent = speedLabel;
+        els.speedDot.style.background = speedColor(speedLabel);
+        els.speedDot.style.boxShadow = `0 0 16px ${speedColor(speedLabel)}`;
+
+        els.activationValueTop.textContent = `${levelPercent}%`;
+        els.activationValueSide.textContent = `${levelPercent}%`;
+        els.activationFillTop.style.width = `${levelPercent}%`;
+        els.activationFillSide.style.width = `${levelPercent}%`;
+        els.activationLevelNote.textContent = `${activationLevel} | ${activationLevelText(levelPercent)}`;
+
+        els.usageStatus.textContent =
+          display.usage_text || "목표 근육 사용 여부를 기다리는 중입니다.";
+        els.usageStatus.className = `activation-copy ${usageToneClass}`;
 
         els.poseBadge.textContent = display.pose_badge || "System";
         els.poseTitle.textContent = display.pose_title || "앱에서 운동을 선택하세요";
-        els.poseDetail.textContent = display.pose_detail || "센서 데이터 대기 중입니다.";
-        els.poseTitle.className = `pose-title ${display.pose_tone ? `status-${display.pose_tone}` : ""}`;
+        els.poseDetail.textContent =
+          display.pose_detail || "센서 데이터 대기 중입니다.";
+        els.poseTitle.className = `pose-title ${poseToneClass}`;
+
+        els.summaryTitle.textContent = display.pose_title || "운동 안내 준비 중";
+        els.summaryNote.textContent = display.usage_text || "현재 세션 상태를 분석하는 중입니다.";
+        els.balanceTitle.textContent =
+          display.pose_badge === "Balance" ? display.pose_title : "좌우 정렬 확인";
+        els.balanceNote.textContent =
+          display.pose_badge === "Balance"
+            ? display.pose_detail
+            : "좌우 불균형이 감지되면 이 영역에 가장 먼저 요약해서 보여줍니다.";
+        els.timingTitle.textContent =
+          state.restRemainingSec > 0
+            ? `휴식 ${state.restRemainingSec}초`
+            : `세트 ${state.currentSetIndex || "-"} 진행 중`;
+        els.timingNote.textContent =
+          speedLabel === "분석 중"
+            ? "반복이 시작되면 최근 속도를 빠름/적정/느림으로 정리합니다."
+            : `최근 반복 속도는 ${speedLabel}으로 해석되고 있습니다.`;
 
         renderSensorList();
       }
 
       function connect() {
         const ws = new WebSocket(wsUrl);
-        els.wsStatus.textContent = `WS connecting ${wsUrl}`;
+        els.wsStatus.textContent = "연결 중";
+        els.frameStatus.textContent = wsUrl;
+        els.wsStatus.className = "kpi-value metric status-warn";
 
         ws.onopen = () => {
-          els.wsStatus.textContent = `WS connected ${wsUrl}`;
+          els.wsStatus.textContent = "온라인";
+          els.wsStatus.className = "kpi-value metric status-good";
           ws.send(JSON.stringify({ type: "ping", payload: {} }));
         };
 
         ws.onmessage = (event) => {
           const message = JSON.parse(event.data);
+
           if (message.type === "glass_session_state") {
             state.exerciseType = message.payload.exercise_type;
             state.exerciseLabel = message.payload.exercise_label;
@@ -580,6 +718,7 @@
             state.restRemainingSec = message.payload.rest_remaining_sec || 0;
             state.targetRepsPerSet = message.payload.target_reps_per_set || [];
             state.currentRep = message.payload.current_rep;
+            state.currentSpeedLabel = message.payload.current_speed_label || "분석 중";
           }
 
           if (message.type === "glass_display_data") {
@@ -591,6 +730,7 @@
             state.targetRep = message.payload.target_rep;
             state.restRemainingSec = message.payload.rest_remaining_sec || 0;
             state.currentRep = message.payload.current_rep;
+            state.currentSpeedLabel = message.payload.current_speed_label || state.currentSpeedLabel;
             state.targetRepsPerSet = message.payload.target_reps_per_set || [];
             state.sensors = message.payload.sensors || [];
             if (message.payload.frame_seq != null) {
@@ -599,20 +739,25 @@
           }
 
           if (message.type === "connection_status") {
-            const connected = message.payload.esp32_connected ? "ESP32 online" : "ESP32 offline";
-            els.wsStatus.textContent = `${connected} / glass ${message.payload.glass_connected ? "online" : "waiting"}`;
+            els.wsStatus.textContent = message.payload.esp32_connected ? "ESP32 온라인" : "ESP32 오프라인";
+            els.wsStatus.className = `kpi-value metric ${
+              message.payload.esp32_connected ? "status-good" : "status-danger"
+            }`;
           }
 
           render();
         };
 
         ws.onclose = () => {
-          els.wsStatus.textContent = "WS disconnected";
+          els.wsStatus.textContent = "연결 끊김";
+          els.frameStatus.textContent = "재연결 대기";
+          els.wsStatus.className = "kpi-value metric status-danger";
           setTimeout(connect, 1200);
         };
 
         ws.onerror = () => {
-          els.wsStatus.textContent = "WS error";
+          els.wsStatus.textContent = "연결 오류";
+          els.wsStatus.className = "kpi-value metric status-danger";
         };
       }
 
