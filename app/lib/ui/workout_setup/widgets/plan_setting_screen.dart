@@ -5,10 +5,10 @@ import 'package:go_router/go_router.dart';
 
 import '../../../config/dependencies.dart';
 import '../../../data/repositories/workout_repository.dart';
-import '../../../data/services/pi_message.dart';
 import '../../core/layouts/app_scaffold.dart';
 import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
+import '../view_model/workout_setup_viewmodel.dart';
 
 class PlanSettingScreen extends StatefulWidget {
   const PlanSettingScreen({super.key, this.exerciseId = 'pushup'});
@@ -25,11 +25,18 @@ class _PlanSettingScreenState extends State<PlanSettingScreen> {
   int _restSeconds = 60;
   bool _submitting = false;
   bool _perSetMode = false;
+  late final WorkoutSetupViewModel _viewModel;
 
   int get _totalReps => _targetRepsPerSet.fold(0, (sum, reps) => sum + reps);
 
   int get _estimatedMinutes =>
       ((_totalReps * 3 + _restSeconds * (_setCount - 1)) / 60).ceil();
+
+  @override
+  void initState() {
+    super.initState();
+    _viewModel = WorkoutSetupViewModel(getIt<WorkoutRepository>());
+  }
 
   void _syncSetCount(int nextCount) {
     setState(() {
@@ -74,22 +81,16 @@ class _PlanSettingScreenState extends State<PlanSettingScreen> {
   Future<void> _submitPlan() async {
     setState(() => _submitting = true);
     try {
-      final repo = getIt<WorkoutRepository>();
-      await repo.connect();
-      repo.submitWorkoutPlan(
+      final result = await _viewModel.submitWorkoutPlan(
         exerciseType: widget.exerciseId,
         setCount: _setCount,
         targetRepsPerSet: _targetRepsPerSet,
         restSec: _restSeconds,
       );
-      final ack = await repo.planAck
-          .map<Object?>((message) => message)
-          .first
-          .timeout(const Duration(seconds: 5), onTimeout: () => null);
-      if (ack is PlanAckMessage && !ack.accepted) {
+      if (!result.accepted) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(ack.validationErrors.join(', '))),
+            SnackBar(content: Text(result.validationErrors.join(', '))),
           );
         }
         return;

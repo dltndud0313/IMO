@@ -1,12 +1,14 @@
 import '../../domain/models/workout_session.dart';
+import '../../domain/repositories/workout_repository_interface.dart';
 import '../services/pi_message.dart';
 import '../services/pi_socket_service.dart';
 
-class WorkoutRepository {
+class WorkoutRepository implements IWorkoutRepository {
   WorkoutRepository(this._socket);
 
   final PiSocketService _socket;
 
+  @override
   Stream<PlanAckMessage> get planAck =>
       _socket.messagesOf<PlanAckMessage>();
 
@@ -34,8 +36,12 @@ class WorkoutRepository {
   Stream<WorkoutEventMessage> get workoutEvents =>
       _socket.messagesOf<WorkoutEventMessage>();
 
+  @override
+  Stream<SessionResultMessage> get sessionResultMessages =>
+      _socket.messagesOf<SessionResultMessage>();
+
   Stream<WorkoutSession> get sessionResult =>
-      _socket.messagesOf<SessionResultMessage>().map((message) {
+      sessionResultMessages.map((message) {
         return message.session;
       });
 
@@ -43,6 +49,7 @@ class WorkoutRepository {
     return _socket.connect();
   }
 
+  @override
   void submitWorkoutPlan({
     required String exerciseType,
     required int setCount,
@@ -57,14 +64,17 @@ class WorkoutRepository {
     );
   }
 
+  @override
   void pauseWorkout() {
     _socket.pauseWorkout();
   }
 
+  @override
   void resumeWorkout() {
     _socket.resumeWorkout();
   }
 
+  @override
   void stopWorkout({
     String reason = 'user_request',
     bool saveResult = true,
@@ -75,6 +85,7 @@ class WorkoutRepository {
     );
   }
 
+  @override
   void emergencyStop() {
     _socket.emergencyStop();
   }

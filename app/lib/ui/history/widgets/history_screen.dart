@@ -7,6 +7,7 @@ import '../../../domain/models/workout_session.dart';
 import '../../core/layouts/app_scaffold.dart';
 import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
+import '../view_model/history_viewmodel.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -16,68 +17,42 @@ class HistoryScreen extends StatefulWidget {
 }
 
 class _HistoryScreenState extends State<HistoryScreen> {
-  DateTime _visibleMonth = DateTime(
-    DateTime.now().year,
-    DateTime.now().month,
-  );
-  int _selectedDay = DateTime.now().day;
-  List<WorkoutSession> _daySessions = const [];
-  bool _loadingSessions = true;
-  String? _sessionLoadError;
+  late final HistoryViewModel _viewModel;
 
   @override
   void initState() {
     super.initState();
+    _viewModel = HistoryViewModel(getIt<SessionHistoryRepository>());
+    _viewModel.addListener(_handleViewModelChanged);
     _loadSelectedDaySessions();
   }
 
-  void _moveMonth(int delta) {
-    setState(() {
-      _visibleMonth = DateTime(_visibleMonth.year, _visibleMonth.month + delta);
-      final lastDay =
-          DateUtils.getDaysInMonth(_visibleMonth.year, _visibleMonth.month);
-      _selectedDay = _selectedDay.clamp(1, lastDay);
-    });
-    _loadSelectedDaySessions();
+  @override
+  void dispose() {
+    _viewModel.removeListener(_handleViewModelChanged);
+    _viewModel.dispose();
+    super.dispose();
   }
 
-  void _selectDay(int day) {
-    setState(() => _selectedDay = day);
-    _loadSelectedDaySessions();
-  }
-
-  Future<void> _loadSelectedDaySessions() async {
-    setState(() {
-      _loadingSessions = true;
-      _sessionLoadError = null;
-    });
-    try {
-      final sessions = await getIt<SessionHistoryRepository>()
-          .getSessionsByDate(_selectedDateText);
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _daySessions = sessions;
-        _loadingSessions = false;
-      });
-    } catch (_) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _daySessions = const [];
-        _loadingSessions = false;
-        _sessionLoadError = '운동 기록을 불러오지 못했습니다.';
-      });
+  void _handleViewModelChanged() {
+    if (mounted) {
+      setState(() {});
     }
   }
 
-  String get _selectedDateText {
-    final month = _visibleMonth.month.toString().padLeft(2, '0');
-    final day = _selectedDay.toString().padLeft(2, '0');
-    return '${_visibleMonth.year}-$month-$day';
+  void _moveMonth(int delta) {
+    _viewModel.moveMonth(delta);
   }
+
+  void _selectDay(int day) {
+    _viewModel.selectDay(day);
+  }
+
+  Future<void> _loadSelectedDaySessions() {
+    return _viewModel.loadSelectedDaySessions();
+  }
+
+  String get _selectedDateText => _viewModel.selectedDateText;
 
   @override
   Widget build(BuildContext context) {
@@ -88,27 +63,27 @@ class _HistoryScreenState extends State<HistoryScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _MonthSelector(
-            visibleMonth: _visibleMonth,
+            visibleMonth: _viewModel.visibleMonth,
             onPrevious: () => _moveMonth(-1),
             onNext: () => _moveMonth(1),
           ),
           const SizedBox(height: AppSpacing.md),
           _CalendarCard(
-            visibleMonth: _visibleMonth,
-            selectedDay: _selectedDay,
+            visibleMonth: _viewModel.visibleMonth,
+            selectedDay: _viewModel.selectedDay,
             onDateSelected: _selectDay,
           ),
           const SizedBox(height: AppSpacing.lg),
           Text('$_selectedDateText 요약', style: AppTextStyles.sectionTitle),
           const SizedBox(height: AppSpacing.sm),
-          if (_loadingSessions)
+          if (_viewModel.loadingSessions)
             const _HistoryInfoCard(message: '운동 기록을 불러오는 중입니다.')
-          else if (_sessionLoadError != null)
-            _HistoryInfoCard(message: _sessionLoadError!)
-          else if (_daySessions.isEmpty)
+          else if (_viewModel.sessionLoadError != null)
+            _HistoryInfoCard(message: _viewModel.sessionLoadError!)
+          else if (_viewModel.daySessions.isEmpty)
             const _HistoryInfoCard(message: '이 날의 운동 기록이 없습니다.')
           else
-            for (final session in _daySessions) ...[
+            for (final session in _viewModel.daySessions) ...[
               _DaySummaryCard(
                 session: session,
                 onTap: () =>

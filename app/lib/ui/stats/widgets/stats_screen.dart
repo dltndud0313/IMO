@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../../../config/dependencies.dart';
-import '../../../data/services/api_service.dart';
+import '../../../data/repositories/stats_repository.dart';
 import '../../core/layouts/app_scaffold.dart';
 import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../tabs/balance_tab.dart';
 import '../tabs/heatmap_tab.dart';
 import '../tabs/trend_tab.dart';
+import '../view_model/stats_viewmodel.dart';
 import 'stats_tab_bar.dart';
 
 class StatsScreen extends StatefulWidget {
@@ -18,70 +19,35 @@ class StatsScreen extends StatefulWidget {
 }
 
 class _StatsScreenState extends State<StatsScreen> {
-  StatsTab _selectedTab = StatsTab.heatmap;
-  int _weekOffset = 0;
-  bool _loading = true;
-  String? _loadError;
-  Map<String, dynamic>? _weeklyStats;
-  Map<String, dynamic>? _heatmap;
-  Map<String, dynamic>? _balance;
+  late final StatsViewModel _viewModel;
 
   @override
   void initState() {
     super.initState();
+    _viewModel = StatsViewModel(getIt<StatsRepository>());
+    _viewModel.addListener(_handleViewModelChanged);
     _loadStats();
   }
 
-  Future<void> _loadStats() async {
-    setState(() {
-      _loading = true;
-      _loadError = null;
-    });
-    try {
-      final api = getIt<ApiService>();
-      final weekStart = _weekStartText;
-      final results = await Future.wait([
-        api.getWeeklyStats(weekStart),
-        api.getWeeklyHeatmap(weekStart),
-        api.getWeeklyBalance(weekStart),
-      ]);
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _weeklyStats = results[0];
-        _heatmap = results[1];
-        _balance = results[2];
-        _loading = false;
-      });
-    } catch (_) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _loading = false;
-        _loadError = '통계 정보를 불러오지 못했습니다.';
-      });
+  @override
+  void dispose() {
+    _viewModel.removeListener(_handleViewModelChanged);
+    _viewModel.dispose();
+    super.dispose();
+  }
+
+  void _handleViewModelChanged() {
+    if (mounted) {
+      setState(() {});
     }
   }
 
+  Future<void> _loadStats() {
+    return _viewModel.loadSelectedWeekStats();
+  }
+
   void _moveWeek(int delta) {
-    setState(() => _weekOffset += delta);
-    _loadStats();
-  }
-
-  DateTime get _weekStart {
-    final today = DateTime.now();
-    final monday = today.subtract(Duration(days: today.weekday - 1));
-    final target = monday.add(Duration(days: _weekOffset * 7));
-    return DateTime(target.year, target.month, target.day);
-  }
-
-  String get _weekStartText {
-    final weekStart = _weekStart;
-    final month = weekStart.month.toString().padLeft(2, '0');
-    final day = weekStart.day.toString().padLeft(2, '0');
-    return '${weekStart.year}-$month-$day';
+    _viewModel.moveWeek(delta);
   }
 
   @override
@@ -96,32 +62,32 @@ class _StatsScreenState extends State<StatsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _StatsPeriodHeader(
-                  weekStart: _weekStart,
+                  weekStart: _viewModel.weekStart,
                   onPrevious: () => _moveWeek(-1),
-                  onNext: _weekOffset < 0 ? () => _moveWeek(1) : null,
+                  onNext: _viewModel.weekOffset < 0 ? () => _moveWeek(1) : null,
                 ),
                 const SizedBox(height: AppSpacing.lg),
-                if (!_loading && _loadError == null) ...[
+                if (!_viewModel.loading && _viewModel.loadError == null) ...[
                   StatsTabBar(
-                    selectedTab: _selectedTab,
-                    onChanged: (tab) => setState(() => _selectedTab = tab),
+                    selectedTab: _viewModel.selectedTab,
+                    onChanged: (tab) => _viewModel.selectTab(tab),
                   ),
                   const SizedBox(height: AppSpacing.md),
                   AnimatedSwitcher(
                     duration: const Duration(milliseconds: 180),
-                    child: switch (_selectedTab) {
-                      StatsTab.heatmap => HeatmapTab(data: _heatmap),
-                      StatsTab.balance => BalanceTab(data: _balance),
-                      StatsTab.trend => TrendTab(data: _weeklyStats),
+                    child: switch (_viewModel.selectedTab) {
+                      StatsTab.heatmap => HeatmapTab(data: _viewModel.heatmap),
+                      StatsTab.balance => BalanceTab(data: _viewModel.balance),
+                      StatsTab.trend => TrendTab(data: _viewModel.weeklyStats),
                     },
                   ),
-                ] else if (_loadError != null) ...[
-                  _StatsInfoCard(message: _loadError!),
+                ] else if (_viewModel.loadError != null) ...[
+                  _StatsInfoCard(message: _viewModel.loadError!),
                 ],
               ],
             ),
           ),
-          if (_loading)
+          if (_viewModel.loading)
             Positioned.fill(
               child: Container(
                 color: Colors.black.withValues(alpha: 0.35),

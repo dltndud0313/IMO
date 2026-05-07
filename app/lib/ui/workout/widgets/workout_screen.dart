@@ -9,6 +9,7 @@ import '../../../data/repositories/workout_repository.dart';
 import '../../core/layouts/app_scaffold.dart';
 import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
+import '../view_model/workout_viewmodel.dart';
 
 enum _WorkoutState { running, paused, resting }
 
@@ -21,9 +22,7 @@ class WorkoutScreen extends StatefulWidget {
 
 class _WorkoutScreenState extends State<WorkoutScreen> {
   Timer? _timer;
-  StreamSubscription? _connectionSubscription;
-  StreamSubscription? _pausedSubscription;
-  StreamSubscription? _resumedSubscription;
+  late final WorkoutViewModel _workoutViewModel;
   _WorkoutState _state = _WorkoutState.running;
   bool _piConnected = false;
   bool _esp32Connected = false;
@@ -34,35 +33,38 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   void initState() {
     super.initState();
     final repo = getIt<WorkoutRepository>();
-    _connectionSubscription =
-        getIt<DeviceConnectionRepository>().systemStatus.listen((status) {
-      if (mounted) {
-        setState(() {
-          _piConnected = status.piConnected;
-          _esp32Connected = status.esp32Connected;
-          _glassConnected = status.glassConnected;
-        });
-      }
-    });
-    _pausedSubscription = repo.workoutPaused.listen((_) {
-      if (mounted) {
-        setState(() => _state = _WorkoutState.paused);
-      }
-    });
-    _resumedSubscription = repo.workoutResumed.listen((_) {
-      if (mounted) {
-        setState(() => _state = _WorkoutState.running);
-      }
-    });
+    _workoutViewModel = WorkoutViewModel(
+      repo,
+      getIt<DeviceConnectionRepository>(),
+    );
+    _workoutViewModel.startListening(
+      onConnectionStatus: (status) {
+        if (mounted) {
+          setState(() {
+            _piConnected = status.piConnected;
+            _esp32Connected = status.esp32Connected;
+            _glassConnected = status.glassConnected;
+          });
+        }
+      },
+      onPaused: () {
+        if (mounted) {
+          setState(() => _state = _WorkoutState.paused);
+        }
+      },
+      onResumed: () {
+        if (mounted) {
+          setState(() => _state = _WorkoutState.running);
+        }
+      },
+    );
     _startTimer();
   }
 
   @override
   void dispose() {
     _timer?.cancel();
-    _connectionSubscription?.cancel();
-    _pausedSubscription?.cancel();
-    _resumedSubscription?.cancel();
+    _workoutViewModel.dispose();
     super.dispose();
   }
 
@@ -77,12 +79,11 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   }
 
   void _togglePause() {
-    final repo = getIt<WorkoutRepository>();
     try {
       if (_state == _WorkoutState.paused) {
-        repo.resumeWorkout();
+        _workoutViewModel.resumeWorkout();
       } else {
-        repo.pauseWorkout();
+        _workoutViewModel.pauseWorkout();
       }
     } catch (_) {}
     setState(() {
@@ -101,7 +102,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
         danger: true,
         onConfirm: () {
           try {
-            getIt<WorkoutRepository>().stopWorkout();
+            _workoutViewModel.stopWorkout();
           } catch (_) {}
           Navigator.of(dialogContext).pop();
           context.go('/session-result?status=stopped');
@@ -112,7 +113,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
 
   void _emergencyStop() {
     try {
-      getIt<WorkoutRepository>().emergencyStop();
+      _workoutViewModel.emergencyStop();
     } catch (_) {}
     context.go('/session-result?status=emergency_stopped');
   }
@@ -292,154 +293,6 @@ class _WorkoutHeroCard extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _CurrentRepCard extends StatelessWidget {
-  const _CurrentRepCard({
-    required this.currentRep,
-    required this.targetRep,
-    required this.onIncrement,
-  });
-
-  final int currentRep;
-  final int targetRep;
-  final VoidCallback onIncrement;
-
-  @override
-  Widget build(BuildContext context) {
-    final progress = targetRep == 0 ? 0.0 : currentRep / targetRep;
-
-    return ImoCard(
-      paddingSize: ImoCardPadding.lg,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text('현재 세트', style: AppTextStyles.label),
-              const Spacer(),
-              StatusBadge(
-                label: '$currentRep / $targetRep회',
-                variant: StatusVariant.info,
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.md),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(AppSpacing.pillRadius),
-            child: LinearProgressIndicator(
-              value: progress.clamp(0, 1),
-              minHeight: 10,
-              color: AppColors.primary,
-              backgroundColor: AppColors.cardSubtle,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          ImoButton(
-            label: '횟수 테스트',
-            size: ImoButtonSize.md,
-            variant: ImoButtonVariant.secondary,
-            leftIcon: const Icon(Icons.add_rounded),
-            onPressed: currentRep >= targetRep ? null : onIncrement,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SetProgressCard extends StatelessWidget {
-  const _SetProgressCard({
-    required this.currentSet,
-    required this.currentRep,
-    required this.targets,
-  });
-
-  final int currentSet;
-  final int currentRep;
-  final List<int> targets;
-
-  @override
-  Widget build(BuildContext context) {
-    return ImoCard(
-      paddingSize: ImoCardPadding.lg,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('운동 계획', style: AppTextStyles.label),
-          const SizedBox(height: AppSpacing.md),
-          for (var index = 0; index < targets.length; index++) ...[
-            _SetProgressRow(
-              index: index + 1,
-              target: targets[index],
-              currentRep: index + 1 == currentSet ? currentRep : 0,
-              active: index + 1 == currentSet,
-              done: index + 1 < currentSet,
-            ),
-            if (index != targets.length - 1) const SizedBox(height: AppSpacing.sm),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _SetProgressRow extends StatelessWidget {
-  const _SetProgressRow({
-    required this.index,
-    required this.target,
-    required this.currentRep,
-    required this.active,
-    required this.done,
-  });
-
-  final int index;
-  final int target;
-  final int currentRep;
-  final bool active;
-  final bool done;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = done
-        ? AppColors.success
-        : active
-            ? AppColors.primary
-            : AppColors.textTertiary;
-
-    return ImoCard(
-      variant: active || done ? ImoCardVariant.subtle : ImoCardVariant.outlined,
-      paddingSize: ImoCardPadding.sm,
-      child: Row(
-        children: [
-          Container(
-            width: 28,
-            height: 28,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: active || done ? 1 : 0.12),
-              shape: BoxShape.circle,
-            ),
-            child: Text(
-              '$index',
-              style: AppTextStyles.caption.copyWith(
-                color: active || done ? AppColors.card : color,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text('$index세트', style: AppTextStyles.label),
-          ),
-          Text(
-            active ? '$currentRep / $target' : '$target회',
-            style: AppTextStyles.bodySmall,
-          ),
-        ],
       ),
     );
   }

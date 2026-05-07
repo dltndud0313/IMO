@@ -1,4 +1,120 @@
-// 운동 준비 ViewModel (운동 선택 + 계획 설정 + 센서 안내 + 캘리브레이션)
-// 의존: CalibrationRepository, DeviceConnectionRepository, CheckSystemReadyUseCase
-// FR-06 ~ FR-17
-// TODO: 구현
+import 'dart:async';
+
+import '../../../data/repositories/calibration_repository.dart';
+import '../../../data/repositories/workout_repository.dart';
+import '../../../data/services/pi_message.dart';
+
+class WorkoutPlanSubmitResult {
+  const WorkoutPlanSubmitResult._({
+    required this.accepted,
+    this.validationErrors = const [],
+  });
+
+  const WorkoutPlanSubmitResult.accepted()
+      : this._(accepted: true);
+
+  const WorkoutPlanSubmitResult.rejected(List<String> validationErrors)
+      : this._(accepted: false, validationErrors: validationErrors);
+
+  final bool accepted;
+  final List<String> validationErrors;
+}
+
+class WorkoutSetupViewModel {
+  WorkoutSetupViewModel(WorkoutRepository workoutRepository)
+      : _workoutRepository = workoutRepository,
+        _calibrationRepository = null;
+
+  WorkoutSetupViewModel.withCalibration(
+    CalibrationRepository calibrationRepository,
+  )   : _workoutRepository = null,
+        _calibrationRepository = calibrationRepository;
+
+  final WorkoutRepository? _workoutRepository;
+  final CalibrationRepository? _calibrationRepository;
+  StreamSubscription? _calibrationStatusSubscription;
+
+  Future<WorkoutPlanSubmitResult> submitWorkoutPlan({
+    required String exerciseType,
+    required int setCount,
+    required List<int> targetRepsPerSet,
+    required int restSec,
+  }) async {
+    final workoutRepository = _workoutRepository;
+    if (workoutRepository == null) {
+      throw StateError('WorkoutRepository is required.');
+    }
+
+    await workoutRepository.connect();
+    workoutRepository.submitWorkoutPlan(
+      exerciseType: exerciseType,
+      setCount: setCount,
+      targetRepsPerSet: targetRepsPerSet,
+      restSec: restSec,
+    );
+
+    final ack = await workoutRepository.planAck
+        .map<Object?>((message) => message)
+        .first
+        .timeout(const Duration(seconds: 5), onTimeout: () => null);
+    if (ack is PlanAckMessage && !ack.accepted) {
+      return WorkoutPlanSubmitResult.rejected(ack.validationErrors);
+    }
+
+    return const WorkoutPlanSubmitResult.accepted();
+  }
+
+  Future<void> completeSensorAttachmentAndStartCalibration({
+    required String exerciseType,
+  }) async {
+    final calibrationRepository = _calibrationRepository;
+    if (calibrationRepository == null) {
+      throw StateError('CalibrationRepository is required.');
+    }
+
+    await calibrationRepository.connect();
+    calibrationRepository.markSensorsAttached();
+    calibrationRepository.startCalibration(exerciseType: exerciseType);
+  }
+
+  Future<void> startCalibration({
+    required String exerciseType,
+  }) async {
+    final calibrationRepository = _calibrationRepository;
+    if (calibrationRepository == null) {
+      throw StateError('CalibrationRepository is required.');
+    }
+
+    await calibrationRepository.connect();
+    calibrationRepository.startCalibration(exerciseType: exerciseType);
+  }
+
+  void listenCalibrationStatus({
+    required void Function() onStarted,
+    required void Function() onSuccess,
+    required void Function() onFailed,
+  }) {
+    final calibrationRepository = _calibrationRepository;
+    if (calibrationRepository == null) {
+      throw StateError('CalibrationRepository is required.');
+    }
+
+    _calibrationStatusSubscription?.cancel();
+    _calibrationStatusSubscription = calibrationRepository.status.listen((
+      status,
+    ) {
+      if (status.isStarted) {
+        onStarted();
+      } else if (status.isSuccess) {
+        onSuccess();
+      } else if (status.isFailed) {
+        onFailed();
+      }
+    });
+  }
+
+  void dispose() {
+    _calibrationStatusSubscription?.cancel();
+    _calibrationStatusSubscription = null;
+  }
+}
