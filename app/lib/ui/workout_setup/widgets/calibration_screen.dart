@@ -61,11 +61,9 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
 
   void _startCalibration({bool sendToPi = true}) {
     if (sendToPi) {
-      unawaited(() async {
-        final repo = getIt<CalibrationRepository>();
-        await repo.connect();
-        repo.startCalibration(exerciseType: widget.exerciseId);
-      }());
+      unawaited(
+        _viewModel.startCalibration(exerciseType: widget.exerciseId),
+      );
     }
     setState(() => _stage = _CalibrationStage.measuring);
   }

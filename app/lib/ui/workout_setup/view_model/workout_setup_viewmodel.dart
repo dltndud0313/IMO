@@ -77,6 +77,18 @@ class WorkoutSetupViewModel {
     calibrationRepository.startCalibration(exerciseType: exerciseType);
   }
 
+  Future<void> startCalibration({
+    required String exerciseType,
+  }) async {
+    final calibrationRepository = _calibrationRepository;
+    if (calibrationRepository == null) {
+      throw StateError('CalibrationRepository is required.');
+    }
+
+    await calibrationRepository.connect();
+    calibrationRepository.startCalibration(exerciseType: exerciseType);
+  }
+
   void listenCalibrationStatus({
     required void Function() onStarted,
     required void Function() onSuccess,
