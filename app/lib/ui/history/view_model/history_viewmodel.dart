@@ -60,4 +60,11 @@ class HistoryViewModel extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  Future<WorkoutSession> loadSessionDetail(String sessionId) {
+    if (sessionId.isEmpty) {
+      throw StateError('missing session id');
+    }
+    return _repository.getSessionDetail(sessionId);
+  }
 }

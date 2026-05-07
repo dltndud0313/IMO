@@ -7,6 +7,7 @@ import '../../../domain/models/workout_session.dart';
 import '../../core/layouts/app_scaffold.dart';
 import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
+import '../view_model/history_viewmodel.dart';
 
 class HistoryDetailScreen extends StatelessWidget {
   const HistoryDetailScreen({super.key, this.sessionId = ''});
@@ -41,10 +42,9 @@ class HistoryDetailScreen extends StatelessWidget {
   }
 
   Future<WorkoutSession> _loadSession() {
-    if (sessionId.isEmpty) {
-      return Future.error(StateError('missing session id'));
-    }
-    return getIt<SessionHistoryRepository>().getSessionDetail(sessionId);
+    return HistoryViewModel(
+      getIt<SessionHistoryRepository>(),
+    ).loadSessionDetail(sessionId);
   }
 }
 
