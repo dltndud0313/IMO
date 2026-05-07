@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import '../../data/repositories/calibration_repository.dart';
+import '../../domain/repositories/calibration_repository_interface.dart';
 import '../../domain/repositories/device_connection_repository_interface.dart';
 import '../../data/services/pi_message.dart';
 
@@ -8,7 +8,7 @@ class CheckSystemReadyUseCase {
   CheckSystemReadyUseCase(this._deviceRepo, this._calibrationRepo);
 
   final IDeviceConnectionRepository _deviceRepo;
-  final CalibrationRepository _calibrationRepo;
+  final ICalibrationRepository _calibrationRepo;
 
   Future<bool> execute() async {
     final connection = await _deviceRepo.systemStatus.first.timeout(
