@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../config/app_runtime_flags.dart';
 import '../../../config/dependencies.dart';
 import '../../../data/repositories/calibration_repository.dart';
 import '../../core/layouts/app_scaffold.dart';
@@ -28,6 +29,7 @@ class CalibrationScreen extends StatefulWidget {
 
 class _CalibrationScreenState extends State<CalibrationScreen> {
   _CalibrationStage _stage = _CalibrationStage.ready;
+  bool _hasNavigatedToWorkout = false;
   late final WorkoutSetupViewModel _viewModel;
 
   @override
@@ -38,7 +40,7 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
     );
     _viewModel.listenCalibrationStatus(
       onStarted: () => _setStage(_CalibrationStage.measuring),
-      onSuccess: () => _setStage(_CalibrationStage.success),
+      onSuccess: _handleCalibrationSuccess,
       onFailed: () => _setStage(_CalibrationStage.failed),
     );
     if (widget.autoStart) {
@@ -59,12 +61,25 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
     setState(() => _stage = stage);
   }
 
+  void _handleCalibrationSuccess() {
+    if (_hasNavigatedToWorkout) {
+      return;
+    }
+    _hasNavigatedToWorkout = true;
+    if (!mounted) {
+      return;
+    }
+    setState(() => _stage = _CalibrationStage.success);
+    context.go('/workout');
+  }
+
   void _startCalibration({bool sendToPi = true}) {
     if (sendToPi) {
       unawaited(
         _viewModel.startCalibration(exerciseType: widget.exerciseId),
       );
     }
+    _hasNavigatedToWorkout = false;
     setState(() => _stage = _CalibrationStage.measuring);
   }
 
@@ -75,7 +90,9 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
       showBackButton: _stage != _CalibrationStage.measuring,
       onBack: () => context.go('/sensor-guide?exercise=${widget.exerciseId}'),
       scrollable: true,
-      bottom: _buildBottom(context),
+      bottom: AppRuntimeFlags.uiPreviewMode
+          ? _buildPreviewBottom(context)
+          : _buildBottom(context),
       body: Column(
         children: [
           _CalibrationStatusCard(stage: _stage),
@@ -113,6 +130,20 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
           onPressed: _startCalibration,
         );
     }
+  }
+
+  Widget _buildPreviewBottom(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildBottom(context),
+        const SizedBox(height: AppSpacing.xs),
+        TextButton(
+          onPressed: () => context.go('/workout'),
+          child: const Text('UI preview: go to workout'),
+        ),
+      ],
+    );
   }
 }
 
