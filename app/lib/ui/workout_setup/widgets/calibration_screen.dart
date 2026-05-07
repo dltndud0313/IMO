@@ -8,6 +8,7 @@ import '../../../data/repositories/calibration_repository.dart';
 import '../../core/layouts/app_scaffold.dart';
 import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
+import '../view_model/workout_setup_viewmodel.dart';
 
 enum _CalibrationStage { ready, measuring, success, failed }
 
@@ -27,13 +28,18 @@ class CalibrationScreen extends StatefulWidget {
 
 class _CalibrationScreenState extends State<CalibrationScreen> {
   _CalibrationStage _stage = _CalibrationStage.ready;
-  StreamSubscription? _statusSubscription;
+  late final WorkoutSetupViewModel _viewModel;
 
   @override
   void initState() {
     super.initState();
-    _statusSubscription = getIt<CalibrationRepository>().status.listen(
-      _handleCalibrationStatus,
+    _viewModel = WorkoutSetupViewModel.withCalibration(
+      getIt<CalibrationRepository>(),
+    );
+    _viewModel.listenCalibrationStatus(
+      onStarted: () => _setStage(_CalibrationStage.measuring),
+      onSuccess: () => _setStage(_CalibrationStage.success),
+      onFailed: () => _setStage(_CalibrationStage.failed),
     );
     if (widget.autoStart) {
       _startCalibration(sendToPi: false);
@@ -42,21 +48,15 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
 
   @override
   void dispose() {
-    _statusSubscription?.cancel();
+    _viewModel.dispose();
     super.dispose();
   }
 
-  void _handleCalibrationStatus(dynamic status) {
+  void _setStage(_CalibrationStage stage) {
     if (!mounted) {
       return;
     }
-    if (status.isStarted) {
-      setState(() => _stage = _CalibrationStage.measuring);
-    } else if (status.isSuccess) {
-      setState(() => _stage = _CalibrationStage.success);
-    } else if (status.isFailed) {
-      setState(() => _stage = _CalibrationStage.failed);
-    }
+    setState(() => _stage = stage);
   }
 
   void _startCalibration({bool sendToPi = true}) {

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import '../../../data/repositories/calibration_repository.dart';
 import '../../../data/repositories/workout_repository.dart';
 import '../../../data/services/pi_message.dart';
@@ -30,6 +32,7 @@ class WorkoutSetupViewModel {
 
   final WorkoutRepository? _workoutRepository;
   final CalibrationRepository? _calibrationRepository;
+  StreamSubscription? _calibrationStatusSubscription;
 
   Future<WorkoutPlanSubmitResult> submitWorkoutPlan({
     required String exerciseType,
@@ -72,5 +75,34 @@ class WorkoutSetupViewModel {
     await calibrationRepository.connect();
     calibrationRepository.markSensorsAttached();
     calibrationRepository.startCalibration(exerciseType: exerciseType);
+  }
+
+  void listenCalibrationStatus({
+    required void Function() onStarted,
+    required void Function() onSuccess,
+    required void Function() onFailed,
+  }) {
+    final calibrationRepository = _calibrationRepository;
+    if (calibrationRepository == null) {
+      throw StateError('CalibrationRepository is required.');
+    }
+
+    _calibrationStatusSubscription?.cancel();
+    _calibrationStatusSubscription = calibrationRepository.status.listen((
+      status,
+    ) {
+      if (status.isStarted) {
+        onStarted();
+      } else if (status.isSuccess) {
+        onSuccess();
+      } else if (status.isFailed) {
+        onFailed();
+      }
+    });
+  }
+
+  void dispose() {
+    _calibrationStatusSubscription?.cancel();
+    _calibrationStatusSubscription = null;
   }
 }
