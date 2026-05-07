@@ -7,6 +7,8 @@ import '../ui/core/layouts/bottom_nav_shell.dart';
 import '../ui/auth/screens/login_screen.dart';
 import '../ui/auth/screens/profile_setup_screen.dart';
 import '../ui/auth/screens/signup_screen.dart';
+import '../ui/chat/view_model/chat_viewmodel.dart';
+import '../ui/chat/widgets/chat_screen.dart';
 import '../ui/history/widgets/history_screen.dart';
 import '../ui/history/widgets/history_detail_screen.dart';
 import '../ui/home/view_model/home_viewmodel.dart';
@@ -121,6 +123,13 @@ GoRouter buildRouter() {
       GoRoute(
         path: '/workout',
         builder: (context, state) => const WorkoutScreen(),
+      ),
+      GoRoute(
+        path: '/chat',
+        builder: (context, state) => ChangeNotifierProvider(
+          create: (_) => getIt<ChatViewModel>()..loadHistory(),
+          child: const ChatScreen(),
+        ),
       ),
       GoRoute(
         path: '/session-result',

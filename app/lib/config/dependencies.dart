@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/repositories/auth_repository.dart';
+import '../data/repositories/chat_repository.dart';
 import '../data/repositories/local_session_repository.dart';
 import '../data/services/api_service.dart';
 import '../data/services/auth_service.dart';
@@ -16,6 +17,7 @@ import '../data/repositories/stats_repository.dart';
 import '../data/repositories/user_profile_repository.dart';
 import '../data/repositories/workout_repository.dart';
 import '../domain/use_cases/end_workout_session_usecase.dart';
+import '../ui/chat/view_model/chat_viewmodel.dart';
 import '../ui/home/view_model/home_viewmodel.dart';
 
 final getIt = GetIt.instance;
@@ -63,6 +65,9 @@ Future<void> setupDependencies() async {
     () => StatsRepository(getIt<ApiService>()),
   );
   getIt.registerLazySingleton(
+    () => ChatRepository(getIt<ApiService>()),
+  );
+  getIt.registerLazySingleton(
     () => LocalSessionRepository(getIt<LocalDbService>()),
   );
   getIt.registerLazySingleton(PiSocketService.new);
@@ -81,6 +86,7 @@ Future<void> setupDependencies() async {
     ),
   );
   getIt.registerFactory(HomeViewModel.new);
+  getIt.registerFactory(() => ChatViewModel(getIt<ChatRepository>()));
 
   await getIt<AuthRepository>().init();
   getIt<EndWorkoutSessionUseCase>().listenAndSaveAutomatically();
