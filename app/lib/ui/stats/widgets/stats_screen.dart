@@ -20,7 +20,6 @@ class StatsScreen extends StatefulWidget {
 
 class _StatsScreenState extends State<StatsScreen> {
   StatsTab _selectedTab = StatsTab.heatmap;
-  int _weekOffset = 0;
   late final StatsViewModel _viewModel;
 
   @override
@@ -45,26 +44,11 @@ class _StatsScreenState extends State<StatsScreen> {
   }
 
   Future<void> _loadStats() {
-    return _viewModel.loadStats(_weekStartText);
+    return _viewModel.loadSelectedWeekStats();
   }
 
   void _moveWeek(int delta) {
-    setState(() => _weekOffset += delta);
-    _loadStats();
-  }
-
-  DateTime get _weekStart {
-    final today = DateTime.now();
-    final monday = today.subtract(Duration(days: today.weekday - 1));
-    final target = monday.add(Duration(days: _weekOffset * 7));
-    return DateTime(target.year, target.month, target.day);
-  }
-
-  String get _weekStartText {
-    final weekStart = _weekStart;
-    final month = weekStart.month.toString().padLeft(2, '0');
-    final day = weekStart.day.toString().padLeft(2, '0');
-    return '${weekStart.year}-$month-$day';
+    _viewModel.moveWeek(delta);
   }
 
   @override
@@ -79,9 +63,9 @@ class _StatsScreenState extends State<StatsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _StatsPeriodHeader(
-                  weekStart: _weekStart,
+                  weekStart: _viewModel.weekStart,
                   onPrevious: () => _moveWeek(-1),
-                  onNext: _weekOffset < 0 ? () => _moveWeek(1) : null,
+                  onNext: _viewModel.weekOffset < 0 ? () => _moveWeek(1) : null,
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 if (!_viewModel.loading && _viewModel.loadError == null) ...[

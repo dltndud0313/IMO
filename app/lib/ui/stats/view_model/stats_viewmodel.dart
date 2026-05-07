@@ -7,11 +7,32 @@ class StatsViewModel extends ChangeNotifier {
 
   final StatsRepository _repository;
 
+  int weekOffset = 0;
   bool loading = true;
   String? loadError;
   Map<String, dynamic>? weeklyStats;
   Map<String, dynamic>? heatmap;
   Map<String, dynamic>? balance;
+
+  DateTime get weekStart {
+    final today = DateTime.now();
+    final monday = today.subtract(Duration(days: today.weekday - 1));
+    final target = monday.add(Duration(days: weekOffset * 7));
+    return DateTime(target.year, target.month, target.day);
+  }
+
+  String get weekStartText {
+    final start = weekStart;
+    final month = start.month.toString().padLeft(2, '0');
+    final day = start.day.toString().padLeft(2, '0');
+    return '${start.year}-$month-$day';
+  }
+
+  Future<void> moveWeek(int delta) {
+    weekOffset += delta;
+    notifyListeners();
+    return loadSelectedWeekStats();
+  }
 
   Future<void> loadStats(String weekStart) async {
     loading = true;
@@ -34,5 +55,9 @@ class StatsViewModel extends ChangeNotifier {
     } finally {
       notifyListeners();
     }
+  }
+
+  Future<void> loadSelectedWeekStats() {
+    return loadStats(weekStartText);
   }
 }
