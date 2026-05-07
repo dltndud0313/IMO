@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer';
 
+import 'package:flutter/foundation.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import 'pi_message.dart';
@@ -14,7 +14,7 @@ enum PiSocketConnectionState {
 
 class PiSocketService {
   PiSocketService({
-    String url = 'ws://192.168.0.100:8765',
+    String url = 'ws://192.168.100.253:8765',
   }) : _url = url;
 
   final String _url;
@@ -47,6 +47,7 @@ class PiSocketService {
     _setConnectionState(PiSocketConnectionState.connecting);
 
     try {
+      debugPrint('[PiSocketService] connecting to $_url');
       final channel = WebSocketChannel.connect(Uri.parse(_url));
       _channel = channel;
       _subscription = channel.stream.listen(
@@ -56,12 +57,8 @@ class PiSocketService {
         cancelOnError: true,
       );
       _setConnectionState(PiSocketConnectionState.connected);
-    } catch (error, stackTrace) {
-      log(
-        '[PiSocketService] connect failed',
-        error: error,
-        stackTrace: stackTrace,
-      );
+      debugPrint('[PiSocketService] connected to $_url');
+    } catch (_) {
       await disconnect();
       rethrow;
     }
@@ -80,7 +77,9 @@ class PiSocketService {
       throw StateError('Pi socket is not connected.');
     }
 
-    _channel!.sink.add(jsonEncode(message.toJson()));
+    final encoded = jsonEncode(message.toJson());
+    debugPrint('[PiSocketService] send $encoded');
+    _channel!.sink.add(encoded);
   }
 
   void submitWorkoutPlan({
@@ -185,40 +184,31 @@ class PiSocketService {
   }
 
   void _handleRawMessage(dynamic rawData) {
+    debugPrint('[PiSocketService] receive $rawData');
+
     if (rawData is! String) {
-      log('[PiSocketService] ignored non-string message: $rawData');
       return;
     }
 
     try {
       final decoded = jsonDecode(rawData);
       if (decoded is! Map<String, dynamic>) {
-        log('[PiSocketService] ignored non-object JSON: $rawData');
         return;
       }
 
       final message = PiMessage.tryParse(decoded);
       if (message == null) {
-        log('[PiSocketService] ignored invalid Pi message: $rawData');
+        debugPrint('[PiSocketService] ignored invalid Pi message: $decoded');
         return;
       }
 
       _messageController.add(message);
-    } catch (error, stackTrace) {
-      log(
-        '[PiSocketService] message parse failed: $rawData',
-        error: error,
-        stackTrace: stackTrace,
-      );
+    } catch (_) {
+      debugPrint('[PiSocketService] message parse failed: $rawData');
     }
   }
 
   void _handleSocketError(Object error, StackTrace stackTrace) {
-    log(
-      '[PiSocketService] socket error',
-      error: error,
-      stackTrace: stackTrace,
-    );
     unawaited(disconnect());
   }
 
