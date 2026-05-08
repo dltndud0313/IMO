@@ -25,6 +25,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     _viewModel = HistoryViewModel(getIt<SessionHistoryRepository>());
     _viewModel.addListener(_handleViewModelChanged);
     _loadSelectedDaySessions();
+    _viewModel.loadVisibleMonthActiveDays();
   }
 
   @override
@@ -71,10 +72,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
           _CalendarCard(
             visibleMonth: _viewModel.visibleMonth,
             selectedDay: _viewModel.selectedDay,
+            activeDays: _viewModel.activeDays,
             onDateSelected: _selectDay,
           ),
           const SizedBox(height: AppSpacing.lg),
-          Text('$_selectedDateText 요약', style: AppTextStyles.sectionTitle),
+          Text(_selectedDateText, style: AppTextStyles.sectionTitle),
           const SizedBox(height: AppSpacing.sm),
           if (_viewModel.loadingSessions)
             const _HistoryInfoCard(message: '운동 기록을 불러오는 중입니다.')
@@ -83,14 +85,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
           else if (_viewModel.daySessions.isEmpty)
             const _HistoryInfoCard(message: '이 날의 운동 기록이 없습니다.')
           else
-            for (final session in _viewModel.daySessions) ...[
-              _DaySummaryCard(
-                session: session,
-                onTap: () =>
-                    context.go('/history-detail?session=${session.sessionId}'),
+            _DaySessionsCard(
+              sessions: _viewModel.daySessions,
+              onTap: () => context.push(
+                '/history-detail?date=$_selectedDateText',
               ),
-              const SizedBox(height: AppSpacing.sm),
-            ],
+            ),
         ],
       ),
     );
@@ -161,11 +161,13 @@ class _CalendarCard extends StatelessWidget {
   const _CalendarCard({
     required this.visibleMonth,
     required this.selectedDay,
+    required this.activeDays,
     required this.onDateSelected,
   });
 
   final DateTime visibleMonth;
   final int selectedDay;
+  final Set<int> activeDays;
   final ValueChanged<int> onDateSelected;
 
   @override
@@ -212,6 +214,7 @@ class _CalendarCard extends StatelessWidget {
                           child: _DateCell(
                             date: date,
                             selected: date == selectedDay,
+                            hasSession: activeDays.contains(date),
                           ),
                         ),
                 ),
@@ -227,29 +230,47 @@ class _DateCell extends StatelessWidget {
   const _DateCell({
     required this.date,
     required this.selected,
+    required this.hasSession,
   });
 
   final int date;
   final bool selected;
+  final bool hasSession;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: selected ? 52 : 36,
       height: selected ? 52 : 36,
-      alignment: Alignment.center,
       decoration: BoxDecoration(
         color: selected ? AppColors.primary : Colors.transparent,
         borderRadius: BorderRadius.circular(
           selected ? AppSpacing.buttonRadius : 18,
         ),
       ),
-      child: Text(
-        '$date',
-        style: AppTextStyles.body.copyWith(
-          color: selected ? AppColors.card : AppColors.textPrimary,
-          fontWeight: selected ? FontWeight.w800 : FontWeight.w400,
-        ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Text(
+            '$date',
+            style: AppTextStyles.body.copyWith(
+              color: selected ? AppColors.card : AppColors.textPrimary,
+              fontWeight: selected ? FontWeight.w800 : FontWeight.w400,
+            ),
+          ),
+          if (hasSession)
+            Positioned(
+              bottom: 4,
+              child: Container(
+                width: 5,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: selected ? AppColors.card : AppColors.primary,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -274,17 +295,34 @@ class _HistoryInfoCard extends StatelessWidget {
   }
 }
 
-class _DaySummaryCard extends StatelessWidget {
-  const _DaySummaryCard({
-    required this.session,
+class _DaySessionsCard extends StatelessWidget {
+  const _DaySessionsCard({
+    required this.sessions,
     required this.onTap,
   });
 
-  final WorkoutSession session;
+  final List<WorkoutSession> sessions;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final grouped = <String, _ExerciseGroup>{};
+    for (final session in sessions) {
+      final key = session.exerciseType.label;
+      final existing = grouped[key];
+      if (existing == null) {
+        grouped[key] = _ExerciseGroup(
+          label: key,
+          totalReps: session.totalReps,
+          durationSec: session.durationSec,
+        );
+      } else {
+        existing.totalReps += session.totalReps;
+        existing.durationSec += session.durationSec;
+      }
+    }
+    final groups = grouped.values.toList();
+
     return ImoCard(
       interactive: true,
       onTap: onTap,
@@ -292,16 +330,22 @@ class _DaySummaryCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Text(session.exerciseType.label, style: AppTextStyles.sectionTitle),
-              const Spacer(),
-              Text(
-                '${session.totalReps}회 · ${session.durationSec ~/ 60}분',
-                style: AppTextStyles.body,
-              ),
-            ],
-          ),
+          for (var i = 0; i < groups.length; i++) ...[
+            if (i > 0) const SizedBox(height: AppSpacing.sm),
+            Row(
+              children: [
+                Text(
+                  groups[i].label,
+                  style: AppTextStyles.sectionTitle,
+                ),
+                const Spacer(),
+                Text(
+                  '${groups[i].totalReps}회 · ${groups[i].durationSec ~/ 60}분',
+                  style: AppTextStyles.body,
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: AppSpacing.md),
           const Divider(height: 1, color: AppColors.divider),
           const SizedBox(height: AppSpacing.sm),
@@ -324,4 +368,16 @@ class _DaySummaryCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ExerciseGroup {
+  _ExerciseGroup({
+    required this.label,
+    required this.totalReps,
+    required this.durationSec,
+  });
+
+  final String label;
+  int totalReps;
+  int durationSec;
 }
