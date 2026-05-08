@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
+EXERCISE="${1:-pushup}"
+REPS="${2:-10}"
+SPEED="${3:-1.0}"
+INTENSITY="${4:-1.0}"
+
+cd "${ROOT_DIR}"
+
+./device/esp32/scripts/run_mock_workout_stream.sh \
+  --exercise "${EXERCISE}" \
+  --reps "${REPS}" \
+  --speed "${SPEED}" \
+  --intensity "${INTENSITY}" \
+  --format binary | \
+python3 device/raspberry-pi/mock_esp32_serial_receiver.py --input-file -
