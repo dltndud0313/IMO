@@ -99,6 +99,13 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return AuthFrame(
       topFlex: 6,
+      backgroundImage: const AssetImage('assets/images/login.png'),
+      showCharacter: true,
+      characterImage: 'assets/images/mascot_default.png',
+      characterSize: 400,
+      showBrandText: false,
+      showDecorations: true,
+      topContentAlignment: const Alignment(0, 0.8),
       sheetPadding: const EdgeInsets.fromLTRB(24, 28, 24, 30),
       sheet: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
