@@ -138,7 +138,7 @@ GoRouter buildRouter() {
       GoRoute(
         path: '/history-detail',
         builder: (context, state) => HistoryDetailScreen(
-          sessionId: state.uri.queryParameters['session'] ?? '',
+          date: state.uri.queryParameters['date'] ?? '',
         ),
       ),
       GoRoute(

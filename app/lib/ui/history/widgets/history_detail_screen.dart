@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../config/dependencies.dart';
 import '../../../data/repositories/session_history_repository.dart';
@@ -7,49 +6,64 @@ import '../../../domain/models/workout_session.dart';
 import '../../core/layouts/app_scaffold.dart';
 import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
-import '../view_model/history_viewmodel.dart';
 
-class HistoryDetailScreen extends StatelessWidget {
-  const HistoryDetailScreen({super.key, this.sessionId = ''});
+class HistoryDetailScreen extends StatefulWidget {
+  const HistoryDetailScreen({super.key, this.date = ''});
 
-  final String sessionId;
+  final String date;
+
+  @override
+  State<HistoryDetailScreen> createState() => _HistoryDetailScreenState();
+}
+
+class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
+  late final Future<List<WorkoutSession>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _loadDay();
+  }
+
+  Future<List<WorkoutSession>> _loadDay() async {
+    final repo = getIt<SessionHistoryRepository>();
+    final summaries = await repo.getSessionsByDate(widget.date);
+    if (summaries.isEmpty) {
+      return const [];
+    }
+    return Future.wait(
+      summaries.map((s) => repo.getSessionDetail(s.sessionId)),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
-      title: '운동 상세',
-      subtitle: '하루 운동 분석',
+      title: '하루 운동 상세',
       showBackButton: true,
-      onBack: () => context.go('/history'),
       scrollable: true,
-      body: FutureBuilder<WorkoutSession>(
-        future: _loadSession(),
+      body: FutureBuilder<List<WorkoutSession>>(
+        future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const _HistoryDetailInfo(
-              message: '운동 상세 기록을 불러오는 중입니다.',
-            );
+            return const _DetailInfo(message: '데이터를 불러오는 중입니다.');
           }
-          if (snapshot.hasError || !snapshot.hasData) {
-            return const _HistoryDetailInfo(
-              message: '운동 상세 기록을 불러오지 못했습니다.',
-            );
+          if (snapshot.hasError) {
+            return const _DetailInfo(message: '데이터를 불러오지 못했습니다.');
           }
-          return _SessionDetailCard(session: snapshot.data!);
+          final sessions = snapshot.data ?? const <WorkoutSession>[];
+          if (sessions.isEmpty) {
+            return const _DetailInfo(message: '해당 날짜의 기록이 없습니다.');
+          }
+          return _DayDetailContent(date: widget.date, sessions: sessions);
         },
       ),
     );
   }
-
-  Future<WorkoutSession> _loadSession() {
-    return HistoryViewModel(
-      getIt<SessionHistoryRepository>(),
-    ).loadSessionDetail(sessionId);
-  }
 }
 
-class _HistoryDetailInfo extends StatelessWidget {
-  const _HistoryDetailInfo({required this.message});
+class _DetailInfo extends StatelessWidget {
+  const _DetailInfo({required this.message});
 
   final String message;
 
@@ -68,59 +82,129 @@ class _HistoryDetailInfo extends StatelessWidget {
   }
 }
 
-class _SessionDetailCard extends StatelessWidget {
-  const _SessionDetailCard({required this.session});
+class _DayDetailContent extends StatelessWidget {
+  const _DayDetailContent({required this.date, required this.sessions});
 
-  final WorkoutSession session;
+  final String date;
+  final List<WorkoutSession> sessions;
 
   @override
   Widget build(BuildContext context) {
-    final minutes = (session.durationSec / 60).ceil();
-    final hasMuscleMap = session.muscleMap?.values.isNotEmpty ?? false;
-    final hasBalance = session.balanceSummary?.enabled == true;
+    final muscleAggregate = _aggregateMuscleMap(sessions);
+    final muscleEntries = _buildMuscleEntries(muscleAggregate);
+    final balanceItems = _buildBalanceItems(muscleAggregate);
+    final compensations = sessions.fold<int>(
+      0,
+      (sum, s) => sum + s.compensationCount,
+    );
+    final fatigueOnset = _findEarliestFatigue(sessions);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ImoCard(
-          paddingSize: ImoCardPadding.lg,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        if (muscleEntries.isNotEmpty)
+          _MuscleActivityCard(entries: muscleEntries)
+        else
+          const _EmptySectionCard(
+            icon: Icons.show_chart_rounded,
+            title: '근육 활성도',
+            message: '근육 활성도 데이터가 없습니다.',
+          ),
+        const SizedBox(height: AppSpacing.md),
+        if (balanceItems.isNotEmpty)
+          _BalanceCard(items: balanceItems)
+        else
+          const _EmptySectionCard(
+            icon: Icons.trending_up_rounded,
+            title: '좌우 밸런스',
+            message: '좌우 밸런스 데이터가 없습니다.',
+          ),
+        if (compensations > 0 || fatigueOnset != null) ...[
+          const SizedBox(height: AppSpacing.md),
+          _PostureFatigueCard(
+            compensations: compensations,
+            fatigueOnset: fatigueOnset,
+          ),
+        ],
+        const SizedBox(height: AppSpacing.lg),
+        Text('운동별 기록', style: AppTextStyles.sectionTitle),
+        const SizedBox(height: AppSpacing.sm),
+        for (var i = 0; i < sessions.length; i++) ...[
+          _ExerciseRow(session: sessions[i]),
+          if (i < sessions.length - 1) const SizedBox(height: AppSpacing.sm),
+        ],
+      ],
+    );
+  }
+}
+
+class _MuscleActivityCard extends StatelessWidget {
+  const _MuscleActivityCard({required this.entries});
+
+  final List<_MuscleEntry> entries;
+
+  @override
+  Widget build(BuildContext context) {
+    return ImoCard(
+      paddingSize: ImoCardPadding.lg,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Text(session.exerciseType.label, style: AppTextStyles.sectionTitle),
-              const SizedBox(height: AppSpacing.md),
-              _InfoLine(label: '총 세트', value: '${session.setCount}세트'),
-              _InfoLine(label: '총 반복', value: '${session.totalReps}회'),
-              _InfoLine(label: '운동 시간', value: '$minutes분'),
+              const Icon(
+                Icons.show_chart_rounded,
+                size: 18,
+                color: AppColors.primaryStrong,
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Text('근육 활성도', style: AppTextStyles.label),
             ],
           ),
+          const SizedBox(height: AppSpacing.md),
+          for (var i = 0; i < entries.length; i++) ...[
+            _ActivityBar(entry: entries[i]),
+            if (i < entries.length - 1)
+              const SizedBox(height: AppSpacing.sm),
+          ],
+          const SizedBox(height: AppSpacing.md),
+          const _ActivityLegend(),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActivityBar extends StatelessWidget {
+  const _ActivityBar({required this.entry});
+
+  final _MuscleEntry entry;
+
+  @override
+  Widget build(BuildContext context) {
+    final classification = _classifyActivity(entry.pct);
+    final fraction = (entry.pct / 100).clamp(0.0, 1.0);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(entry.label, style: AppTextStyles.body),
+            const Spacer(),
+            Text(
+              '${entry.pct.toStringAsFixed(0)}% · ${classification.label}',
+              style: AppTextStyles.caption,
+            ),
+          ],
         ),
-        const SizedBox(height: AppSpacing.md),
-        ImoCard(
-          paddingSize: ImoCardPadding.lg,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('분석 데이터', style: AppTextStyles.sectionTitle),
-              const SizedBox(height: AppSpacing.md),
-              Text(
-                hasMuscleMap
-                    ? '근육 활성도 데이터가 있습니다.'
-                    : '근육 활성도 데이터가 없습니다.',
-                style: AppTextStyles.body.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                hasBalance
-                    ? '좌우 밸런스 데이터가 있습니다.'
-                    : '좌우 밸런스 데이터가 없습니다.',
-                style: AppTextStyles.body.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ],
+        const SizedBox(height: AppSpacing.xs),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(AppSpacing.pillRadius),
+          child: LinearProgressIndicator(
+            value: fraction,
+            minHeight: 8,
+            backgroundColor: AppColors.disabledBg,
+            valueColor: AlwaysStoppedAnimation(classification.color),
           ),
         ),
       ],
@@ -128,23 +212,373 @@ class _SessionDetailCard extends StatelessWidget {
   }
 }
 
-class _InfoLine extends StatelessWidget {
-  const _InfoLine({required this.label, required this.value});
-
-  final String label;
-  final String value;
+class _ActivityLegend extends StatelessWidget {
+  const _ActivityLegend();
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-      child: Row(
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _LegendDot(color: AppColors.primary, label: '낮음'),
+        SizedBox(width: AppSpacing.md),
+        _LegendDot(color: AppColors.success, label: '보통'),
+        SizedBox(width: AppSpacing.md),
+        _LegendDot(color: AppColors.warning, label: '높음'),
+      ],
+    );
+  }
+}
+
+class _LegendDot extends StatelessWidget {
+  const _LegendDot({required this.color, required this.label});
+
+  final Color color;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: AppSpacing.xxs),
+        Text(label, style: AppTextStyles.caption),
+      ],
+    );
+  }
+}
+
+class _BalanceCard extends StatelessWidget {
+  const _BalanceCard({required this.items});
+
+  final List<_BalanceItem> items;
+
+  @override
+  Widget build(BuildContext context) {
+    return ImoCard(
+      paddingSize: ImoCardPadding.lg,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: AppTextStyles.body),
-          const Spacer(),
-          Text(value, style: AppTextStyles.label),
+          Row(
+            children: [
+              const Icon(
+                Icons.trending_up_rounded,
+                size: 18,
+                color: AppColors.primaryStrong,
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Text('좌우 밸런스', style: AppTextStyles.label),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          for (var i = 0; i < items.length; i++) ...[
+            _BalanceRow(item: items[i]),
+            if (i < items.length - 1)
+              const SizedBox(height: AppSpacing.md),
+          ],
         ],
       ),
     );
   }
+}
+
+class _BalanceRow extends StatelessWidget {
+  const _BalanceRow({required this.item});
+
+  final _BalanceItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    final total = item.leftPct + item.rightPct;
+    final leftFraction = total > 0 ? item.leftPct / total : 0.5;
+    final leftFlex = (leftFraction * 1000).round().clamp(1, 999);
+    final rightFlex = 1000 - leftFlex;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(item.label, style: AppTextStyles.body),
+            const Spacer(),
+            Text(
+              '좌 ${item.leftPct.toStringAsFixed(0)}% · 우 ${item.rightPct.toStringAsFixed(0)}%',
+              style: AppTextStyles.caption,
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(AppSpacing.pillRadius),
+          child: SizedBox(
+            height: 8,
+            child: Row(
+              children: [
+                Expanded(
+                  flex: leftFlex,
+                  child: const ColoredBox(color: AppColors.primary),
+                ),
+                Expanded(
+                  flex: rightFlex,
+                  child: const ColoredBox(color: AppColors.secondary),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PostureFatigueCard extends StatelessWidget {
+  const _PostureFatigueCard({
+    required this.compensations,
+    required this.fatigueOnset,
+  });
+
+  final int compensations;
+  final ({int set, int rep})? fatigueOnset;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.largeCardPadding),
+      decoration: BoxDecoration(
+        color: AppColors.warning.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+        border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.warning_amber_rounded,
+                size: 18,
+                color: AppColors.warning,
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Text('자세·피로', style: AppTextStyles.label),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            children: [
+              Text('보상동작', style: AppTextStyles.body),
+              const Spacer(),
+              Text(
+                '$compensations회',
+                style: AppTextStyles.label.copyWith(color: AppColors.warning),
+              ),
+            ],
+          ),
+          if (fatigueOnset != null) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Row(
+              children: [
+                Text('피로 시작 시점', style: AppTextStyles.body),
+                const Spacer(),
+                Text(
+                  '${fatigueOnset!.set}세트 ${fatigueOnset!.rep}회차',
+                  style: AppTextStyles.label,
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ExerciseRow extends StatelessWidget {
+  const _ExerciseRow({required this.session});
+
+  final WorkoutSession session;
+
+  @override
+  Widget build(BuildContext context) {
+    final minutes = (session.durationSec / 60).ceil();
+    return ImoCard(
+      paddingSize: ImoCardPadding.md,
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+            ),
+            child: const Icon(
+              Icons.fitness_center_rounded,
+              color: AppColors.primaryStrong,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  session.exerciseType.label,
+                  style: AppTextStyles.label,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${session.setCount}세트 · ${session.totalReps}회 · $minutes분',
+                  style: AppTextStyles.caption,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptySectionCard extends StatelessWidget {
+  const _EmptySectionCard({
+    required this.icon,
+    required this.title,
+    required this.message,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return ImoCard(
+      paddingSize: ImoCardPadding.lg,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 18, color: AppColors.primaryStrong),
+              const SizedBox(width: AppSpacing.xs),
+              Text(title, style: AppTextStyles.label),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            message,
+            style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MuscleEntry {
+  const _MuscleEntry({required this.label, required this.pct});
+
+  final String label;
+  final double pct;
+}
+
+class _BalanceItem {
+  const _BalanceItem({
+    required this.label,
+    required this.leftPct,
+    required this.rightPct,
+  });
+
+  final String label;
+  final double leftPct;
+  final double rightPct;
+}
+
+class _ActivityClassification {
+  const _ActivityClassification({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+}
+
+_ActivityClassification _classifyActivity(double pct) {
+  if (pct >= 70) {
+    return const _ActivityClassification(label: '높음', color: AppColors.warning);
+  }
+  if (pct >= 40) {
+    return const _ActivityClassification(label: '보통', color: AppColors.success);
+  }
+  return const _ActivityClassification(label: '낮음', color: AppColors.primary);
+}
+
+Map<String, double> _aggregateMuscleMap(List<WorkoutSession> sessions) {
+  final sums = <String, double>{};
+  final counts = <String, int>{};
+  for (final session in sessions) {
+    final values = session.muscleMap?.values;
+    if (values == null) continue;
+    values.forEach((key, value) {
+      sums[key] = (sums[key] ?? 0) + value;
+      counts[key] = (counts[key] ?? 0) + 1;
+    });
+  }
+  return {
+    for (final key in sums.keys) key: sums[key]! / counts[key]!,
+  };
+}
+
+List<_MuscleEntry> _buildMuscleEntries(Map<String, double> map) {
+  if (map.isEmpty) return const [];
+  final entries = <_MuscleEntry>[];
+  void add(String label, List<String> keys) {
+    final present = keys.where(map.containsKey).toList();
+    if (present.isEmpty) return;
+    final avg = present.fold<double>(0, (sum, k) => sum + map[k]!) /
+        present.length;
+    entries.add(_MuscleEntry(label: label, pct: avg));
+  }
+
+  add('대흉근', ['chest']);
+  add('어깨', ['left_shoulder', 'right_shoulder']);
+  add('삼두근', ['left_triceps', 'right_triceps']);
+  return entries;
+}
+
+List<_BalanceItem> _buildBalanceItems(Map<String, double> map) {
+  final items = <_BalanceItem>[];
+  void add(String label, String leftKey, String rightKey) {
+    final left = map[leftKey];
+    final right = map[rightKey];
+    if (left != null && right != null) {
+      items.add(_BalanceItem(label: label, leftPct: left, rightPct: right));
+    }
+  }
+
+  add('어깨', 'left_shoulder', 'right_shoulder');
+  add('삼두근', 'left_triceps', 'right_triceps');
+  return items;
+}
+
+({int set, int rep})? _findEarliestFatigue(List<WorkoutSession> sessions) {
+  ({int set, int rep})? earliest;
+  for (final s in sessions) {
+    final set = s.fatigueOnsetSet;
+    final rep = s.fatigueOnsetRep;
+    if (set == null || rep == null) continue;
+    if (earliest == null ||
+        set < earliest.set ||
+        (set == earliest.set && rep < earliest.rep)) {
+      earliest = (set: set, rep: rep);
+    }
+  }
+  return earliest;
 }
