@@ -634,6 +634,7 @@ class BridgeState:
             {
                 "event": "rest_finished",
                 "current_set_index": self._current_set_index + 1,
+                "finished_at": now_iso(),
             }
         ]
 
@@ -652,6 +653,7 @@ class BridgeState:
                 "actual_rep": actual_rep,
                 "target_rep": target_rep,
                 "timestamp_ms": timestamp_ms,
+                "completed_at": now_iso(),
             }
         ]
 
@@ -664,6 +666,9 @@ class BridgeState:
                     "event": "workout_completed",
                     "completed_sets": self._set_count,
                     "timestamp_ms": timestamp_ms,
+                    "ended_at": now_iso(),
+                    "status": "completed",
+                    "end_reason": "auto_completed",
                 }
             )
             return events
@@ -677,6 +682,7 @@ class BridgeState:
                 "event": "rest_started",
                 "next_set_index": self._current_set_index + 1,
                 "rest_sec": self._rest_sec,
+                "started_at": now_iso(),
             }
         )
         return events
@@ -950,6 +956,10 @@ def build_workout_event(
     )
 
 
+def build_app_event_message(event_type: str, payload: dict[str, Any]) -> dict[str, Any]:
+    return wrap_message(event_type, payload)
+
+
 def build_error_message(code: str, message: str) -> dict[str, Any]:
     return wrap_message(
         "error",
@@ -958,6 +968,50 @@ def build_error_message(code: str, message: str) -> dict[str, Any]:
             "message": message,
         },
     )
+
+
+def summarize_message_for_log(message: dict[str, Any]) -> str:
+    msg_type = str(message.get("type", "unknown"))
+    payload = message.get("payload")
+    if not isinstance(payload, dict):
+        return f"type={msg_type}"
+
+    if msg_type == "plan_ack":
+        return (
+            f"type={msg_type} accepted={payload.get('accepted')} "
+            f"exercise_type={payload.get('exercise_type')} set_count={payload.get('set_count')}"
+        )
+    if msg_type == "calibration_status":
+        return f"type={msg_type} status={payload.get('status')} message={payload.get('message')}"
+    if msg_type == "connection_status":
+        return (
+            f"type={msg_type} pi={payload.get('pi_connected')} "
+            f"esp32={payload.get('esp32_connected')} glass={payload.get('glass_connected')}"
+        )
+    if msg_type in {"workout_started", "workout_paused", "workout_resumed"}:
+        return f"type={msg_type} payload={payload}"
+    if msg_type in {"set_completed", "rest_started", "rest_finished", "workout_completed"}:
+        return f"type={msg_type} payload={payload}"
+    if msg_type == "session_result":
+        return (
+            f"type={msg_type} exercise_type={payload.get('exercise_type')} "
+            f"status={payload.get('status')} total_reps={payload.get('total_reps')}"
+        )
+    if msg_type == "glass_session_state":
+        return (
+            f"type={msg_type} phase={payload.get('phase')} "
+            f"exercise_type={payload.get('exercise_type')} current_rep={payload.get('current_rep')}"
+        )
+    if msg_type == "glass_display_data":
+        return (
+            f"type={msg_type} pose_title={payload.get('pose_title')} "
+            f"activation_percent={payload.get('activation_percent')} current_rep={payload.get('current_rep')}"
+        )
+    if msg_type == "sensor_frame":
+        return f"type={msg_type} seq={payload.get('seq')} ts={payload.get('timestamp_ms')}"
+    if msg_type == "error":
+        return f"type={msg_type} code={payload.get('code')} message={payload.get('message')}"
+    return f"type={msg_type} payload={payload}"
 
 
 class SensorBridge:
@@ -969,6 +1023,90 @@ class SensorBridge:
         self._queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._last_frame: Optional[DecodedFrame] = None
+        self._workout_started_emitted = False
+
+    def _build_app_event_from_state(self, event_type: str, details: dict[str, Any]) -> dict[str, Any]:
+        now = now_iso()
+        if event_type == "workout_started":
+            return build_app_event_message(
+                "workout_started",
+                {
+                    "exercise_type": details.get("exercise_type"),
+                    "started_at": details.get("started_at", now),
+                },
+            )
+        if event_type == "workout_paused":
+            return build_app_event_message(
+                "workout_paused",
+                {
+                    "set_index": int(details.get("set_index", 0) or 0),
+                    "current_rep": int(details.get("current_rep", 0) or 0),
+                    "paused_at": details.get("paused_at", now),
+                },
+            )
+        if event_type == "workout_resumed":
+            return build_app_event_message(
+                "workout_resumed",
+                {
+                    "set_index": int(details.get("set_index", 0) or 0),
+                    "current_rep": int(details.get("current_rep", 0) or 0),
+                    "resumed_at": details.get("resumed_at", now),
+                },
+            )
+        if event_type == "set_completed":
+            return build_app_event_message(
+                "set_completed",
+                {
+                    "set_index": int(details.get("completed_set_index", 0) or 0),
+                    "target_reps": int(details.get("target_rep", 0) or 0),
+                    "actual_reps": int(details.get("actual_rep", 0) or 0),
+                    "completed_at": details.get("completed_at", now),
+                },
+            )
+        if event_type == "rest_started":
+            next_set_index = int(details.get("next_set_index", 0) or 0)
+            return build_app_event_message(
+                "rest_started",
+                {
+                    "after_set_index": max(0, next_set_index - 1),
+                    "rest_sec": int(details.get("rest_sec", 0) or 0),
+                    "started_at": details.get("started_at", now),
+                },
+            )
+        if event_type == "rest_finished":
+            return build_app_event_message(
+                "rest_finished",
+                {
+                    "next_set_index": int(details.get("current_set_index", 0) or 0),
+                    "finished_at": details.get("finished_at", now),
+                },
+            )
+        if event_type == "workout_completed":
+            return build_app_event_message(
+                "workout_completed",
+                {
+                    "ended_at": details.get("ended_at", now),
+                    "status": details.get("status", "completed"),
+                    "end_reason": details.get("end_reason", "auto_completed"),
+                },
+            )
+        return build_workout_event(event_type, self._state.session_snapshot(), details)
+
+    def _emit_workout_started_if_needed(self) -> None:
+        session = self._state.session_snapshot()
+        if self._workout_started_emitted or session.exercise_type is None or session.phase != "monitoring":
+            return
+        self._workout_started_emitted = True
+        self._emit_from_thread(
+            self._build_app_event_from_state(
+                "workout_started",
+                {
+                    "exercise_type": session.exercise_type,
+                    "started_at": now_iso(),
+                },
+            )
+        )
+
 
     async def run(
         self,
@@ -1053,6 +1191,7 @@ class SensorBridge:
                     target_reps_per_set=target_reps_per_set,
                     rest_sec=rest_sec,
                 )
+                self._workout_started_emitted = False
                 self._emit_from_thread(build_glass_session_state(self._state.session_snapshot()))
                 self._emit_from_thread(
                     build_glass_display_data(
@@ -1152,6 +1291,17 @@ class SensorBridge:
                     self._state.calibration_snapshot(),
                 )
             )
+            paused_session = self._state.session_snapshot()
+            self._emit_from_thread(
+                self._build_app_event_from_state(
+                    "workout_paused",
+                    {
+                        "set_index": paused_session.current_set_index,
+                        "current_rep": paused_session.current_rep or 0,
+                        "paused_at": now_iso(),
+                    },
+                )
+            )
             return
 
         if msg_type == "resume_workout":
@@ -1174,6 +1324,18 @@ class SensorBridge:
                     self._state.calibration_snapshot(),
                 )
             )
+            resumed_session = self._state.session_snapshot()
+            self._emit_from_thread(
+                self._build_app_event_from_state(
+                    "workout_resumed",
+                    {
+                        "set_index": resumed_session.current_set_index,
+                        "current_rep": resumed_session.current_rep or 0,
+                        "resumed_at": now_iso(),
+                    },
+                )
+            )
+            self._emit_workout_started_if_needed()
             return
 
         if msg_type in {"stop_workout", "emergency_stop"}:
@@ -1249,6 +1411,7 @@ class SensorBridge:
             if not self._clients:
                 continue
 
+            print(f"[bridge] pi -> app {summarize_message_for_log(message)}")
             payload = json.dumps(message)
             disconnected: list[ServerConnection] = []
             for client in list(self._clients):
@@ -1279,13 +1442,8 @@ class SensorBridge:
             for workout_event in workout_events:
                 event_type = str(workout_event.get("event", "unknown"))
                 details = {key: value for key, value in workout_event.items() if key != "event"}
-                self._emit_from_thread(
-                    build_workout_event(
-                        event_type,
-                        self._state.session_snapshot(),
-                        details,
-                    )
-                )
+                self._emit_from_thread(self._build_app_event_from_state(event_type, details))
+            self._emit_workout_started_if_needed()
 
     def _emit_from_thread(self, message: dict[str, Any]) -> None:
         if self._loop is None:
@@ -1369,13 +1527,7 @@ class SensorBridge:
                     for workout_event in workout_events:
                         event_type = str(workout_event.get("event", "unknown"))
                         details = {key: value for key, value in workout_event.items() if key != "event"}
-                        self._emit_from_thread(
-                            build_workout_event(
-                                event_type,
-                                self._state.session_snapshot(),
-                                details,
-                            )
-                        )
+                        self._emit_from_thread(self._build_app_event_from_state(event_type, details))
                     session_result = self._state.consume_pending_session_result()
                     if session_result is not None:
                         self._emit_from_thread(session_result)
@@ -1401,14 +1553,13 @@ class SensorBridge:
                                 status="success",
                                 message="REST/MVC 기준값 측정 완료",
                                 calibration_summary={
-                                    "emg_rest_baseline": calibration.emg_rest_baseline,
-                                    "emg_mvc": calibration.emg_mvc,
-                                    "emg_activation_threshold": calibration.emg_activation_threshold,
-                                    "imu_rest_accel": calibration.imu_rest_accel,
-                                    "imu_rest_gyro": calibration.imu_rest_gyro,
+                                    "ch1_mvc": calibration.emg_mvc[0],
+                                    "ch2_mvc": calibration.emg_mvc[1],
+                                    "ch3_mvc": calibration.emg_mvc[2],
                                 },
                             )
                         )
+                        self._emit_workout_started_if_needed()
                         self._emit_from_thread(build_glass_session_state(self._state.session_snapshot()))
                         self._emit_from_thread(
                             build_glass_display_data(
