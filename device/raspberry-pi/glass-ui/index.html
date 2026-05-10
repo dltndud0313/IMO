@@ -68,6 +68,10 @@
           0 0 0 28px rgba(112, 232, 205, 0.02),
           0 0 0 72px rgba(112, 232, 205, 0.015);
         pointer-events: none;
+        transition:
+          opacity 180ms ease,
+          transform 180ms ease,
+          box-shadow 180ms ease;
       }
 
       .panel {
@@ -85,6 +89,14 @@
         inset: 0;
         background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 38%);
         pointer-events: none;
+      }
+
+      .hud.waiting-mode .crosshair {
+        opacity: 0.48;
+        transform: translate(-50%, -50%) scale(0.92);
+        box-shadow:
+          0 0 0 22px rgba(112, 232, 205, 0.016),
+          0 0 0 56px rgba(112, 232, 205, 0.012);
       }
 
       .section {
@@ -230,6 +242,7 @@
         aspect-ratio: 1 / 1;
         display: grid;
         place-items: center;
+        transition: width 180ms ease;
       }
 
       .focus-shell::before,
@@ -259,6 +272,11 @@
         box-shadow:
           0 24px 82px rgba(0, 0, 0, 0.36),
           inset 0 1px 0 rgba(255, 255, 255, 0.03);
+        transition:
+          width 180ms ease,
+          min-height 180ms ease,
+          padding 180ms ease,
+          border-color 180ms ease;
       }
 
       .pose-badge {
@@ -356,6 +374,83 @@
         line-height: 1.55;
       }
 
+      .hud.waiting-mode .panel {
+        background: rgba(7, 15, 21, 0.74);
+      }
+
+      .hud.waiting-mode .kpi {
+        min-height: 142px;
+      }
+
+      .hud.waiting-mode .kpi-value.rep {
+        font-size: 74px;
+      }
+
+      .hud.waiting-mode .kpi-value.metric {
+        font-size: 38px;
+      }
+
+      .hud.waiting-mode .workout-name {
+        font-size: 46px;
+      }
+
+      .hud.waiting-mode .kpi-note,
+      .hud.waiting-mode .phase-copy,
+      .hud.waiting-mode .footer-note,
+      .hud.waiting-mode .activation-copy {
+        color: #a8c6be;
+      }
+
+      .hud.waiting-mode .focus-shell {
+        width: min(82vw, 860px);
+      }
+
+      .hud.waiting-mode .pose-card {
+        width: 74%;
+        min-height: 368px;
+        padding: 36px 34px;
+        border-color: rgba(112, 232, 205, 0.22);
+      }
+
+      .hud.waiting-mode .pose-title {
+        font-size: 62px;
+      }
+
+      .hud.waiting-mode .pose-detail {
+        max-width: 30ch;
+        margin: 18px auto 0;
+        font-size: 20px;
+      }
+
+      .hud.waiting-mode .side-stack {
+        gap: 14px;
+      }
+
+      .hud.waiting-mode .activation-panel,
+      .hud.waiting-mode .guide-panel {
+        border-color: rgba(112, 232, 205, 0.16);
+      }
+
+      .hud.waiting-mode .activation-panel .kpi-value.metric {
+        font-size: 42px;
+      }
+
+      .hud.waiting-mode .footer-panel {
+        grid-template-columns: 1.2fr 1fr;
+      }
+
+      .hud.waiting-mode .timing-card {
+        display: none;
+      }
+
+      .hud.waiting-mode .summary-card .footer-value {
+        font-size: 28px;
+      }
+
+      .hud.waiting-mode .balance-card .footer-value {
+        font-size: 22px;
+      }
+
       .status-good {
         color: var(--good);
       }
@@ -401,7 +496,7 @@
     </style>
   </head>
   <body>
-    <main class="hud">
+    <main id="hud-root" class="hud">
       <div class="back-grid"></div>
       <div class="crosshair"></div>
 
@@ -417,7 +512,7 @@
       </section>
 
       <section class="kpi-strip">
-        <article class="panel kpi">
+        <article class="panel kpi rep-kpi">
           <div class="section">
             <div class="eyebrow">Rep Count</div>
             <div id="rep-count" class="kpi-value rep">-</div>
@@ -429,7 +524,7 @@
           </div>
         </article>
 
-        <article class="panel kpi">
+        <article class="panel kpi pace-kpi">
           <div class="section">
             <div class="eyebrow">Current Pace</div>
             <div id="speed-value" class="kpi-value metric">-</div>
@@ -441,7 +536,7 @@
           </div>
         </article>
 
-        <article class="panel kpi">
+        <article class="panel kpi activation-kpi">
           <div class="section">
             <div class="eyebrow">Activation</div>
             <div id="activation-value-top" class="kpi-value metric">0%</div>
@@ -452,7 +547,7 @@
           </div>
         </article>
 
-        <article class="panel kpi">
+        <article class="panel kpi status-kpi">
           <div class="section">
             <div class="eyebrow">Glass Status</div>
             <div id="ws-status" class="kpi-value metric" style="font-size: 36px;">대기</div>
@@ -497,7 +592,7 @@
       </section>
 
       <section class="footer-panel">
-        <article class="panel footer-item">
+        <article class="panel footer-item summary-card">
           <div class="section">
             <div class="eyebrow">Summary</div>
             <div id="summary-title" class="footer-value">운동 안내 준비 중</div>
@@ -507,7 +602,7 @@
           </div>
         </article>
 
-        <article class="panel footer-item">
+        <article class="panel footer-item balance-card">
           <div class="section">
             <div class="eyebrow">Balance</div>
             <div id="balance-title" class="footer-value">좌우 정렬 대기</div>
@@ -517,7 +612,7 @@
           </div>
         </article>
 
-        <article class="panel footer-item">
+        <article class="panel footer-item timing-card">
           <div class="section">
             <div class="eyebrow">Timing</div>
             <div id="timing-title" class="footer-value">세트 정보 대기</div>
@@ -550,6 +645,7 @@
       const wsUrl = `${wsScheme}://${window.location.hostname}:${wsPort}`;
 
       const els = {
+        hudRoot: document.getElementById("hud-root"),
         exerciseName: document.getElementById("exercise-name"),
         phaseChip: document.getElementById("phase-chip"),
         phaseCopy: document.getElementById("phase-copy"),
@@ -641,6 +737,12 @@
         const speedLabel = state.currentSpeedLabel || "분석 중";
         const poseToneClass = toneClass(display.pose_tone);
         const usageToneClass = toneClass(display.usage_tone);
+        const isWaitingMode =
+          state.exerciseLabel === "Waiting" ||
+          state.phaseLabel === "운동 선택 대기" ||
+          (!state.display && state.currentRep == null);
+
+        els.hudRoot.classList.toggle("waiting-mode", isWaitingMode);
 
         els.exerciseName.textContent = state.exerciseLabel;
         els.phaseChip.textContent = state.phaseLabel;
@@ -673,22 +775,34 @@
           display.pose_detail || "센서 데이터 대기 중입니다.";
         els.poseTitle.className = `pose-title ${poseToneClass}`;
 
-        els.summaryTitle.textContent = display.pose_title || "운동 안내 준비 중";
-        els.summaryNote.textContent = display.usage_text || "현재 세션 상태를 분석하는 중입니다.";
-        els.balanceTitle.textContent =
-          display.pose_badge === "Balance" ? display.pose_title : "좌우 정렬 확인";
-        els.balanceNote.textContent =
-          display.pose_badge === "Balance"
-            ? display.pose_detail
-            : "좌우 불균형이 감지되면 이 영역에 가장 먼저 요약해서 보여줍니다.";
-        els.timingTitle.textContent =
-          state.restRemainingSec > 0
-            ? `휴식 ${state.restRemainingSec}초`
-            : `세트 ${state.currentSetIndex || "-"} 진행 중`;
-        els.timingNote.textContent =
-          speedLabel === "분석 중"
-            ? "반복이 시작되면 최근 속도를 빠름/적정/느림으로 정리합니다."
-            : `최근 반복 속도는 ${speedLabel}으로 해석되고 있습니다.`;
+        if (isWaitingMode) {
+          els.summaryTitle.textContent = "운동 선택 후 바로 시작할 수 있습니다.";
+          els.summaryNote.textContent =
+            "앱에서 운동을 고르면 센서 위치 안내와 캘리브레이션 단계가 순서대로 정리됩니다.";
+          els.balanceTitle.textContent = "좌우 분석 준비";
+          els.balanceNote.textContent =
+            "운동이 시작되면 좌우 팔 균형과 몸통 보상 동작을 자동으로 요약해 보여줍니다.";
+          els.timingTitle.textContent = "준비 순서 안내";
+          els.timingNote.textContent =
+            "운동 선택 -> 센서 부착 -> 캘리브레이션 -> 실시간 피드백 순서로 진행됩니다.";
+        } else {
+          els.summaryTitle.textContent = display.pose_title || "운동 안내 준비 중";
+          els.summaryNote.textContent = display.usage_text || "현재 세션 상태를 분석하는 중입니다.";
+          els.balanceTitle.textContent =
+            display.pose_badge === "Balance" ? display.pose_title : "좌우 정렬 확인";
+          els.balanceNote.textContent =
+            display.pose_badge === "Balance"
+              ? display.pose_detail
+              : "좌우 불균형이 감지되면 이 영역에 가장 먼저 요약해서 보여줍니다.";
+          els.timingTitle.textContent =
+            state.restRemainingSec > 0
+              ? `휴식 ${state.restRemainingSec}초`
+              : `세트 ${state.currentSetIndex || "-"} 진행 중`;
+          els.timingNote.textContent =
+            speedLabel === "분석 중"
+              ? "반복이 시작되면 최근 속도를 빠름/적정/느림으로 정리합니다."
+              : `최근 반복 속도는 ${speedLabel}으로 해석되고 있습니다.`;
+        }
 
         renderSensorList();
       }
