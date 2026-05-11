@@ -20,9 +20,10 @@ void main() {
         'rest_sec': 60,
         'total_reps': 33,
         'valid_reps': 31,
-        'avg_target_muscle': 61.2,
-        'avg_assist_muscle': 21.1,
-        'avg_compensator': 17.7,
+        // Pi payload 는 0~1 ratio (MVC normalized). 백엔드 POST 단계에서 *100 변환.
+        'avg_target_muscle': 0.612,
+        'avg_assist_muscle': 0.211,
+        'avg_compensator': 0.177,
         'compensation_count': 4,
         'fatigue_onset_set': 3,
         'fatigue_onset_rep': 7,
@@ -33,11 +34,11 @@ void main() {
           'ch3_mvc': 69.8,
         },
         'muscle_map': {
-          'chest': 68.0,
-          'left_shoulder': 42.0,
-          'right_shoulder': 39.0,
-          'left_triceps': 54.0,
-          'right_triceps': 52.0,
+          'chest': 0.68,
+          'left_shoulder': 0.42,
+          'right_shoulder': 0.39,
+          'left_triceps': 0.54,
+          'right_triceps': 0.52,
         },
         'balance_summary': {
           'enabled': false,
@@ -65,7 +66,7 @@ void main() {
     expect(session.status, 'completed');
     expect(session.totalReps, 33);
     expect(session.setResults, hasLength(1));
-    expect(session.muscleMap?.values['chest'], 68.0);
+    expect(session.muscleMap?.values['chest'], 0.68);
     expect(session.balanceSummary?.enabled, isFalse);
   });
 
@@ -86,15 +87,15 @@ void main() {
         'rest_sec': 60,
         'total_reps': 19,
         'valid_reps': 18,
-        'avg_target_muscle': 70.0,
-        'avg_assist_muscle': 20.0,
-        'avg_compensator': 10.0,
+        'avg_target_muscle': 0.70,
+        'avg_assist_muscle': 0.20,
+        'avg_compensator': 0.10,
         'compensation_count': 2,
         'muscle_map': {
-          'left_biceps': 72.0,
-          'right_biceps': 68.0,
-          'left_forearm': 44.0,
-          'right_forearm': 41.0,
+          'left_biceps': 0.72,
+          'right_biceps': 0.68,
+          'left_forearm': 0.44,
+          'right_forearm': 0.41,
         },
         'set_results': [],
       },
@@ -104,7 +105,7 @@ void main() {
 
     final session = (message as SessionResultMessage).session;
     expect(session.exerciseType, ExerciseType.bicepCurl);
-    expect(session.muscleMap?.values['left_biceps'], 72.0);
-    expect(session.muscleMap?.values['right_forearm'], 41.0);
+    expect(session.muscleMap?.values['left_biceps'], 0.72);
+    expect(session.muscleMap?.values['right_forearm'], 0.41);
   });
 }

@@ -175,6 +175,7 @@ class ApiService {
         .toList();
     final summary = data['overallSummary'] as Map<String, dynamic>? ?? const {};
     final balance = data['muscleBalance'] as Map<String, dynamic>?;
+    final muscleMap = data['muscleMap'] as Map<String, dynamic>?;
     final targetReps = sets
         .map((set) => (set['targetReps'] as num?)?.toInt() ?? 0)
         .toList();
@@ -210,6 +211,10 @@ class ApiService {
           (summary['totalCompensationCount'] as num?)?.toInt() ?? 0,
       'fatigue_onset_set': (summary['fatigueOnsetSet'] as num?)?.toInt(),
       'fatigue_onset_rep': (summary['fatigueOnsetRep'] as num?)?.toInt(),
+      if (muscleMap != null && muscleMap.isNotEmpty)
+        'muscle_map': muscleMap.map(
+          (key, value) => MapEntry(key, (value as num?)?.toDouble() ?? 0.0),
+        ),
       if (balance != null)
         'balance_summary': {
           'enabled': true,

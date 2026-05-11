@@ -59,7 +59,10 @@ class SessionCreate(BaseModel):
     comment: Optional[str] = None
 
     calibration_summary: Optional[CalibrationSummaryBase] = None
-    muscle_map: Optional[Dict[str, float]] = None  # {"chest": 68.0, ...}
+    # 단위 계약: 입력은 0~1 ratio (Pi 의 MVC normalized 출력 그대로).
+    # 백엔드가 *100 변환 후 percent 로 저장 (sessions.py:_ratio_to_percent).
+    # 응답(GET)은 percent 0~100 으로 내려간다.
+    muscle_map: Optional[Dict[str, float]] = None  # {"chest": 0.68, ...}
     balance_summary: Optional[BalanceSummaryBase] = None
 
     set_results: List[SetResultBase]

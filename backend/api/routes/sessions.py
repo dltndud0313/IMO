@@ -34,6 +34,15 @@ def _balance_status(ratio: float) -> str:
     return "SIGNIFICANT_IMBALANCE"
 
 
+# Pi 가 보내는 0~1 ratio 를 DB 저장용 0~100 percent 로 변환.
+# 시스템 단위 계약: POST 입력은 ratio, 저장/응답은 percent.
+# None 은 통과시킨다.
+def _ratio_to_percent(value):
+    if value is None:
+        return None
+    return float(value) * 100.0
+
+
 # ============================================================
 # API-06  POST /sessions
 # ============================================================
@@ -63,9 +72,9 @@ async def create_session(
         rest_sec=payload.rest_sec,
         total_reps=payload.total_reps,
         valid_reps=payload.valid_reps,
-        avg_target_muscle=payload.avg_target_muscle,
-        avg_assist_muscle=payload.avg_assist_muscle,
-        avg_compensator=payload.avg_compensator,
+        avg_target_muscle=_ratio_to_percent(payload.avg_target_muscle),
+        avg_assist_muscle=_ratio_to_percent(payload.avg_assist_muscle),
+        avg_compensator=_ratio_to_percent(payload.avg_compensator),
         compensation_count=payload.compensation_count,
         fatigue_onset_set=payload.fatigue_onset_set,
         fatigue_onset_rep=payload.fatigue_onset_rep,
@@ -107,7 +116,7 @@ async def create_session(
                 WorkoutMuscleMap(
                     session_id=payload.session_id,
                     body_part=body_part,
-                    activation_value=value,
+                    activation_value=_ratio_to_percent(value),
                 )
             )
 
@@ -117,9 +126,9 @@ async def create_session(
                 session_id=payload.session_id,
                 enabled=payload.balance_summary.enabled,
                 reason=payload.balance_summary.reason,
-                left_value=payload.balance_summary.left_value,
-                right_value=payload.balance_summary.right_value,
-                diff_value=payload.balance_summary.diff_value,
+                left_value=_ratio_to_percent(payload.balance_summary.left_value),
+                right_value=_ratio_to_percent(payload.balance_summary.right_value),
+                diff_value=_ratio_to_percent(payload.balance_summary.diff_value),
                 balance_label=payload.balance_summary.balance_label,
             )
         )
@@ -278,6 +287,15 @@ async def get_session_detail(
         )
     ).scalar_one_or_none()
 
+    muscle_rows = (
+        await db.execute(
+            select(WorkoutMuscleMap).where(
+                WorkoutMuscleMap.session_id == session_id
+            )
+        )
+    ).scalars().all()
+    muscle_map = {m.body_part: round(float(m.activation_value), 1) for m in muscle_rows}
+
     # ---- sets[] ----
     sets_payload = []
     for s in set_rows:
@@ -366,6 +384,7 @@ async def get_session_detail(
         "totalDurationSeconds": total_duration_sec,
         "sets": sets_payload,
         "overallSummary": overall_summary,
+        "muscleMap": muscle_map,
         "muscleBalance": muscle_balance,
         "graphs": graphs,
     }
