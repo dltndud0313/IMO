@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 
 import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
+import '../models/body_heatmap_region.dart';
+import '../models/body_heatmap_region_adapter.dart' show buildBodyHeatmapRegionsFromData;
+import '../widgets/svg_body_heatmap_view.dart';
 
 class HeatmapTab extends StatefulWidget {
-  const HeatmapTab({super.key, this.data});
+  const HeatmapTab({super.key, this.data, this.gender = BodyGender.male});
 
   final Map<String, dynamic>? data;
+  final BodyGender gender;
 
   @override
   State<HeatmapTab> createState() => _HeatmapTabState();
@@ -17,10 +21,10 @@ class _HeatmapTabState extends State<HeatmapTab> {
 
   @override
   Widget build(BuildContext context) {
-    final muscles = (widget.data?['muscles'] as List?)
-            ?.whereType<Map<String, dynamic>>()
-            .toList() ??
-        const <Map<String, dynamic>>[];
+    final regions = buildBodyHeatmapRegionsFromData(widget.data);
+    final selectedSide = _frontSelected
+        ? BodyHeatmapViewSide.front
+        : BodyHeatmapViewSide.back;
 
     return ImoCard(
       key: const ValueKey('heatmap'),
@@ -30,30 +34,18 @@ class _HeatmapTabState extends State<HeatmapTab> {
         children: [
           Text('근활성도를 한 눈에 확인하세요!', style: AppTextStyles.body),
           const SizedBox(height: AppSpacing.md),
-          _MiniSegmentedControl(left: '전면', right: '후면', leftSelected: _frontSelected, onLeftTap: () => setState(() => _frontSelected = true), onRightTap: () => setState(() => _frontSelected = false)),
+          _MiniSegmentedControl(
+            left: '전면',
+            right: '후면',
+            leftSelected: _frontSelected,
+            onLeftTap: () => setState(() => _frontSelected = true),
+            onRightTap: () => setState(() => _frontSelected = false),
+          ),
           const SizedBox(height: AppSpacing.lg),
-          SizedBox(
-            height: 390,
-            child: Stack(
-              children: [
-                Center(
-                  child: Icon(
-                    Icons.accessibility_new_rounded,
-                    size: 168,
-                    color: _frontSelected
-                        ? Color(0x22EF4444)
-                        : Color(0x222563EB),
-                  ),
-                ),
-                for (var i = 0; i < muscles.take(7).length; i++)
-                  _MuscleLabel(
-                    label: _muscleLabel(muscles[i]),
-                    top: _labelPositions[i].top,
-                    left: _labelPositions[i].left,
-                    right: _labelPositions[i].right,
-                  ),
-              ],
-            ),
+          SvgBodyHeatmapView(
+            regions: regions,
+            selectedSide: selectedSide,
+            gender: widget.gender,
           ),
           const SizedBox(height: AppSpacing.md),
           const Row(
@@ -64,6 +56,8 @@ class _HeatmapTabState extends State<HeatmapTab> {
               _LegendDot(color: AppColors.heatmapNormal, label: '보통'),
               SizedBox(width: AppSpacing.md),
               _LegendDot(color: AppColors.heatmapHigh, label: '높음'),
+              SizedBox(width: AppSpacing.md),
+              _LegendDot(color: AppColors.heatmapDanger, label: '위험'),
             ],
           ),
         ],
@@ -156,61 +150,6 @@ class _MiniSegment extends StatelessWidget {
   }
 }
 
-class _MuscleLabel extends StatelessWidget {
-  const _MuscleLabel({
-    required this.label,
-    required this.top,
-    this.left,
-    this.right,
-  });
-
-  final String label;
-  final double top;
-  final double? left;
-  final double? right;
-
-  @override
-  Widget build(BuildContext context) {
-    return Positioned(
-      top: top,
-      left: left,
-      right: right,
-      child: Text(
-        label,
-        textAlign: right == null ? TextAlign.left : TextAlign.right,
-        style: AppTextStyles.caption.copyWith(
-          color: AppColors.textSecondary,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-}
-
-String _muscleLabel(Map<String, dynamic> muscle) {
-  final name = muscle['muscleName']?.toString() ?? muscle['muscleId']?.toString() ?? 'unknown';
-  final activation = ((muscle['avgActivation'] as num?)?.toDouble() ?? 0).round();
-  final sessionCount = muscle['sessionCount'] ?? 0;
-  return '$name\n$activation%\n$sessionCount회';
-}
-
-const _labelPositions = [
-  _LabelPosition(top: 56, left: 8),
-  _LabelPosition(top: 126, left: 8),
-  _LabelPosition(top: 196, left: 8),
-  _LabelPosition(top: 266, left: 8),
-  _LabelPosition(top: 56, right: 8),
-  _LabelPosition(top: 176, right: 8),
-  _LabelPosition(top: 266, right: 8),
-];
-
-class _LabelPosition {
-  const _LabelPosition({required this.top, this.left, this.right});
-
-  final double top;
-  final double? left;
-  final double? right;
-}
 
 class _LegendDot extends StatelessWidget {
   const _LegendDot({required this.color, required this.label});
