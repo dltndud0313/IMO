@@ -82,8 +82,10 @@ class _WorkoutScreenState extends State<WorkoutScreen>
     if (_state == _WorkoutState.paused) {
       return 'assets/images/mascot_rest.png';
     }
-    if (_state == _WorkoutState.reportWaiting ||
-        _state == _WorkoutState.emergency) {
+    if (_state == _WorkoutState.reportWaiting) {
+      return 'assets/images/mascot_report_wait.png';
+    }
+    if (_state == _WorkoutState.emergency) {
       return 'assets/images/mascot_default.png';
     }
     return _activeMascotAssets[_mascotFrameIndex];
@@ -214,6 +216,7 @@ class _WorkoutScreenState extends State<WorkoutScreen>
       child: AppScaffold(
         scrollable: false,
         horizontalPadding: false,
+        verticalPadding: false,
         safeArea: false,
         body: LayoutBuilder(
           builder: (context, _) {
@@ -251,7 +254,7 @@ class _WorkoutScreenState extends State<WorkoutScreen>
                   ),
                 ),
                 Positioned(
-                  top: MediaQuery.of(context).padding.top + 52,
+                  top: MediaQuery.of(context).padding.top + 120,
                   left: AppSpacing.screenHorizontal,
                   right: AppSpacing.screenHorizontal,
                   child: _WorkoutCheerCard(
