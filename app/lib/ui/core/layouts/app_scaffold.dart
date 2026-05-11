@@ -19,6 +19,7 @@ class AppScaffold extends StatelessWidget {
     this.bottom,
     this.scrollable = false,
     this.horizontalPadding = true,
+    this.verticalPadding = true,
     this.safeArea = true,
     this.bottomNavigationBar,
     this.background,
@@ -36,6 +37,7 @@ class AppScaffold extends StatelessWidget {
   final Widget? bottom;
   final bool scrollable;
   final bool horizontalPadding;
+  final bool verticalPadding;
   final bool safeArea;
   final Widget? bottomNavigationBar;
   final Color? background;
@@ -45,6 +47,7 @@ class AppScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     final horizontalInset =
         horizontalPadding ? AppSpacing.screenHorizontal : 0.0;
+    final verticalInset = verticalPadding ? AppSpacing.md : 0.0;
     final effectiveBody = body ?? child!;
     final effectiveContent = heroSlot == null
         ? effectiveBody
@@ -59,7 +62,7 @@ class AppScaffold extends StatelessWidget {
     final content = Padding(
       padding: EdgeInsets.symmetric(
         horizontal: horizontalInset,
-        vertical: AppSpacing.md,
+        vertical: verticalInset,
       ),
       child: effectiveContent,
     );
