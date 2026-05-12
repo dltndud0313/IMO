@@ -31,7 +31,7 @@ class BalanceTab extends StatelessWidget {
       children: [
         _BalanceCard(pairs: pairs),
         const SizedBox(height: AppSpacing.md),
-        const _BalanceNotice(),
+        _BalanceNotice(pairs: pairs),
       ],
     );
   }
@@ -70,6 +70,18 @@ int _avgActivation(dynamic value) {
   return 0;
 }
 
+Color _balanceColor(int diff) {
+  if (diff < 5) return AppColors.success;
+  if (diff < 10) return AppColors.warning;
+  return AppColors.heatmapDanger;
+}
+
+(String, IconData) _balanceStatus(int diff) {
+  if (diff < 5) return ('균형', Icons.check_circle);
+  if (diff < 10) return ('주의', Icons.warning_rounded);
+  return ('위험', Icons.dangerous_rounded);
+}
+
 class _BalanceRow extends StatelessWidget {
   const _BalanceRow({
     required this.label,
@@ -83,6 +95,10 @@ class _BalanceRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final diff = (left - right).abs();
+    final color = _balanceColor(diff);
+    final (statusLabel, statusIcon) = _balanceStatus(diff);
+
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.md),
       child: Column(
@@ -92,25 +108,69 @@ class _BalanceRow extends StatelessWidget {
             children: [
               Text(label, style: AppTextStyles.label),
               const Spacer(),
+              Icon(statusIcon, size: 14, color: color),
+              const SizedBox(width: 4),
+              Text(
+                statusLabel,
+                style: AppTextStyles.caption.copyWith(color: color),
+              ),
+              const SizedBox(width: AppSpacing.sm),
               Text('좌 $left% · 우 $right%', style: AppTextStyles.body),
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(AppSpacing.pillRadius),
+          SizedBox(
+            height: 34,
             child: Row(
               children: [
-                const Spacer(flex: 1),
+                // 좌측 막대 (중앙 기준 왼쪽으로 뻗어나감)
                 Expanded(
-                  flex: left.clamp(1, 100),
-                  child: Container(height: 34, color: AppColors.primary),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Flexible(
+                        flex: left.clamp(1, 100),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(AppSpacing.pillRadius),
+                            bottomLeft: Radius.circular(AppSpacing.pillRadius),
+                          ),
+                          child: Container(color: color),
+                        ),
+                      ),
+                      Flexible(
+                        flex: (100 - left).clamp(0, 100),
+                        child: Container(color: AppColors.cardSubtle),
+                      ),
+                    ],
+                  ),
                 ),
-                Container(width: 5, height: 34, color: AppColors.card),
+                // 중앙 기준선
+                Container(
+                  width: 2,
+                  color: AppColors.divider,
+                ),
+                // 우측 막대 (중앙 기준 오른쪽으로 뻗어나감)
                 Expanded(
-                  flex: right.clamp(1, 100),
-                  child: Container(height: 34, color: AppColors.secondary),
+                  child: Row(
+                    children: [
+                      Flexible(
+                        flex: right.clamp(1, 100),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.only(
+                            topRight: Radius.circular(AppSpacing.pillRadius),
+                            bottomRight: Radius.circular(AppSpacing.pillRadius),
+                          ),
+                          child: Container(color: color),
+                        ),
+                      ),
+                      Flexible(
+                        flex: (100 - right).clamp(0, 100),
+                        child: Container(color: AppColors.cardSubtle),
+                      ),
+                    ],
+                  ),
                 ),
-                const Spacer(flex: 1),
               ],
             ),
           ),
@@ -121,16 +181,58 @@ class _BalanceRow extends StatelessWidget {
 }
 
 class _BalanceNotice extends StatelessWidget {
-  const _BalanceNotice();
+  const _BalanceNotice({required this.pairs});
+
+  final List<Map<String, dynamic>> pairs;
 
   @override
   Widget build(BuildContext context) {
+    final diffs = [
+      for (final pair in pairs)
+        (
+          name: pair['muscleName']?.toString() ?? 'unknown',
+          diff: (_avgActivation(pair['left']) - _avgActivation(pair['right']))
+              .abs(),
+        ),
+    ];
+
+    final imbalanced = diffs.where((d) => d.diff >= 5).toList()
+      ..sort((a, b) => b.diff.compareTo(a.diff));
+
+    if (imbalanced.isEmpty) {
+      return ImoCard(
+        variant: ImoCardVariant.subtle,
+        paddingSize: ImoCardPadding.lg,
+        child: Row(
+          children: [
+            Icon(Icons.check_circle, size: 16, color: AppColors.success),
+            const SizedBox(width: AppSpacing.xs),
+            Text('좌우 균형이 양호합니다', style: AppTextStyles.body),
+          ],
+        ),
+      );
+    }
+
+    final worst = imbalanced.first;
+    final extra = imbalanced.length - 1;
+    final message = extra > 0
+        ? '${worst.name}의 좌우 차이가 ${worst.diff}%입니다 (외 $extra개 근육)'
+        : '${worst.name}의 좌우 차이가 ${worst.diff}%입니다';
+
     return ImoCard(
       variant: ImoCardVariant.subtle,
       paddingSize: ImoCardPadding.lg,
-      child: Text(
-        '좌우 밸런스가 10% 이상 차이날 경우 보상 위험이 증가할 수 있습니다.',
-        style: AppTextStyles.body,
+      child: Row(
+        children: [
+          Icon(Icons.warning_rounded, size: 16, color: AppColors.heatmapDanger),
+          const SizedBox(width: AppSpacing.xs),
+          Expanded(
+            child: Text(
+              message,
+              style: AppTextStyles.body.copyWith(color: AppColors.heatmapDanger),
+            ),
+          ),
+        ],
       ),
     );
   }
