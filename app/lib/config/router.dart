@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../data/repositories/auth_repository.dart';
+import '../domain/models/workout_session.dart';
 import '../ui/core/layouts/bottom_nav_shell.dart';
 import '../ui/auth/screens/login_screen.dart';
 import '../ui/auth/screens/profile_setup_screen.dart';
@@ -133,7 +134,11 @@ GoRouter buildRouter() {
       ),
       GoRoute(
         path: '/session-result',
-        builder: (context, state) => const SessionResultScreen(),
+        builder: (context, state) => SessionResultScreen(
+          sessionId: state.uri.queryParameters['sessionId'] ?? '',
+          initialSession:
+              state.extra is WorkoutSession ? state.extra as WorkoutSession : null,
+        ),
       ),
       GoRoute(
         path: '/history-detail',
