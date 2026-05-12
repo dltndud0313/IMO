@@ -42,17 +42,24 @@
 
 ---
 
-## 3. 후면 좌우 반전 — 별도 처리 없음
+## 3. 후면 좌우 반전 — 별도 처리 없음 (viewer perspective 표준)
 
-**결정:** 코드에서 좌우 반전 로직을 추가하지 않음.
+**결정:** 코드에서 좌우 반전 로직을 추가하지 않음. `left_*` 데이터는 전후면 모두 화면 왼쪽에 표시.
 
-**이유:**  
-SVG 자산이 신체 중심 좌표계(body-centric)로 제작되어 있음. `left_triceps`는 신체의 왼쪽 삼두근이며, 후면 SVG에서도 동일한 id로 신체 왼쪽(= 화면 오른쪽)에 위치함.
+**배경 — viewer perspective vs. subject perspective:**
 
-- 전면: `left_chest` → 화면 왼쪽 ✅
-- 후면: `left_triceps` → 화면 오른쪽 ✅ (후면에서 보면 신체 왼쪽이 화면 오른쪽)
+| 방식 | 설명 | 예시 |
+|---|---|---|
+| Subject perspective | 인체가 뒤돌면 왼팔이 화면 오른쪽에 표시 (해부학 교과서/거울) | 후면에서 `left_triceps` → 화면 오른쪽 |
+| **Viewer perspective (채택)** | `left_*`는 전후면 모두 화면 왼쪽에 표시 | 후면에서 `left_triceps` → 화면 왼쪽 |
 
-flutter_svg는 SVG를 있는 그대로 렌더링하므로 추가 변환 없이 해부학적으로 정확하게 표시됨. PoC 스크린샷으로 동작 확인 완료.
+**viewer perspective를 선택한 이유:**
+1. **사용자 멘탈 모델** — "내 왼팔 = 화면 왼쪽"으로 고정. 전후면 전환 시 혼란 없음
+2. **데이터 일관성** — `left_*` key가 항상 화면 왼쪽. 코드도 단순
+3. **SVG 자산 원본 설계** — react-native-body-highlighter의 후면 SVG도 `left_*` id가 화면 왼쪽에 그려져 있음. 의도된 설계
+4. **업계 표준** — Strong, Hevy, Fitbod 등 주요 피트니스 앱이 모두 viewer perspective 사용
+
+**사용자가 헷갈릴 경우 대응:** 좌우 반전이 아니라 UI 라벨(안내 문구)로 해결. 데이터 반전은 코드 복잡도만 올리고 혼란을 더 키움.
 
 ---
 
@@ -101,7 +108,16 @@ flutter_svg는 SVG를 있는 그대로 렌더링하므로 추가 변환 없이 �
 
 ---
 
-## 7. 기존 CustomPainter 처리
+## 7. Gender 연동 — 완료
+
+**데이터 흐름:**  
+`UserProfileRepository.getProfile()` (캐시 우선) → `StatsViewModel.gender` → `StatsScreen` → `HeatmapTab(gender:)` → `SvgBodyHeatmapView(gender:)`
+
+**동작 확인:** 여성 계정으로 로그인 시 통계 히트맵에 female SVG 자산이 자동 선택됨을 스크린샷으로 확인.
+
+---
+
+## 8. 기존 CustomPainter 처리
 
 **현재 상태:** `front_body_heatmap_painter.dart`, `back_body_heatmap_painter.dart`, `body_heatmap_view.dart` 파일은 아직 존재하나 호출부 없음.
 

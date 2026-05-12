@@ -54,7 +54,8 @@ class StatsViewModel extends ChangeNotifier {
       weeklyStats = results[0];
       heatmap = results[1];
       balance = results[2];
-      // 캐시된 프로필 사용 — getProfile()은 캐시 히트 시 즉시 반환
+      // UserProfile.gender('MALE'/'FEMALE'/'OTHER') → BodyGender 변환
+      // 캐시 우선 조회 — HomeScreen 진입 시 이미 로드된 캐시 재사용
       final profile = await _profileRepository.getProfile();
       gender = bodyGenderFromCode(profile.gender);
       loading = false;
