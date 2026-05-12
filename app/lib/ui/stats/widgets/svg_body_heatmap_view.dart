@@ -38,7 +38,10 @@ class SvgBodyHeatmapView extends StatelessWidget {
       width: double.infinity,
       child: Center(
         child: SvgPicture.asset(
-          _assetPath(gender, selectedSide),
+          SvgBodyHeatmapView.assetPathFor(
+            gender,
+            selectedSide == BodyHeatmapViewSide.back,
+          ),
           height: height,
           colorMapper: _MuscleColorMapper(intensities),
         ),
@@ -46,9 +49,9 @@ class SvgBodyHeatmapView extends StatelessWidget {
     );
   }
 
-  static String _assetPath(BodyGender gender, BodyHeatmapViewSide side) {
+  static String assetPathFor(BodyGender gender, bool isBack) {
     final g = gender == BodyGender.female ? 'female' : 'male';
-    final s = side == BodyHeatmapViewSide.back ? 'back' : 'front';
+    final s = isBack ? 'back' : 'front';
     return 'assets/svg/${g}_${s}_body.svg';
   }
 }
