@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'config/app_settings.dart';
 import 'config/dependencies.dart';
 import 'config/router.dart';
 import 'config/theme.dart';
@@ -31,18 +30,13 @@ class ImoApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<ThemeMode>(
-      valueListenable: appThemeMode,
-      builder: (context, themeMode, _) {
-        return MaterialApp.router(
-          title: 'IMO',
-          theme: buildAppTheme(),
-          darkTheme: buildDarkAppTheme(),
-          themeMode: themeMode,
-          routerConfig: buildRouter(),
-          debugShowCheckedModeBanner: false,
-        );
-      },
+    return MaterialApp.router(
+      title: 'IMO',
+      theme: buildAppTheme(),
+      darkTheme: buildDarkAppTheme(),
+      themeMode: ThemeMode.light,
+      routerConfig: buildRouter(),
+      debugShowCheckedModeBanner: false,
     );
   }
 }
