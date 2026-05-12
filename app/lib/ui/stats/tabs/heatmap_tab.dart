@@ -5,6 +5,7 @@ import '../../core/widgets/common_widgets.dart';
 import '../models/body_heatmap_region.dart';
 import '../models/body_heatmap_region_adapter.dart' show buildBodyHeatmapRegionsFromData;
 import '../widgets/svg_body_heatmap_view.dart';
+import '../widgets/trunk_posture_indicator.dart';
 
 class HeatmapTab extends StatefulWidget {
   const HeatmapTab({super.key, this.data, this.gender = BodyGender.male});
@@ -25,6 +26,10 @@ class _HeatmapTabState extends State<HeatmapTab> {
     final selectedSide = _frontSelected
         ? BodyHeatmapViewSide.front
         : BodyHeatmapViewSide.back;
+    final postureRegion = regions.where((r) => r.isPostureIndicator).firstOrNull;
+    final stability = postureRegion?.percent != null
+        ? (postureRegion!.percent! / 100.0).clamp(0.0, 1.0)
+        : null;
 
     return ImoCard(
       key: const ValueKey('heatmap'),
@@ -47,6 +52,8 @@ class _HeatmapTabState extends State<HeatmapTab> {
             selectedSide: selectedSide,
             gender: widget.gender,
           ),
+          const SizedBox(height: AppSpacing.md),
+          TrunkPostureIndicator(stability: stability),
           const SizedBox(height: AppSpacing.md),
           const Row(
             mainAxisAlignment: MainAxisAlignment.center,

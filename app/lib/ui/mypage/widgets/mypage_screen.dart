@@ -144,6 +144,16 @@ class _MyPageScreenState extends State<MyPageScreen> {
                 ),
                 const Divider(height: 1, color: AppColors.divider),
                 _SettingsRow(
+                  icon: Icons.article_outlined,
+                  label: '오픈소스 라이선스',
+                  onTap: () => showLicensePage(
+                    context: context,
+                    applicationName: 'IMO',
+                    applicationVersion: '1.1.1',
+                  ),
+                ),
+                const Divider(height: 1, color: AppColors.divider),
+                _SettingsRow(
                   icon: Icons.logout_rounded,
                   label: '로그아웃',
                   onTap: () => _showLogoutDialog(context),
