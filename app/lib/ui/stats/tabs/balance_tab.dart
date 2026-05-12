@@ -16,13 +16,19 @@ class BalanceTab extends StatelessWidget {
             .toList() ??
         const <Map<String, dynamic>>[];
     if (pairs.isEmpty) {
-      return ImoCard(
+      return SizedBox(
         key: const ValueKey('balance'),
-        paddingSize: ImoCardPadding.lg,
-        child: const StatsEmptyState(
-          icon: Icons.compare_arrows,
-          message: '이번 주 밸런스 데이터가 없습니다',
-          subMessage: '운동 후 좌우 근활성도 비교 결과가 표시됩니다',
+        width: double.infinity,
+        height: 280,
+        child: ImoCard(
+          paddingSize: ImoCardPadding.lg,
+          child: const Center(
+            child: StatsEmptyState(
+              icon: Icons.compare_arrows,
+              message: '이번 주 밸런스 데이터가 없습니다',
+              subMessage: '운동 후 좌우 근활성도 비교 결과가 표시됩니다',
+            ),
+          ),
         ),
       );
     }
@@ -123,52 +129,48 @@ class _BalanceRow extends StatelessWidget {
             height: 34,
             child: Row(
               children: [
-                // 좌측 막대 (중앙 기준 왼쪽으로 뻗어나감)
+                // 좌측 영역 — 막대가 중앙 쪽(오른쪽)으로 정렬
                 Expanded(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      Flexible(
-                        flex: left.clamp(1, 100),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.only(
-                            topLeft: Radius.circular(AppSpacing.pillRadius),
-                            bottomLeft: Radius.circular(AppSpacing.pillRadius),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(AppSpacing.pillRadius),
+                      bottomLeft: Radius.circular(AppSpacing.pillRadius),
+                    ),
+                    child: ColoredBox(
+                      color: AppColors.cardSubtle,
+                      child: Row(
+                        children: [
+                          Spacer(flex: (100 - left).clamp(0, 100)),
+                          Flexible(
+                            flex: left.clamp(1, 100),
+                            child: ColoredBox(color: color, child: const SizedBox.expand()),
                           ),
-                          child: Container(color: color),
-                        ),
+                        ],
                       ),
-                      Flexible(
-                        flex: (100 - left).clamp(0, 100),
-                        child: Container(color: AppColors.cardSubtle),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
                 // 중앙 기준선
-                Container(
-                  width: 2,
-                  color: AppColors.divider,
-                ),
-                // 우측 막대 (중앙 기준 오른쪽으로 뻗어나감)
+                Container(width: 2, color: AppColors.divider),
+                // 우측 영역 — 막대가 중앙 쪽(왼쪽)으로 정렬
                 Expanded(
-                  child: Row(
-                    children: [
-                      Flexible(
-                        flex: right.clamp(1, 100),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.only(
-                            topRight: Radius.circular(AppSpacing.pillRadius),
-                            bottomRight: Radius.circular(AppSpacing.pillRadius),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.only(
+                      topRight: Radius.circular(AppSpacing.pillRadius),
+                      bottomRight: Radius.circular(AppSpacing.pillRadius),
+                    ),
+                    child: ColoredBox(
+                      color: AppColors.cardSubtle,
+                      child: Row(
+                        children: [
+                          Flexible(
+                            flex: right.clamp(1, 100),
+                            child: ColoredBox(color: color, child: const SizedBox.expand()),
                           ),
-                          child: Container(color: color),
-                        ),
+                          Spacer(flex: (100 - right).clamp(0, 100)),
+                        ],
                       ),
-                      Flexible(
-                        flex: (100 - right).clamp(0, 100),
-                        child: Container(color: AppColors.cardSubtle),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ],

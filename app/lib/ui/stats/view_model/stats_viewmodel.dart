@@ -22,8 +22,8 @@ class StatsViewModel extends ChangeNotifier {
 
   DateTime get weekStart {
     final today = DateTime.now();
-    final monday = today.subtract(Duration(days: today.weekday - 1));
-    final target = monday.add(Duration(days: weekOffset * 7));
+    final sunday = today.subtract(Duration(days: today.weekday % 7));
+    final target = sunday.add(Duration(days: weekOffset * 7));
     return DateTime(target.year, target.month, target.day);
   }
 
