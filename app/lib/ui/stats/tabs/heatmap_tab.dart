@@ -30,6 +30,7 @@ class _HeatmapTabState extends State<HeatmapTab> {
     final stability = postureRegion?.percent != null
         ? (postureRegion!.percent! / 100.0).clamp(0.0, 1.0)
         : null;
+    final hasAnyData = regions.any((r) => !r.isPostureIndicator && r.hasData);
 
     return ImoCard(
       key: const ValueKey('heatmap'),
@@ -67,6 +68,16 @@ class _HeatmapTabState extends State<HeatmapTab> {
               _LegendDot(color: AppColors.heatmapDanger, label: '위험'),
             ],
           ),
+          if (!hasAnyData) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              '이번 주 측정 데이터가 없습니다',
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.textTertiary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ],
       ),
     );

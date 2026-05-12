@@ -85,7 +85,7 @@ class _StatsScreenState extends State<StatsScreen> {
                           gender: _viewModel.gender,
                         ),
                       StatsTab.balance => BalanceTab(data: _viewModel.balance),
-                      StatsTab.trend => TrendTab(data: _viewModel.weeklyStats),
+                      StatsTab.trend => TrendTab(data: _viewModel.weeklyStats, weekStart: _viewModel.weekStart),
                     },
                   ),
                 ] else if (_viewModel.loadError != null) ...[
@@ -96,48 +96,15 @@ class _StatsScreenState extends State<StatsScreen> {
           ),
           if (_viewModel.loading)
             Positioned.fill(
-              child: Container(
-                color: Colors.black.withValues(alpha: 0.35),
-                child: Center(
-                  child: Container(
-                    padding: const EdgeInsets.all(AppSpacing.xl),
-                    decoration: BoxDecoration(
-                      color: AppColors.card,
-                      borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.15),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SizedBox(
-                          width: 48,
-                          height: 48,
-                          child: CircularProgressIndicator(
-                            valueColor: const AlwaysStoppedAnimation(
-                              AppColors.primary,
-                            ),
-                            strokeWidth: 3,
-                          ),
-                        ),
-                        const SizedBox(height: AppSpacing.lg),
-                        Text(
-                          '통계를 불러오는 중입니다',
-                          style: AppTextStyles.sectionTitle,
-                        ),
-                        const SizedBox(height: AppSpacing.xs),
-                        Text(
-                          '잠시만 기다려주세요',
-                          style: AppTextStyles.body.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
+              child: ColoredBox(
+                color: Colors.black.withValues(alpha: 0.30),
+                child: const Center(
+                  child: SizedBox(
+                    width: 40,
+                    height: 40,
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation(Colors.white),
+                      strokeWidth: 3,
                     ),
                   ),
                 ),
