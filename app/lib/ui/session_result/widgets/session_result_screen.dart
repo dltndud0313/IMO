@@ -1,18 +1,50 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../config/dependencies.dart';
+import '../../../data/repositories/session_history_repository.dart';
+import '../../../domain/models/exercise_type.dart';
+import '../../../domain/models/set_result.dart';
+import '../../../domain/models/workout_session.dart';
 import '../../core/layouts/app_scaffold.dart';
 import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
 
-class SessionResultScreen extends StatelessWidget {
-  const SessionResultScreen({super.key});
+class SessionResultScreen extends StatefulWidget {
+  const SessionResultScreen({
+    super.key,
+    required this.sessionId,
+    this.initialSession,
+  });
+
+  final String sessionId;
+  final WorkoutSession? initialSession;
+
+  @override
+  State<SessionResultScreen> createState() => _SessionResultScreenState();
+}
+
+class _SessionResultScreenState extends State<SessionResultScreen> {
+  late final Future<WorkoutSession?> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    final initial = widget.initialSession;
+    if (initial != null) {
+      _future = Future.value(initial);
+    } else if (widget.sessionId.isEmpty) {
+      _future = Future.value(null);
+    } else {
+      _future = getIt<SessionHistoryRepository>()
+          .getSessionDetail(widget.sessionId);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
       title: '운동 결과',
-      subtitle: '푸시업 완료',
       scrollable: true,
       bottom: Column(
         mainAxisSize: MainAxisSize.min,
@@ -29,26 +61,83 @@ class SessionResultScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _ResultHeroCard(),
-          SizedBox(height: AppSpacing.sectionGap),
-          _ResultMetricGrid(),
-          SizedBox(height: AppSpacing.md),
-          _SetResultsCard(),
-          SizedBox(height: AppSpacing.md),
-          _MuscleMapCard(),
-          SizedBox(height: AppSpacing.md),
-          _SessionCommentCard(),
-        ],
+      body: FutureBuilder<WorkoutSession?>(
+        future: _future,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const _ResultInfo(message: '결과를 불러오는 중입니다.');
+          }
+          if (snapshot.hasError) {
+            return const _ResultInfo(message: '결과를 불러오지 못했습니다.');
+          }
+          final session = snapshot.data;
+          if (session == null) {
+            return const _ResultInfo(
+              message: '저장된 운동 결과가 없습니다.\n비상 종료된 운동은 결과가 저장되지 않을 수 있어요.',
+            );
+          }
+          return _ResultContent(session: session);
+        },
       ),
     );
   }
 }
 
+class _ResultInfo extends StatelessWidget {
+  const _ResultInfo({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return ImoCard(
+      paddingSize: ImoCardPadding.lg,
+      child: Center(
+        child: Text(
+          message,
+          textAlign: TextAlign.center,
+          style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
+        ),
+      ),
+    );
+  }
+}
+
+class _ResultContent extends StatelessWidget {
+  const _ResultContent({required this.session});
+
+  final WorkoutSession session;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasMuscleMap =
+        session.muscleMap != null && session.muscleMap!.values.isNotEmpty;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _ResultHeroCard(session: session),
+        const SizedBox(height: AppSpacing.sectionGap),
+        _ResultMetricGrid(session: session),
+        const SizedBox(height: AppSpacing.md),
+        _SetResultsCard(setResults: session.setResults),
+        if (hasMuscleMap) ...[
+          const SizedBox(height: AppSpacing.md),
+          _MuscleActivityCard(
+            muscleMap: session.muscleMap!.values,
+            exerciseType: session.exerciseType,
+          ),
+        ],
+        const SizedBox(height: AppSpacing.md),
+        _SessionCommentCard(comment: session.comment),
+      ],
+    );
+  }
+}
+
 class _ResultHeroCard extends StatelessWidget {
-  const _ResultHeroCard();
+  const _ResultHeroCard({required this.session});
+
+  final WorkoutSession session;
 
   @override
   Widget build(BuildContext context) {
@@ -82,30 +171,15 @@ class _ResultHeroCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
-          Text('운동 완료', style: AppTextStyles.title),
+          Text(
+            '${session.exerciseType.label} 완료',
+            style: AppTextStyles.title,
+          ),
           const SizedBox(height: AppSpacing.xs),
           Text(
             '운동 결과가 저장되었어요. 기록에서 다시 확인할 수 있습니다.',
             textAlign: TextAlign.center,
             style: AppTextStyles.body,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          const Wrap(
-            spacing: AppSpacing.xs,
-            runSpacing: AppSpacing.xs,
-            alignment: WrapAlignment.center,
-            children: [
-              StatusBadge(
-                label: '정상 완료',
-                variant: StatusVariant.success,
-                size: StatusBadgeSize.md,
-              ),
-              StatusBadge(
-                label: '자동 종료',
-                variant: StatusVariant.info,
-                size: StatusBadgeSize.md,
-              ),
-            ],
           ),
         ],
       ),
@@ -114,10 +188,17 @@ class _ResultHeroCard extends StatelessWidget {
 }
 
 class _ResultMetricGrid extends StatelessWidget {
-  const _ResultMetricGrid();
+  const _ResultMetricGrid({required this.session});
+
+  final WorkoutSession session;
 
   @override
   Widget build(BuildContext context) {
+    final minutes = session.durationSec ~/ 60;
+    final seconds = session.durationSec % 60;
+    final durationLabel =
+        minutes > 0 ? '$minutes분 $seconds초' : '$seconds초';
+
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
@@ -125,29 +206,29 @@ class _ResultMetricGrid extends StatelessWidget {
       crossAxisSpacing: AppSpacing.sm,
       mainAxisSpacing: AppSpacing.sm,
       childAspectRatio: 1.42,
-      children: const [
+      children: [
         _MetricTile(
           icon: Icons.fitness_center_rounded,
           label: '총 횟수',
-          value: '33',
+          value: '${session.totalReps}',
           tint: AppColors.primary,
         ),
         _MetricTile(
           icon: Icons.check_circle_rounded,
           label: '유효 횟수',
-          value: '31',
+          value: '${session.validReps}',
           tint: AppColors.success,
         ),
         _MetricTile(
           icon: Icons.timer_rounded,
           label: '운동 시간',
-          value: '7분 12초',
+          value: durationLabel,
           tint: AppColors.warning,
         ),
         _MetricTile(
           icon: Icons.warning_amber_rounded,
           label: '보상동작',
-          value: '4',
+          value: '${session.compensationCount}',
           tint: AppColors.error,
         ),
       ],
@@ -200,7 +281,9 @@ class _MetricTile extends StatelessWidget {
 }
 
 class _SetResultsCard extends StatelessWidget {
-  const _SetResultsCard();
+  const _SetResultsCard({required this.setResults});
+
+  final List<SetResult> setResults;
 
   @override
   Widget build(BuildContext context) {
@@ -211,10 +294,18 @@ class _SetResultsCard extends StatelessWidget {
         children: [
           Text('세트별 결과', style: AppTextStyles.label),
           const SizedBox(height: AppSpacing.md),
-          for (final result in _setResults) ...[
-            _SetResultRow(result: result),
-            if (result != _setResults.last) const SizedBox(height: AppSpacing.sm),
-          ],
+          if (setResults.isEmpty)
+            Text(
+              '세트 기록이 없습니다.',
+              style:
+                  AppTextStyles.body.copyWith(color: AppColors.textSecondary),
+            )
+          else
+            for (var i = 0; i < setResults.length; i++) ...[
+              _SetResultRow(result: setResults[i]),
+              if (i < setResults.length - 1)
+                const SizedBox(height: AppSpacing.sm),
+            ],
         ],
       ),
     );
@@ -224,14 +315,15 @@ class _SetResultsCard extends StatelessWidget {
 class _SetResultRow extends StatelessWidget {
   const _SetResultRow({required this.result});
 
-  final _SetResult result;
+  final SetResult result;
 
   @override
   Widget build(BuildContext context) {
     final completed = result.actualReps >= result.targetReps;
 
     return ImoCard(
-      variant: completed ? ImoCardVariant.subtle : ImoCardVariant.outlined,
+      variant:
+          completed ? ImoCardVariant.subtle : ImoCardVariant.outlined,
       paddingSize: ImoCardPadding.sm,
       child: Row(
         children: [
@@ -244,7 +336,7 @@ class _SetResultRow extends StatelessWidget {
               shape: BoxShape.circle,
             ),
             child: Text(
-              '${result.index}',
+              '${result.setIndex}',
               style: AppTextStyles.caption.copyWith(
                 color: AppColors.card,
                 fontWeight: FontWeight.w700,
@@ -256,10 +348,10 @@ class _SetResultRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('${result.index}세트', style: AppTextStyles.label),
+                Text('${result.setIndex}세트', style: AppTextStyles.label),
                 const SizedBox(height: AppSpacing.xxs),
                 Text(
-                  '${result.actualReps}/${result.targetReps}회 · ${result.speed}',
+                  '${result.actualReps}/${result.targetReps}회 · ${_formatSpeed(result.avgSpeed)}',
                   style: AppTextStyles.caption,
                 ),
               ],
@@ -273,13 +365,29 @@ class _SetResultRow extends StatelessWidget {
       ),
     );
   }
+
+  static String _formatSpeed(String avgSpeed) {
+    return switch (avgSpeed.toLowerCase()) {
+      'fast' => '빠름',
+      'slow' => '느림',
+      'normal' => '보통',
+      _ => avgSpeed,
+    };
+  }
 }
 
-class _MuscleMapCard extends StatelessWidget {
-  const _MuscleMapCard();
+class _MuscleActivityCard extends StatelessWidget {
+  const _MuscleActivityCard({
+    required this.muscleMap,
+    required this.exerciseType,
+  });
+
+  final Map<String, double> muscleMap;
+  final ExerciseType exerciseType;
 
   @override
   Widget build(BuildContext context) {
+    final entries = _buildEntries(muscleMap, exerciseType);
     return ImoCard(
       paddingSize: ImoCardPadding.lg,
       child: Column(
@@ -288,114 +396,196 @@ class _MuscleMapCard extends StatelessWidget {
           Row(
             children: [
               const Icon(
-                Icons.track_changes_rounded,
-                color: AppColors.primaryStrong,
+                Icons.show_chart_rounded,
                 size: 18,
+                color: AppColors.primaryStrong,
               ),
               const SizedBox(width: AppSpacing.xs),
-              Text('근육 활성 지도', style: AppTextStyles.label),
-              const Spacer(),
-              const StatusBadge(label: '예시', variant: StatusVariant.neutral),
+              Text('근육 활성도', style: AppTextStyles.label),
             ],
           ),
           const SizedBox(height: AppSpacing.md),
-          Container(
-            height: 188,
-            decoration: BoxDecoration(
-              color: AppColors.heatmapBg,
-              borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-            ),
-            child: Stack(
-              children: const [
-                Center(
-                  child: Icon(
-                    Icons.accessibility_new_rounded,
-                    size: 112,
-                    color: AppColors.heatmapInactive,
-                  ),
-                ),
-                _HeatPoint(
-                  label: '가슴 68%',
-                  top: 54,
-                  left: 92,
-                  color: AppColors.heatmapHigh,
-                ),
-                _HeatPoint(
-                  label: '왼쪽 어깨 42%',
-                  top: 72,
-                  left: 42,
-                  color: AppColors.heatmapNormal,
-                ),
-                _HeatPoint(
-                  label: '오른쪽 어깨 39%',
-                  top: 72,
-                  right: 42,
-                  color: AppColors.heatmapNormal,
-                ),
-                _HeatPoint(
-                  label: '삼두 54%',
-                  top: 118,
-                  right: 56,
-                  color: AppColors.heatmapHigh,
-                ),
-              ],
-            ),
-          ),
+          if (entries.isEmpty)
+            Text(
+              '근육 활성도 데이터가 없습니다.',
+              style:
+                  AppTextStyles.body.copyWith(color: AppColors.textSecondary),
+            )
+          else ...[
+            for (var i = 0; i < entries.length; i++) ...[
+              _ActivityBar(entry: entries[i]),
+              if (i < entries.length - 1)
+                const SizedBox(height: AppSpacing.sm),
+            ],
+            const SizedBox(height: AppSpacing.md),
+            const _ActivityLegend(),
+          ],
         ],
       ),
     );
   }
+
+  // NOTE: 현재 Pi가 실제 송신하는 키(`chest`, `left_shoulder` 등)를 직접 사용.
+  // Pi 코드에 데이터 손실 버그가 있어 일부 채널이 muscle_map에 안 들어옴
+  // (예: lateral_raise의 상부 승모근). 자세한 내용 및 수정 명세:
+  // docs/pi_muscle_map_alignment.md
+  // Pi 수정 완료 후 매핑 키를 schema 기준(left_chest, left_lateral_deltoid 등)으로
+  // update하는 follow-up 커밋 필요.
+  static List<_MuscleEntry> _buildEntries(
+    Map<String, double> map,
+    ExerciseType exerciseType,
+  ) {
+    final entries = <_MuscleEntry>[];
+    void addAvg(String label, List<String> keys) {
+      final present = keys.where(map.containsKey).toList();
+      if (present.isEmpty) return;
+      final avg =
+          present.fold<double>(0, (sum, k) => sum + (map[k] ?? 0)) /
+              present.length;
+      entries.add(_MuscleEntry(label: label, pct: avg));
+    }
+
+    switch (exerciseType) {
+      case ExerciseType.pushUp:
+        addAvg('대흉근', ['chest']);
+        addAvg('어깨', ['left_shoulder', 'right_shoulder']);
+        addAvg('삼두근', ['left_triceps', 'right_triceps']);
+      case ExerciseType.lateralRaise:
+        addAvg('측면 삼각근', ['left_shoulder', 'right_shoulder']);
+        addAvg('승모근', ['left_upper_trapezius', 'right_upper_trapezius']);
+      case ExerciseType.bicepCurl:
+        addAvg('이두근', ['left_biceps', 'right_biceps']);
+        addAvg('전완근', ['left_forearm', 'right_forearm']);
+    }
+
+    return entries;
+  }
 }
 
-class _HeatPoint extends StatelessWidget {
-  const _HeatPoint({
-    required this.label,
-    required this.top,
-    required this.color,
-    this.left,
-    this.right,
-  });
+class _ActivityBar extends StatelessWidget {
+  const _ActivityBar({required this.entry});
 
-  final String label;
-  final double top;
-  final double? left;
-  final double? right;
-  final Color color;
+  final _MuscleEntry entry;
 
   @override
   Widget build(BuildContext context) {
-    return Positioned(
-      top: top,
-      left: left,
-      right: right,
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.xs,
-          vertical: 3,
+    final classification = _classifyActivity(entry.pct);
+    final fraction = (entry.pct / 100).clamp(0.0, 1.0);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(entry.label, style: AppTextStyles.body),
+            const Spacer(),
+            Text(
+              '${entry.pct.toStringAsFixed(0)}% · ${classification.label}',
+              style: AppTextStyles.caption,
+            ),
+          ],
         ),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.18),
+        const SizedBox(height: AppSpacing.xs),
+        ClipRRect(
           borderRadius: BorderRadius.circular(AppSpacing.pillRadius),
-          border: Border.all(color: color),
-        ),
-        child: Text(
-          label,
-          style: AppTextStyles.caption.copyWith(
-            color: AppColors.card,
-            fontSize: 10,
-            fontWeight: FontWeight.w600,
+          child: LinearProgressIndicator(
+            value: fraction,
+            minHeight: 8,
+            backgroundColor: AppColors.disabledBg,
+            valueColor: AlwaysStoppedAnimation(classification.color),
           ),
         ),
-      ),
+      ],
     );
   }
 }
 
-class _SessionCommentCard extends StatelessWidget {
-  const _SessionCommentCard();
+class _ActivityLegend extends StatelessWidget {
+  const _ActivityLegend();
 
   @override
   Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _LegendDot(color: AppColors.primary, label: '낮음'),
+        SizedBox(width: AppSpacing.md),
+        _LegendDot(color: AppColors.success, label: '보통'),
+        SizedBox(width: AppSpacing.md),
+        _LegendDot(color: AppColors.warning, label: '높음'),
+      ],
+    );
+  }
+}
+
+class _LegendDot extends StatelessWidget {
+  const _LegendDot({required this.color, required this.label});
+
+  final Color color;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: AppSpacing.xxs),
+        Text(label, style: AppTextStyles.caption),
+      ],
+    );
+  }
+}
+
+class _MuscleEntry {
+  const _MuscleEntry({required this.label, required this.pct});
+
+  final String label;
+  final double pct;
+}
+
+class _ActivityClassification {
+  const _ActivityClassification({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+}
+
+_ActivityClassification _classifyActivity(double pct) {
+  if (pct >= 70) {
+    return const _ActivityClassification(
+      label: '높음',
+      color: AppColors.warning,
+    );
+  }
+  if (pct >= 40) {
+    return const _ActivityClassification(
+      label: '보통',
+      color: AppColors.success,
+    );
+  }
+  return const _ActivityClassification(
+    label: '낮음',
+    color: AppColors.primary,
+  );
+}
+
+class _SessionCommentCard extends StatelessWidget {
+  const _SessionCommentCard({required this.comment});
+
+  final String? comment;
+
+  @override
+  Widget build(BuildContext context) {
+    final trimmed = comment?.trim();
+    final hasComment = trimmed != null && trimmed.isNotEmpty;
+    final message = hasComment
+        ? trimmed
+        : '오늘 운동 데이터가 잘 저장되었어요. 기록 탭에서 더 자세히 확인해보세요.';
+
     return ImoCard(
       variant: ImoCardVariant.subtle,
       paddingSize: ImoCardPadding.lg,
@@ -414,10 +604,7 @@ class _SessionCommentCard extends StatelessWidget {
               children: [
                 Text('세션 코멘트', style: AppTextStyles.label),
                 const SizedBox(height: AppSpacing.xs),
-                Text(
-                  '마지막 세트에서 보상동작이 증가했어요. 다음 운동에서는 몸의 중심선을 조금 더 안정적으로 유지해 보세요.',
-                  style: AppTextStyles.bodySmall,
-                ),
+                Text(message, style: AppTextStyles.bodySmall),
               ],
             ),
           ),
@@ -426,23 +613,3 @@ class _SessionCommentCard extends StatelessWidget {
     );
   }
 }
-
-class _SetResult {
-  const _SetResult({
-    required this.index,
-    required this.targetReps,
-    required this.actualReps,
-    required this.speed,
-  });
-
-  final int index;
-  final int targetReps;
-  final int actualReps;
-  final String speed;
-}
-
-const _setResults = [
-  _SetResult(index: 1, targetReps: 12, actualReps: 12, speed: '보통'),
-  _SetResult(index: 2, targetReps: 12, actualReps: 12, speed: '보통'),
-  _SetResult(index: 3, targetReps: 10, actualReps: 9, speed: '느림'),
-];
