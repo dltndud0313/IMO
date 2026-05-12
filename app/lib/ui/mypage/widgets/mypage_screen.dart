@@ -58,6 +58,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
+      nested: true,
       title: '마이페이지',
       scrollable: true,
       body: Column(

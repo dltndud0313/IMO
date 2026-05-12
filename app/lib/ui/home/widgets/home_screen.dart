@@ -13,6 +13,7 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
+      nested: true,
       title: '홈',
       scrollable: true,
       heroSlot: const _HomeGreeting(),

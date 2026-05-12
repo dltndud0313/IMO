@@ -57,6 +57,7 @@ class _StatsScreenState extends State<StatsScreen> {
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
+      nested: true,
       title: '통계',
       scrollable: false,
       body: Stack(
