@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
+import '../widgets/stats_empty_state.dart';
 
 class TrendTab extends StatelessWidget {
   const TrendTab({super.key, this.data});
@@ -14,6 +15,19 @@ class TrendTab extends StatelessWidget {
     final fatigue = _trendValues(trends, 'fatigue');
     final targetActivation = _trendValues(trends, 'targetActivation');
     final compensationRate = _trendValues(trends, 'compensationRate');
+
+    if (fatigue.isEmpty && targetActivation.isEmpty && compensationRate.isEmpty) {
+      return ImoCard(
+        key: const ValueKey('trend'),
+        paddingSize: ImoCardPadding.lg,
+        child: const StatsEmptyState(
+          icon: Icons.show_chart,
+          message: '이번 주 추세 데이터가 없습니다',
+          subMessage: '운동 기록이 쌓이면 주간 추세가 표시됩니다',
+        ),
+      );
+    }
+
     return Column(
       key: const ValueKey('trend'),
       children: [

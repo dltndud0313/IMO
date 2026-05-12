@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
+import '../widgets/stats_empty_state.dart';
 
 class BalanceTab extends StatelessWidget {
   const BalanceTab({super.key, this.data});
@@ -14,6 +15,17 @@ class BalanceTab extends StatelessWidget {
             ?.whereType<Map<String, dynamic>>()
             .toList() ??
         const <Map<String, dynamic>>[];
+    if (pairs.isEmpty) {
+      return ImoCard(
+        key: const ValueKey('balance'),
+        paddingSize: ImoCardPadding.lg,
+        child: const StatsEmptyState(
+          icon: Icons.compare_arrows,
+          message: '이번 주 밸런스 데이터가 없습니다',
+          subMessage: '운동 후 좌우 근활성도 비교 결과가 표시됩니다',
+        ),
+      );
+    }
     return Column(
       key: const ValueKey('balance'),
       children: [
@@ -32,59 +44,6 @@ class _BalanceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (pairs.isEmpty) {
-      return ImoCard(
-        paddingSize: ImoCardPadding.lg,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('좌우 밸런스', style: AppTextStyles.sectionTitle),
-            const SizedBox(height: AppSpacing.md),
-            for (var i = 0; i < 3; i++)
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: 60,
-                          height: 12,
-                          decoration: BoxDecoration(
-                            color: AppColors.cardSubtle,
-                            borderRadius:
-                                BorderRadius.circular(AppSpacing.pillRadius),
-                          ),
-                        ),
-                        const Spacer(),
-                        Container(
-                          width: 80,
-                          height: 12,
-                          decoration: BoxDecoration(
-                            color: AppColors.cardSubtle,
-                            borderRadius:
-                                BorderRadius.circular(AppSpacing.pillRadius),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    ClipRRect(
-                      borderRadius:
-                          BorderRadius.circular(AppSpacing.pillRadius),
-                      child: Container(
-                        height: 34,
-                        color: AppColors.cardSubtle,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-          ],
-        ),
-      );
-    }
     return ImoCard(
       paddingSize: ImoCardPadding.lg,
       child: Column(
