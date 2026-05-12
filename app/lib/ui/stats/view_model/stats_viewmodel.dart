@@ -1,12 +1,15 @@
 import 'package:flutter/foundation.dart';
 
 import '../../../data/repositories/stats_repository.dart';
+import '../../../data/repositories/user_profile_repository.dart';
 import '../widgets/stats_tab_bar.dart';
+import '../widgets/svg_body_heatmap_view.dart';
 
 class StatsViewModel extends ChangeNotifier {
-  StatsViewModel(this._repository);
+  StatsViewModel(this._repository, this._profileRepository);
 
   final StatsRepository _repository;
+  final UserProfileRepository _profileRepository;
 
   int weekOffset = 0;
   bool loading = true;
@@ -15,6 +18,7 @@ class StatsViewModel extends ChangeNotifier {
   Map<String, dynamic>? heatmap;
   Map<String, dynamic>? balance;
   StatsTab selectedTab = StatsTab.heatmap;
+  BodyGender gender = BodyGender.male;
 
   DateTime get weekStart {
     final today = DateTime.now();
@@ -50,6 +54,10 @@ class StatsViewModel extends ChangeNotifier {
       weeklyStats = results[0];
       heatmap = results[1];
       balance = results[2];
+      // UserProfile.gender('MALE'/'FEMALE'/'OTHER') → BodyGender 변환
+      // 캐시 우선 조회 — HomeScreen 진입 시 이미 로드된 캐시 재사용
+      final profile = await _profileRepository.getProfile();
+      gender = bodyGenderFromCode(profile.gender);
       loading = false;
     } catch (_) {
       loading = false;

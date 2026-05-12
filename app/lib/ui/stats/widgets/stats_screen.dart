@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../config/dependencies.dart';
 import '../../../data/repositories/stats_repository.dart';
+import '../../../data/repositories/user_profile_repository.dart';
 import '../../core/layouts/app_scaffold.dart';
 import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
@@ -24,7 +25,10 @@ class _StatsScreenState extends State<StatsScreen> {
   @override
   void initState() {
     super.initState();
-    _viewModel = StatsViewModel(getIt<StatsRepository>());
+    _viewModel = StatsViewModel(
+      getIt<StatsRepository>(),
+      getIt<UserProfileRepository>(),
+    );
     _viewModel.addListener(_handleViewModelChanged);
     _loadStats();
   }
@@ -76,7 +80,10 @@ class _StatsScreenState extends State<StatsScreen> {
                   AnimatedSwitcher(
                     duration: const Duration(milliseconds: 180),
                     child: switch (_viewModel.selectedTab) {
-                      StatsTab.heatmap => HeatmapTab(data: _viewModel.heatmap),
+                      StatsTab.heatmap => HeatmapTab(
+                          data: _viewModel.heatmap,
+                          gender: _viewModel.gender,
+                        ),
                       StatsTab.balance => BalanceTab(data: _viewModel.balance),
                       StatsTab.trend => TrendTab(data: _viewModel.weeklyStats),
                     },
