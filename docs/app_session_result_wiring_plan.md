@@ -798,10 +798,12 @@ class _MuscleActivityCard extends StatelessWidget {
     );
   }
 
-  // NOTE: Pi가 실제 송신하는 키(`chest`, `left_shoulder` 등)를 직접 사용.
-  // `exercise_sensor_mapping.dart`의 schema 키는 anatomical 명명으로 작성됐지만
-  // 현재 화면 어디서도 참조되지 않는 dead code이며 Pi 키와 정합이 안 맞음.
-  // schema 정합성 정리는 "별도 작업: schema 정합성 정렬" 섹션 참고.
+  // NOTE: 현재 Pi가 실제 송신하는 키(`chest`, `left_shoulder` 등)를 직접 사용.
+  // Pi 코드에 데이터 손실 버그가 있어 일부 채널이 muscle_map에 안 들어옴
+  // (예: lateral_raise의 상부 승모근). 자세한 내용 및 수정 명세:
+  // docs/pi_muscle_map_alignment.md
+  // Pi 수정 완료 후 매핑 키를 schema 기준(left_chest, left_lateral_deltoid 등)으로
+  // update하는 follow-up 커밋 필요.
   static List<_MuscleEntry> _buildEntries(
     Map<String, double> map,
     ExerciseType exerciseType,
@@ -1022,63 +1024,26 @@ class _SessionCommentCard extends StatelessWidget {
 
 ---
 
-## 별도 작업: schema 정합성 정렬
+## 후속 작업: Pi 키 정렬 및 데이터 손실 버그 수정
 
-`exercise_sensor_mapping.dart`와 `muscle_map_schema.dart`는 anatomical 명명(`left_chest`, `left_lateral_deltoid` 등)으로 작성됐지만 Pi가 실제 송신하는 키와 안 맞아 현재 dead code 상태. 이번 SessionResultScreen 작업과는 **독립적**으로 schema 키를 Pi 키 기준으로 rename해 정합성 확보.
+코드 분석 중 다음 사실 발견:
 
-### 왜 rename이지 매핑 레이어가 아닌지
+- **Pi가 lateral_raise에서 EMG ch3/ch4 (상부 승모근) 데이터를 완전히 버리고 있음** ⚠️
+- pushup에서 ch1+ch2 (좌/우 대흉근)를 평균 처리해 좌/우 정보 손실
+- Pi 키 명명이 schema와 anatomical하게 안 맞음
 
-매핑이 깔끔한 1:1이 아니라서. 핵심은 **pushup chest**: Pi가 ch1+ch2 평균해서 `chest` 단일 키로 송신, schema는 `left_chest`/`right_chest` 좌우 분리 기대. 매핑하려면 없는 좌우 정보를 만들어내야 함. 또 `lateral_raise`의 `upper_trapezius`는 Pi가 아예 안 보냄. schema가 실제 데이터를 반영하게 만드는 게 정직함.
+이건 schema 파일을 손봐서 해결할 수 있는 문제가 아니라 **Pi 코드 자체를 수정해야 데이터를 다 받을 수 있는 문제**. 매핑 레이어로도 우회 불가능 (Pi가 이미 송신 단에서 채널을 버려서 앱에서 복원 불가).
 
-### 변경 대상
+자세한 명세와 Pi 변경 코드는 별도 문서 참고: [pi_muscle_map_alignment.md](pi_muscle_map_alignment.md)
 
-**`app/lib/domain/models/exercise_sensor_mapping.dart`** — `muscleMapKeys`와 관련 `SensorPlacement.dataKey` 정렬:
+### SessionResultScreen 작업과의 관계
 
-```dart
-// pushup
-muscleMapKeys: [
-  'chest',              // ← Pi 단일 키 (ch1+ch2 평균)
-  'left_shoulder',
-  'right_shoulder',
-  'left_triceps',
-  'right_triceps',
-],
+두 작업은 **독립적으로 진행 가능**:
 
-// lateral_raise (upper_trapezius는 Pi가 안 보내므로 제거)
-muscleMapKeys: [
-  'left_shoulder',      // ← Pi 명명. anatomical로는 lateral_deltoid
-  'right_shoulder',
-],
+- 이번 와이어링은 **현재 Pi 키 그대로 인라인 매핑** 사용 (`add('대흉근', ['chest'])`)
+- Pi 수정 완료 후 follow-up 커밋으로 매핑 키만 update (`add('대흉근', ['left_chest', 'right_chest'])` 식)
 
-// bicep_curl (거의 그대로)
-muscleMapKeys: [
-  'left_biceps',
-  'right_biceps',
-  'left_forearm',
-  'right_forearm',
-],
-```
-
-**`app/lib/domain/models/muscle_map_schema.dart`** — `MuscleMapKeyDefinition`의 `key` 필드를 위와 동일하게 rename. `displayName`은 한글이라 그대로 두면 됨 (필요 시 살짝 다듬기).
-
-### 영향 범위
-
-- schema가 화면에 안 쓰이므로 **동작 변화 0**
-- schema 자체는 실제 데이터와 정합 상태로 들어감 → 미래에 schema 참조하는 코드 작성 시 안전
-- HistoryDetailScreen, SessionResultScreen의 인라인 매핑은 **그대로 유지** (별도 리팩 없음)
-
-### 잃는 것 / 얻는 것
-
-| | |
-|---|---|
-| 잃는 것 | anatomical 명명 정밀도 (`left_chest`/`right_chest` 같은 표현) |
-| 얻는 것 | schema가 실제 데이터와 정합 / 매핑 레이어 불필요 / 한 곳에서 진실 관리 |
-
-Pi 하드웨어 4채널 EMG 한계가 명확하니까 schema가 그 한계를 반영하는 게 맞음.
-
-### 독립성
-
-이 작업은 SessionResultScreen 와이어링과 **의존성 없음**. 같은 브랜치에서 별도 커밋으로 추가하거나, 다른 브랜치/PR로 빼도 됨.
+Pi 수정 대기 안 하고 와이어링 진행 가능.
 
 ---
 
@@ -1087,7 +1052,7 @@ Pi 하드웨어 4채널 EMG 한계가 명확하니까 schema가 그 한계를 �
 1. **라우트 변경 충돌**: `/session-result` 라우트 빌더 함수 수정 시 다른 PR과 머지 충돌 위험. develop 머지 직전 sync 필수.
 2. **ViewModel stub 처리**: 삭제 vs 보존. 추천 = 삭제.
 3. **히스토리 → session detail 진입**: 이번 작업에서는 SessionResultScreen이 sessionId를 받게만 해두고, 실제 진입 라우팅(`/session-result?sessionId=xxx`로 history 화면에서 push)은 별도 작업으로.
-4. **schema 정합성 정렬 포함 여부**: 같은 PR에 묶을지, 별도 PR로 뺄지. 추천 = 같은 PR이지만 별도 커밋.
+4. **Pi 측 키 정렬 작업 일정**: SessionResultScreen 와이어링은 현 Pi 키 기준으로 먼저 들어가고, Pi 수정([pi_muscle_map_alignment.md](pi_muscle_map_alignment.md)) 완료 후 매핑 라벨만 update 커밋으로 마무리. Pi 작업 시기는 Pi 담당자와 협의 필요.
 
 ---
 
@@ -1104,9 +1069,10 @@ Pi 하드웨어 4채널 EMG 한계가 명확하니까 schema가 그 한계를 �
    - `session_result_screen.dart` (Phase 3 + 4: 메인 작업)
 4. `chore(app): remove unused session result viewmodel stub`
    - `session_result_viewmodel.dart` 삭제 (Phase 5, 결정 후)
-5. `chore(app): align muscle map schema keys with pi output`
-   - `exercise_sensor_mapping.dart`, `muscle_map_schema.dart` (별도 작업)
-   - SessionResultScreen 와이어링과 의존성 없음. 같은 PR/브랜치 안에서 진행하되 커밋 분리.
+5. (Pi 수정 완료 후) `chore(app): update muscle activity mapping to new pi keys`
+   - `history_detail_screen.dart`, `session_result_screen.dart`의 인라인 매핑 라벨 키 교체
+   - `add('대흉근', ['chest'])` → `add('대흉근', ['left_chest', 'right_chest'])` 등
+   - Pi 측 변경 (docs/pi_muscle_map_alignment.md) 완료 + EC2 재배포된 이후에만 진행
 
 ---
 

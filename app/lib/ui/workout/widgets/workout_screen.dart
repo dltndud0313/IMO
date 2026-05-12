@@ -8,6 +8,7 @@ import '../../../config/app_runtime_flags.dart';
 import '../../../config/dependencies.dart';
 import '../../../data/repositories/device_connection_repository.dart';
 import '../../../data/repositories/workout_repository.dart';
+import '../../../domain/models/workout_session.dart';
 import '../../core/layouts/app_scaffold.dart';
 import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
@@ -36,6 +37,9 @@ class _WorkoutScreenState extends State<WorkoutScreen>
   _WorkoutState _state = _WorkoutState.running;
   Timer? _mascotFrameTimer;
   int _mascotFrameIndex = 0;
+  Timer? _sessionResultTimeout;
+  bool _navigatingAfterStop = false;
+  static const _sessionResultTimeoutDuration = Duration(seconds: 5);
 
   @override
   void initState() {
@@ -66,16 +70,45 @@ class _WorkoutScreenState extends State<WorkoutScreen>
           _syncMascotAnimation();
         }
       },
+      onSessionResult: _handleSessionResult,
     );
     _syncMascotAnimation();
   }
 
   @override
   void dispose() {
+    _sessionResultTimeout?.cancel();
     _mascotFrameTimer?.cancel();
     _floatController.dispose();
     _workoutViewModel.dispose();
     super.dispose();
+  }
+
+  void _handleSessionResult(WorkoutSession session) {
+    if (!mounted) return;
+    // 종료 흐름 진입 후에만 navigate. running/paused 상태에서 들어오는 잔여 메시지는 무시.
+    if (_state != _WorkoutState.reportWaiting &&
+        _state != _WorkoutState.emergency) {
+      return;
+    }
+    if (_navigatingAfterStop) return;
+    _navigatingAfterStop = true;
+    _sessionResultTimeout?.cancel();
+    context.go(
+      '/session-result?sessionId=${Uri.encodeQueryComponent(session.sessionId)}',
+      extra: session,
+    );
+  }
+
+  void _scheduleSessionResultTimeout({String? statusFallback}) {
+    _sessionResultTimeout?.cancel();
+    _sessionResultTimeout = Timer(_sessionResultTimeoutDuration, () {
+      if (!mounted) return;
+      if (_navigatingAfterStop) return;
+      _navigatingAfterStop = true;
+      final query = statusFallback != null ? '?status=$statusFallback' : '';
+      context.go('/session-result$query');
+    });
   }
 
   String get _mascotAsset {
@@ -157,7 +190,10 @@ class _WorkoutScreenState extends State<WorkoutScreen>
             _workoutViewModel.stopWorkout();
           } catch (_) {}
           Navigator.of(dialogContext).pop();
-          context.go('/session-result?status=stopped');
+          if (!mounted) return;
+          setState(() => _state = _WorkoutState.reportWaiting);
+          _syncMascotAnimation();
+          _scheduleSessionResultTimeout(statusFallback: 'stopped');
         },
       ),
     );
@@ -173,7 +209,10 @@ class _WorkoutScreenState extends State<WorkoutScreen>
     try {
       _workoutViewModel.emergencyStop();
     } catch (_) {}
-    context.go('/session-result?status=emergency_stopped');
+    if (!mounted) return;
+    setState(() => _state = _WorkoutState.emergency);
+    _syncMascotAnimation();
+    _scheduleSessionResultTimeout(statusFallback: 'emergency_stopped');
   }
 
   String get _headline {

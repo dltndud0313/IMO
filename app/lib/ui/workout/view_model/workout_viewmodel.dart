@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../../../data/repositories/device_connection_repository.dart';
 import '../../../data/repositories/workout_repository.dart';
 import '../../../data/services/pi_message.dart';
+import '../../../domain/models/workout_session.dart';
 
 class WorkoutViewModel {
   WorkoutViewModel(
@@ -17,11 +18,13 @@ class WorkoutViewModel {
   StreamSubscription? _connectionSubscription;
   StreamSubscription? _pausedSubscription;
   StreamSubscription? _resumedSubscription;
+  StreamSubscription? _sessionResultSubscription;
 
   void startListening({
     required ValueChanged<ConnectionStatusMessage> onConnectionStatus,
     required VoidCallback onPaused,
     required VoidCallback onResumed,
+    required ValueChanged<WorkoutSession> onSessionResult,
   }) {
     _connectionSubscription ??=
         _deviceConnectionRepository.systemStatus.listen((status) {
@@ -32,6 +35,10 @@ class WorkoutViewModel {
     });
     _resumedSubscription ??= _workoutRepository.workoutResumed.listen((_) {
       onResumed();
+    });
+    _sessionResultSubscription ??=
+        _workoutRepository.sessionResult.listen((session) {
+      onSessionResult(session);
     });
   }
 
@@ -61,5 +68,6 @@ class WorkoutViewModel {
     _connectionSubscription?.cancel();
     _pausedSubscription?.cancel();
     _resumedSubscription?.cancel();
+    _sessionResultSubscription?.cancel();
   }
 }
