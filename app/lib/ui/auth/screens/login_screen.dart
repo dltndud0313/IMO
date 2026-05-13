@@ -89,6 +89,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   String _authErrorMessage(Object error) {
     final message = error.toString();
+    if (message.contains('Network unavailable')) {
+      return '인터넷 연결을 확인해주세요.';
+    }
     if (message.contains('Incorrect email or password')) {
       return '이메일 또는 비밀번호가 올바르지 않습니다.';
     }
