@@ -18,8 +18,8 @@ class MyPageScreen extends StatefulWidget {
 }
 
 class _MyPageScreenState extends State<MyPageScreen> {
-  bool _voiceCue = true;
-  bool _hapticCue = true;
+  bool _voiceCue = false;
+  bool _hapticCue = false;
   UserProfile? _profile;
   bool _profileLoading = true;
   String? _profileLoadError;
@@ -251,24 +251,13 @@ class _ProfileCard extends StatelessWidget {
                   ],
                 ),
               ),
-              InkWell(
-                borderRadius: BorderRadius.circular(AppSpacing.pillRadius),
-                onTap: onEdit,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.xs,
-                    vertical: AppSpacing.xs,
-                  ),
-                  child: Row(
-                    children: [
-                      Text('프로필 수정', style: AppTextStyles.caption),
-                      const Icon(
-                        Icons.chevron_right_rounded,
-                        color: AppColors.textTertiary,
-                        size: 18,
-                      ),
-                    ],
-                  ),
+              IconButton(
+                tooltip: '프로필 수정',
+                onPressed: onEdit,
+                icon: const Icon(
+                  Icons.edit_outlined,
+                  color: AppColors.textTertiary,
+                  size: 20,
                 ),
               ),
             ],
@@ -288,7 +277,7 @@ class _ProfileCard extends StatelessWidget {
       'FEMALE' => '여성',
       _ => '기타',
     };
-    return '${currentProfile.age}세 $genderLabel '
+    return '만 ${currentProfile.age}세 $genderLabel '
         '${currentProfile.heightCm.round()}cm '
         '${currentProfile.weightKg.round()}kg';
   }
