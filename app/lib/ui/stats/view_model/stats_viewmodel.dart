@@ -12,13 +12,16 @@ class StatsViewModel extends ChangeNotifier {
   final UserProfileRepository _profileRepository;
 
   int weekOffset = 0;
-  bool loading = true;
+  bool loading = false;
   String? loadError;
   Map<String, dynamic>? weeklyStats;
   Map<String, dynamic>? heatmap;
   Map<String, dynamic>? balance;
   StatsTab selectedTab = StatsTab.heatmap;
   BodyGender gender = BodyGender.male;
+
+  bool get hasData =>
+      heatmap != null || balance != null || weeklyStats != null;
 
   DateTime get weekStart {
     final today = DateTime.now();
@@ -46,18 +49,16 @@ class StatsViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final results = await Future.wait([
-        _repository.getWeeklyStats(weekStart),
-        _repository.getWeeklyHeatmap(weekStart),
-        _repository.getWeeklyBalance(weekStart),
-      ]);
-      weeklyStats = results[0];
-      heatmap = results[1];
-      balance = results[2];
-      // UserProfile.gender('MALE'/'FEMALE'/'OTHER') → BodyGender 변환
-      // 캐시 우선 조회 — HomeScreen 진입 시 이미 로드된 캐시 재사용
-      final profile = await _profileRepository.getProfile();
-      gender = bodyGenderFromCode(profile.gender);
+      // 4개 호출을 동시에 시작 — 직렬로 await해도 모두 병렬로 실행됨
+      final statsFuture = _repository.getWeeklyStats(weekStart);
+      final heatmapFuture = _repository.getWeeklyHeatmap(weekStart);
+      final balanceFuture = _repository.getWeeklyBalance(weekStart);
+      final profileFuture = _profileRepository.getProfile();
+
+      weeklyStats = await statsFuture;
+      heatmap = await heatmapFuture;
+      balance = await balanceFuture;
+      gender = bodyGenderFromCode((await profileFuture).gender);
       loading = false;
     } catch (_) {
       loading = false;

@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../config/dependencies.dart';
-import '../../../data/repositories/stats_repository.dart';
-import '../../../data/repositories/user_profile_repository.dart';
 import '../../core/layouts/app_scaffold.dart';
 import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
@@ -25,18 +23,16 @@ class _StatsScreenState extends State<StatsScreen> {
   @override
   void initState() {
     super.initState();
-    _viewModel = StatsViewModel(
-      getIt<StatsRepository>(),
-      getIt<UserProfileRepository>(),
-    );
+    _viewModel = getIt<StatsViewModel>();
     _viewModel.addListener(_handleViewModelChanged);
-    _loadStats();
+    if (!_viewModel.hasData) {
+      _loadStats();
+    }
   }
 
   @override
   void dispose() {
     _viewModel.removeListener(_handleViewModelChanged);
-    _viewModel.dispose();
     super.dispose();
   }
 
@@ -60,58 +56,56 @@ class _StatsScreenState extends State<StatsScreen> {
       nested: true,
       title: '통계',
       scrollable: false,
-      body: Stack(
-        children: [
-          SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _StatsPeriodHeader(
-                  weekStart: _viewModel.weekStart,
-                  onPrevious: () => _moveWeek(-1),
-                  onNext: _viewModel.weekOffset < 0 ? () => _moveWeek(1) : null,
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                if (!_viewModel.loading && _viewModel.loadError == null) ...[
-                  StatsTabBar(
-                    selectedTab: _viewModel.selectedTab,
-                    onChanged: (tab) => _viewModel.selectTab(tab),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 180),
-                    child: switch (_viewModel.selectedTab) {
-                      StatsTab.heatmap => HeatmapTab(
-                          data: _viewModel.heatmap,
-                          gender: _viewModel.gender,
-                        ),
-                      StatsTab.balance => BalanceTab(data: _viewModel.balance),
-                      StatsTab.trend => TrendTab(data: _viewModel.weeklyStats, weekStart: _viewModel.weekStart),
-                    },
-                  ),
-                ] else if (_viewModel.loadError != null) ...[
-                  _StatsInfoCard(message: _viewModel.loadError!),
-                ],
-              ],
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _StatsPeriodHeader(
+              weekStart: _viewModel.weekStart,
+              onPrevious: () => _moveWeek(-1),
+              onNext: _viewModel.weekOffset < 0 ? () => _moveWeek(1) : null,
             ),
-          ),
-          if (_viewModel.loading)
-            Positioned.fill(
-              child: ColoredBox(
-                color: Colors.black.withValues(alpha: 0.30),
-                child: const Center(
-                  child: SizedBox(
-                    width: 40,
-                    height: 40,
-                    child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation(Colors.white),
-                      strokeWidth: 3,
-                    ),
-                  ),
-                ),
+            const SizedBox(height: AppSpacing.lg),
+            if (_viewModel.loadError != null)
+              _StatsInfoCard(message: _viewModel.loadError!)
+            else ...[
+              StatsTabBar(
+                selectedTab: _viewModel.selectedTab,
+                onChanged: (tab) => _viewModel.selectTab(tab),
               ),
-            ),
-        ],
+              const SizedBox(height: AppSpacing.md),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 220),
+                switchInCurve: Curves.easeOut,
+                switchOutCurve: Curves.easeIn,
+                child: _viewModel.loading && !_viewModel.hasData
+                    ? const SizedBox(
+                        key: ValueKey('stats-loading'),
+                        height: 280,
+                        child: Center(
+                          child: SizedBox(
+                            width: 32,
+                            height: 32,
+                            child: CircularProgressIndicator(strokeWidth: 3),
+                          ),
+                        ),
+                      )
+                    : switch (_viewModel.selectedTab) {
+                        StatsTab.heatmap => HeatmapTab(
+                            data: _viewModel.heatmap,
+                            gender: _viewModel.gender,
+                          ),
+                        StatsTab.balance =>
+                          BalanceTab(data: _viewModel.balance),
+                        StatsTab.trend => TrendTab(
+                            data: _viewModel.weeklyStats,
+                            weekStart: _viewModel.weekStart,
+                          ),
+                      },
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
