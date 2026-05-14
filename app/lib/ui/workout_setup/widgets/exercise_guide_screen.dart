@@ -5,6 +5,7 @@ import '../../core/layouts/app_scaffold.dart';
 import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
 import 'exercise_catalog_data.dart';
+import 'exercise_guide_body_view.dart';
 
 class ExerciseGuideScreen extends StatelessWidget {
   const ExerciseGuideScreen({
@@ -36,7 +37,7 @@ class ExerciseGuideScreen extends StatelessWidget {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _TargetAreaCard(guide: guide),
+          _TargetAreaCard(guide: guide, exerciseId: exerciseId),
           const SizedBox(height: AppSpacing.sectionGap),
           _GuideStepCard(steps: guide.steps),
           const SizedBox(height: AppSpacing.md),
@@ -48,9 +49,10 @@ class ExerciseGuideScreen extends StatelessWidget {
 }
 
 class _TargetAreaCard extends StatelessWidget {
-  const _TargetAreaCard({required this.guide});
+  const _TargetAreaCard({required this.guide, required this.exerciseId});
 
   final _ExerciseGuide guide;
+  final String exerciseId;
 
   @override
   Widget build(BuildContext context) {
@@ -90,14 +92,14 @@ class _TargetAreaCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.lg),
           Container(
-            height: 300,
             width: double.infinity,
             padding: const EdgeInsets.all(AppSpacing.lg),
             decoration: BoxDecoration(
               color: AppColors.cardSubtle,
               borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
             ),
-            child: Stack(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
@@ -110,20 +112,11 @@ class _TargetAreaCard extends StatelessWidget {
                     Text('타겟 부위', style: AppTextStyles.label),
                   ],
                 ),
-                const Center(
-                  child: Icon(
-                    Icons.accessibility_new_rounded,
-                    size: 100,
-                    color: AppColors.textTertiary,
-                  ),
+                const SizedBox(height: AppSpacing.sm),
+                ExerciseGuideBodyView(
+                  exerciseId: exerciseId,
+                  height: 300,
                 ),
-                for (final marker in guide.markers)
-                  Positioned(
-                    top: marker.top,
-                    left: marker.left,
-                    right: marker.right,
-                    child: _TargetMarker(label: marker.label),
-                  ),
               ],
             ),
           ),
@@ -136,39 +129,6 @@ class _TargetAreaCard extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _TargetMarker extends StatelessWidget {
-  const _TargetMarker({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 16,
-          height: 16,
-          decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.36),
-            shape: BoxShape.circle,
-          ),
-        ),
-        const SizedBox(width: AppSpacing.xs),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(
-            color: AppColors.card,
-            borderRadius: BorderRadius.circular(AppSpacing.pillRadius),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: Text(label, style: AppTextStyles.caption),
-        ),
-      ],
     );
   }
 }
