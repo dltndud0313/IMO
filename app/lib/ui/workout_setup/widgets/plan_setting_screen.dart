@@ -9,6 +9,7 @@ import '../../core/layouts/app_scaffold.dart';
 import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../view_model/workout_setup_viewmodel.dart';
+import 'exercise_target_regions.dart' show exerciseDisplayName;
 
 class PlanSettingScreen extends StatefulWidget {
   const PlanSettingScreen({super.key, this.exerciseId = 'pushup'});
@@ -126,6 +127,8 @@ class _PlanSettingScreenState extends State<PlanSettingScreen> {
       ),
       body: Column(
         children: [
+          _ExerciseNameHeader(exerciseId: widget.exerciseId),
+          const SizedBox(height: AppSpacing.md),
           _SettingCard(
             title: '세트 수',
             description: '최대 10세트',
@@ -173,6 +176,58 @@ class _PlanSettingScreenState extends State<PlanSettingScreen> {
             setCount: _setCount,
             totalReps: _totalReps,
             estimatedMinutes: _estimatedMinutes,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 운동 계획 화면 최상단에 표시되는 "어떤 운동의 계획을 설정 중인지" 헤더.
+class _ExerciseNameHeader extends StatelessWidget {
+  const _ExerciseNameHeader({required this.exerciseId});
+
+  final String exerciseId;
+
+  @override
+  Widget build(BuildContext context) {
+    return ImoCard(
+      variant: ImoCardVariant.subtle,
+      paddingSize: ImoCardPadding.md,
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
+            ),
+            child: const Icon(
+              Icons.fitness_center_rounded,
+              color: AppColors.primaryStrong,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '운동 계획',
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.textTertiary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  exerciseDisplayName(exerciseId),
+                  style: AppTextStyles.sectionTitle,
+                ),
+              ],
+            ),
           ),
         ],
       ),

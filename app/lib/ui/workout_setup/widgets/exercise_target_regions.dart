@@ -165,3 +165,17 @@ const exerciseBodyCrops = <String, BodyCropConfig>{
 BodyCropConfig findExerciseBodyCrop(String exerciseId) {
   return exerciseBodyCrops[exerciseId] ?? upperBodyCrop;
 }
+
+/// 운동 ID 의 사용자 표시명 (한국어).
+///
+/// 자세 가이드 / 운동 계획 / 센서 안내 등 여러 화면에서 동일한 이름이 필요해
+/// 한 곳에서 관리. 운동 추가 시 여기에 키만 더하면 됨.
+const exerciseDisplayNames = <String, String>{
+  'pushup': '푸시업',
+  'lateral_raise': '사이드 레터럴 레이즈',
+  'bicep_curl': '이두컬',
+};
+
+String exerciseDisplayName(String exerciseId) {
+  return exerciseDisplayNames[exerciseId] ?? exerciseId;
+}

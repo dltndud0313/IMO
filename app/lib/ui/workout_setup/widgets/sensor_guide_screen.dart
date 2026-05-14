@@ -9,7 +9,8 @@ import '../../core/widgets/common_widgets.dart';
 import '../../stats/widgets/svg_body_heatmap_view.dart' show BodyGender;
 import '../view_model/workout_setup_viewmodel.dart';
 import 'cropped_body_svg.dart';
-import 'exercise_target_regions.dart' show findExerciseBodyCrop;
+import 'exercise_target_regions.dart'
+    show exerciseDisplayName, findExerciseBodyCrop;
 
 class SensorGuideScreen extends StatefulWidget {
   const SensorGuideScreen({super.key, this.exerciseId = 'pushup'});
@@ -134,10 +135,28 @@ class _SensorMapCard extends StatelessWidget {
                 size: 18,
               ),
               const SizedBox(width: AppSpacing.xs),
-              Text('센서 부착 위치', style: AppTextStyles.label),
-              const Spacer(),
+              Expanded(
+                child: Text.rich(
+                  TextSpan(
+                    children: [
+                      const TextSpan(text: '센서 부착 위치 · '),
+                      TextSpan(
+                        text: exerciseDisplayName(exerciseId),
+                        style: TextStyle(
+                          color: AppColors.primaryStrong,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                  style: AppTextStyles.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.xs),
               StatusBadge(
-                label: '${config.sensors.length}개 센서',
+                label: '${config.sensors.length}개',
                 variant: StatusVariant.info,
               ),
             ],
@@ -481,42 +500,47 @@ class _SensorInfo {
 }
 
 // 좌표는 v3 SVG viewBox (0 -80 724 1450) 안에서 0~1 비율.
-// 머리 ~0.05, 어깨 ~0.13, 가슴 ~0.20, 팔 위쪽 ~0.25, 전완 ~0.38,
-// 손 ~0.50, 골반 ~0.45, 무릎 ~0.70, 발 ~1.0 대략.
-// hot reload 로 시각 튜닝.
+// 신체 비율 기준 (viewBox 전체 1450 높이에서 -80 시작):
+//   머리      0.00 ~ 0.13
+//   목/어깨   0.13 ~ 0.20
+//   가슴      0.25 ~ 0.35
+//   팔 위쪽   0.30 ~ 0.40 (이두/삼두)
+//   복부      0.40 ~ 0.55
+//   전완      0.42 ~ 0.50
+//   골반      0.55 ~ 0.62
 const _sensorConfigs = {
   'pushup': _SensorConfig(
     title: '푸시업',
     sensors: [
       _SensorInfo(
         id: 'emg_1', label: 'EMG 1', position: '왼쪽 대흉근',
-        bodyX: 0.40, bodyY: 0.20,
+        bodyX: 0.40, bodyY: 0.28,
       ),
       _SensorInfo(
         id: 'emg_2', label: 'EMG 2', position: '오른쪽 대흉근',
-        bodyX: 0.60, bodyY: 0.20,
+        bodyX: 0.60, bodyY: 0.28,
       ),
       // 삼두근은 후면 근육이지만 전면 SVG 옆 팔 위치에 표시
       _SensorInfo(
         id: 'emg_3', label: 'EMG 3', position: '왼쪽 삼두근',
-        bodyX: 0.22, bodyY: 0.25,
+        bodyX: 0.23, bodyY: 0.32,
       ),
       _SensorInfo(
         id: 'emg_4', label: 'EMG 4', position: '오른쪽 삼두근',
-        bodyX: 0.78, bodyY: 0.25,
+        bodyX: 0.77, bodyY: 0.32,
       ),
       // 등 상부 중앙 — 전면에서는 목/어깨 사이 중앙
       _SensorInfo(
         id: 'imu_1', label: 'IMU 1', position: '등 상부 중앙',
-        bodyX: 0.50, bodyY: 0.12,
+        bodyX: 0.50, bodyY: 0.21,
       ),
       _SensorInfo(
         id: 'imu_2', label: 'IMU 2', position: '왼쪽 상완',
-        bodyX: 0.18, bodyY: 0.31,
+        bodyX: 0.21, bodyY: 0.36,
       ),
       _SensorInfo(
         id: 'imu_3', label: 'IMU 3', position: '오른쪽 상완',
-        bodyX: 0.82, bodyY: 0.31,
+        bodyX: 0.79, bodyY: 0.36,
       ),
     ],
   ),
@@ -525,32 +549,32 @@ const _sensorConfigs = {
     sensors: [
       _SensorInfo(
         id: 'emg_1', label: 'EMG 1', position: '왼쪽 측면 삼각근',
-        bodyX: 0.30, bodyY: 0.17,
+        bodyX: 0.27, bodyY: 0.24,
       ),
       _SensorInfo(
         id: 'emg_2', label: 'EMG 2', position: '오른쪽 측면 삼각근',
-        bodyX: 0.70, bodyY: 0.17,
+        bodyX: 0.73, bodyY: 0.24,
       ),
       _SensorInfo(
         id: 'emg_3', label: 'EMG 3', position: '왼쪽 상부 승모근',
-        bodyX: 0.42, bodyY: 0.10,
+        bodyX: 0.42, bodyY: 0.17,
       ),
       _SensorInfo(
         id: 'emg_4', label: 'EMG 4', position: '오른쪽 상부 승모근',
-        bodyX: 0.58, bodyY: 0.10,
+        bodyX: 0.58, bodyY: 0.17,
       ),
       _SensorInfo(
         id: 'imu_1', label: 'IMU 1', position: '왼쪽 전완',
-        bodyX: 0.14, bodyY: 0.40,
+        bodyX: 0.16, bodyY: 0.46,
       ),
       _SensorInfo(
         id: 'imu_2', label: 'IMU 2', position: '오른쪽 전완',
-        bodyX: 0.86, bodyY: 0.40,
+        bodyX: 0.84, bodyY: 0.46,
       ),
       // 등 중앙 — 전면에서는 가슴 중앙
       _SensorInfo(
         id: 'imu_3', label: 'IMU 3', position: '등 중앙',
-        bodyX: 0.50, bodyY: 0.22,
+        bodyX: 0.50, bodyY: 0.30,
       ),
     ],
   ),
@@ -559,31 +583,31 @@ const _sensorConfigs = {
     sensors: [
       _SensorInfo(
         id: 'emg_1', label: 'EMG 1', position: '왼쪽 이두근',
-        bodyX: 0.28, bodyY: 0.26,
+        bodyX: 0.29, bodyY: 0.34,
       ),
       _SensorInfo(
         id: 'emg_2', label: 'EMG 2', position: '오른쪽 이두근',
-        bodyX: 0.72, bodyY: 0.26,
+        bodyX: 0.71, bodyY: 0.34,
       ),
       _SensorInfo(
         id: 'emg_3', label: 'EMG 3', position: '왼쪽 전완근',
-        bodyX: 0.22, bodyY: 0.36,
+        bodyX: 0.22, bodyY: 0.43,
       ),
       _SensorInfo(
         id: 'emg_4', label: 'EMG 4', position: '오른쪽 전완근',
-        bodyX: 0.78, bodyY: 0.36,
+        bodyX: 0.78, bodyY: 0.43,
       ),
       _SensorInfo(
         id: 'imu_1', label: 'IMU 1', position: '왼쪽 전완',
-        bodyX: 0.18, bodyY: 0.42,
+        bodyX: 0.18, bodyY: 0.51,
       ),
       _SensorInfo(
         id: 'imu_2', label: 'IMU 2', position: '오른쪽 전완',
-        bodyX: 0.82, bodyY: 0.42,
+        bodyX: 0.82, bodyY: 0.51,
       ),
       _SensorInfo(
         id: 'imu_3', label: 'IMU 3', position: '몸통',
-        bodyX: 0.50, bodyY: 0.30,
+        bodyX: 0.50, bodyY: 0.42,
       ),
     ],
   ),
