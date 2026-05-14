@@ -3,6 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../core/themes/design_tokens.dart';
 import '../../stats/widgets/svg_body_heatmap_view.dart' show BodyGender;
+import 'cropped_body_svg.dart';
 import 'exercise_target_regions.dart';
 
 /// 자세 가이드 화면용 타겟 근육 강조 SVG 바디 뷰.
@@ -45,14 +46,16 @@ class ExerciseGuideBodyView extends StatelessWidget {
     final crop = findExerciseBodyCrop(exerciseId);
     final showBack = target.hasBackTargets;
 
+    final mapper = _GuideMuscleColorMapper(intensities);
+
     if (!showBack) {
       // 전면만 크게
       return SizedBox(
         height: height,
-        child: _CroppedBodySvg(
-          assetPath: _assetPathFor(gender, isBack: false),
-          intensities: intensities,
+        child: CroppedBodySvg(
+          assetPath: bodySvgAssetPath(gender, isBack: false),
           crop: crop,
+          colorMapper: mapper,
         ),
       );
     }
@@ -65,29 +68,23 @@ class ExerciseGuideBodyView extends StatelessWidget {
           Expanded(
             child: _LabeledBodySvg(
               label: '전면',
-              assetPath: _assetPathFor(gender, isBack: false),
-              intensities: intensities,
+              assetPath: bodySvgAssetPath(gender, isBack: false),
               crop: crop,
+              colorMapper: mapper,
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: _LabeledBodySvg(
               label: '후면',
-              assetPath: _assetPathFor(gender, isBack: true),
-              intensities: intensities,
+              assetPath: bodySvgAssetPath(gender, isBack: true),
               crop: crop,
+              colorMapper: mapper,
             ),
           ),
         ],
       ),
     );
-  }
-
-  static String _assetPathFor(BodyGender gender, {required bool isBack}) {
-    final g = gender == BodyGender.female ? 'female' : 'male';
-    final s = isBack ? 'back' : 'front';
-    return 'assets/svg/${g}_${s}_body.svg';
   }
 }
 
@@ -95,71 +92,29 @@ class _LabeledBodySvg extends StatelessWidget {
   const _LabeledBodySvg({
     required this.label,
     required this.assetPath,
-    required this.intensities,
     required this.crop,
+    required this.colorMapper,
   });
 
   final String label;
   final String assetPath;
-  final Map<String, double> intensities;
   final BodyCropConfig crop;
+  final ColorMapper colorMapper;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
         Expanded(
-          child: _CroppedBodySvg(
+          child: CroppedBodySvg(
             assetPath: assetPath,
-            intensities: intensities,
             crop: crop,
+            colorMapper: colorMapper,
           ),
         ),
         const SizedBox(height: AppSpacing.xxs),
         Text(label, style: AppTextStyles.caption),
       ],
-    );
-  }
-}
-
-class _CroppedBodySvg extends StatelessWidget {
-  const _CroppedBodySvg({
-    required this.assetPath,
-    required this.intensities,
-    required this.crop,
-  });
-
-  final String assetPath;
-  final Map<String, double> intensities;
-  final BodyCropConfig crop;
-
-  // 원본 SVG viewBox 비율 (724 / 1450).
-  // height 기준으로 width 계산 시 사용.
-  static const _svgAspectRatio = 724.0 / 1450.0;
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRect(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          // 줌 배율 만큼 SVG 자체 크기를 키우고, OverflowBox 로 부모를 넘어가게.
-          // 부모는 ClipRect 라 잘라서 보여줌. alignment 로 어떤 부분을 보여줄지 결정.
-          final svgHeight = constraints.maxHeight * crop.zoom;
-          final svgWidth = svgHeight * _svgAspectRatio;
-          return OverflowBox(
-            alignment: crop.alignment,
-            minWidth: svgWidth,
-            maxWidth: svgWidth,
-            minHeight: svgHeight,
-            maxHeight: svgHeight,
-            child: SvgPicture.asset(
-              assetPath,
-              colorMapper: _GuideMuscleColorMapper(intensities),
-              fit: BoxFit.contain,
-            ),
-          );
-        },
-      ),
     );
   }
 }
