@@ -6,7 +6,10 @@ import '../../../data/repositories/calibration_repository.dart';
 import '../../core/layouts/app_scaffold.dart';
 import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
+import '../../stats/widgets/svg_body_heatmap_view.dart' show BodyGender;
 import '../view_model/workout_setup_viewmodel.dart';
+import 'cropped_body_svg.dart';
+import 'exercise_target_regions.dart' show findExerciseBodyCrop;
 
 class SensorGuideScreen extends StatefulWidget {
   const SensorGuideScreen({super.key, this.exerciseId = 'pushup'});
@@ -79,7 +82,7 @@ class _SensorGuideScreenState extends State<SensorGuideScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SensorMapCard(config: _config),
+          _SensorMapCard(config: _config, exerciseId: widget.exerciseId),
           const SizedBox(height: AppSpacing.sectionGap),
           Text('부착 확인', style: AppTextStyles.sectionTitle),
           const SizedBox(height: AppSpacing.sm),
@@ -100,12 +103,14 @@ class _SensorGuideScreenState extends State<SensorGuideScreen> {
 }
 
 class _SensorMapCard extends StatelessWidget {
-  const _SensorMapCard({required this.config});
+  const _SensorMapCard({required this.config, required this.exerciseId});
 
   final _SensorConfig config;
+  final String exerciseId;
 
   @override
   Widget build(BuildContext context) {
+    final crop = findExerciseBodyCrop(exerciseId);
     return ImoCard(
       variant: ImoCardVariant.hero,
       paddingSize: ImoCardPadding.lg,
@@ -128,7 +133,16 @@ class _SensorMapCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: AppSpacing.sm),
+          // EMG/IMU 범례
+          Row(
+            children: const [
+              _LegendDot(color: _emgColor, label: 'EMG'),
+              SizedBox(width: AppSpacing.md),
+              _LegendDot(color: _imuColor, label: 'IMU'),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
           Container(
             height: 360,
             width: double.infinity,
@@ -139,18 +153,17 @@ class _SensorMapCard extends StatelessWidget {
             ),
             child: Stack(
               children: [
-                Center(
-                  child: Icon(
-                    Icons.accessibility_new_rounded,
-                    size: 142,
-                    color: AppColors.primary.withValues(alpha: 0.16),
+                Positioned.fill(
+                  child: CroppedBodySvg(
+                    assetPath: bodySvgAssetPath(
+                      BodyGender.male,
+                      isBack: false,
+                    ),
+                    crop: crop,
                   ),
                 ),
-                for (var index = 0; index < config.sensors.length; index++)
-                  _SensorMapMarker(
-                    index: index + 1,
-                    sensor: config.sensors[index],
-                  ),
+                for (final sensor in config.sensors)
+                  _SensorMapMarker(sensor: sensor),
               ],
             ),
           ),
@@ -160,64 +173,93 @@ class _SensorMapCard extends StatelessWidget {
   }
 }
 
-class _SensorMapMarker extends StatelessWidget {
-  const _SensorMapMarker({required this.index, required this.sensor});
+const Color _emgColor = AppColors.primaryStrong; // 파랑 계열
+const Color _imuColor = AppColors.warning; // 주황 계열
 
-  final int index;
+class _LegendDot extends StatelessWidget {
+  const _LegendDot({required this.color, required this.label});
+
+  final Color color;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: AppSpacing.xxs),
+        Text(label, style: AppTextStyles.caption),
+      ],
+    );
+  }
+}
+
+/// 센서 부착 위치 마커. SVG 바디 위에 오버레이로 표시.
+///
+/// 디자인 B안: 동그라미 안에 약어+숫자 ("E1", "I2"), EMG/IMU 색상 구분.
+class _SensorMapMarker extends StatelessWidget {
+  const _SensorMapMarker({required this.sensor});
+
   final _SensorInfo sensor;
 
   @override
   Widget build(BuildContext context) {
+    final color = _markerColor(sensor.id);
+    final label = _markerLabel(sensor.id);
     return Positioned(
       top: sensor.top,
       left: sensor.left,
       right: sensor.right,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 20,
-            height: 20,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.45),
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withValues(alpha: 0.18),
-                  blurRadius: 0,
-                  spreadRadius: 8,
-                ),
-              ],
+      child: Container(
+        width: 30,
+        height: 30,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          border: Border.all(color: AppColors.card, width: 2),
+          boxShadow: [
+            BoxShadow(
+              color: color.withValues(alpha: 0.35),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
             ),
+          ],
+        ),
+        child: Text(
+          label,
+          style: AppTextStyles.caption.copyWith(
+            color: AppColors.card,
+            fontWeight: FontWeight.w800,
+            fontSize: 11,
+            height: 1.0,
           ),
-          const SizedBox(width: AppSpacing.xs),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppColors.card,
-              borderRadius: BorderRadius.circular(AppSpacing.pillRadius),
-              border: Border.all(color: AppColors.border),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.heatmapBg.withValues(alpha: 0.08),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Text(
-              '$index. ${sensor.position}',
-              style: AppTextStyles.caption.copyWith(
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
+}
+
+/// 센서 id (`emg_1`, `imu_2`) → 마커 라벨 (`E1`, `I2`).
+String _markerLabel(String sensorId) {
+  if (sensorId.startsWith('emg_')) {
+    return 'E${sensorId.substring(4)}';
+  }
+  if (sensorId.startsWith('imu_')) {
+    return 'I${sensorId.substring(4)}';
+  }
+  return sensorId.toUpperCase();
+}
+
+/// 센서 id → 마커 색상. EMG=파랑 계열, IMU=주황 계열.
+Color _markerColor(String sensorId) {
+  if (sensorId.startsWith('imu_')) return _imuColor;
+  return _emgColor;
 }
 
 class _SensorCheckTile extends StatelessWidget {
