@@ -310,7 +310,7 @@ const _exerciseGuides = {
     gradient: [AppColors.primary, AppColors.primaryStrong],
   ),
   'lateral_raise': _ExerciseGuide(
-    title: '싸레레',
+    title: '사이드 레터럴 레이즈',
     description: '측면 어깨 자극을 위한 운동',
     targets: ['측면 삼각근', '승모근 보조'],
     steps: [
