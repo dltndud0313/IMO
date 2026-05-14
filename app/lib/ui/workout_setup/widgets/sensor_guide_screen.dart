@@ -84,16 +84,25 @@ class _SensorGuideScreenState extends State<SensorGuideScreen> {
         children: [
           _SensorMapCard(config: _config, exerciseId: widget.exerciseId),
           const SizedBox(height: AppSpacing.sectionGap),
-          Text('부착 확인', style: AppTextStyles.sectionTitle),
+          Row(
+            children: [
+              Text('부착 확인', style: AppTextStyles.sectionTitle),
+              const Spacer(),
+              Text(
+                '${_checkedSensorIds.length} / ${_config.sensors.length}',
+                style: AppTextStyles.caption.copyWith(
+                  color: AppColors.textTertiary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: AppSpacing.sm),
-          for (final sensor in _config.sensors) ...[
-            _SensorCheckTile(
-              sensor: sensor,
-              checked: _checkedSensorIds.contains(sensor.id),
-              onTap: () => _toggleSensor(sensor.id),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-          ],
+          _SensorChecklistCard(
+            sensors: _config.sensors,
+            checkedIds: _checkedSensorIds,
+            onToggle: _toggleSensor,
+          ),
           const SizedBox(height: AppSpacing.md),
           const _SensorNoticeCard(),
         ],
@@ -151,20 +160,21 @@ class _SensorMapCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
               border: Border.all(color: AppColors.border),
             ),
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: CroppedBodySvg(
-                    assetPath: bodySvgAssetPath(
-                      BodyGender.male,
-                      isBack: false,
-                    ),
-                    crop: crop,
-                  ),
-                ),
-                for (final sensor in config.sensors)
-                  _SensorMapMarker(sensor: sensor),
-              ],
+            child: CroppedBodySvg(
+              assetPath: bodySvgAssetPath(BodyGender.male, isBack: false),
+              crop: crop,
+              overlayBuilder: (context, svgWidth, svgHeight) {
+                return Stack(
+                  children: [
+                    for (final sensor in config.sensors)
+                      _SensorMapMarker(
+                        sensor: sensor,
+                        svgWidth: svgWidth,
+                        svgHeight: svgHeight,
+                      ),
+                  ],
+                );
+              },
             ),
           ),
         ],
@@ -202,22 +212,34 @@ class _LegendDot extends StatelessWidget {
 /// 센서 부착 위치 마커. SVG 바디 위에 오버레이로 표시.
 ///
 /// 디자인 B안: 동그라미 안에 약어+숫자 ("E1", "I2"), EMG/IMU 색상 구분.
+///
+/// [svgWidth] / [svgHeight] 는 SVG 가 차지하는 픽셀 크기. sensor 의
+/// bodyX/bodyY 비율 (0~1) 을 곱해 실제 픽셀 위치 계산.
 class _SensorMapMarker extends StatelessWidget {
-  const _SensorMapMarker({required this.sensor});
+  const _SensorMapMarker({
+    required this.sensor,
+    required this.svgWidth,
+    required this.svgHeight,
+  });
 
   final _SensorInfo sensor;
+  final double svgWidth;
+  final double svgHeight;
+
+  static const _markerSize = 30.0;
 
   @override
   Widget build(BuildContext context) {
     final color = _markerColor(sensor.id);
     final label = _markerLabel(sensor.id);
+    // 마커 중심이 (bodyX * svgWidth, bodyY * svgHeight) 에 오도록
+    // 마커 크기의 절반만큼 빼서 Positioned.
     return Positioned(
-      top: sensor.top,
-      left: sensor.left,
-      right: sensor.right,
+      left: sensor.bodyX * svgWidth - _markerSize / 2,
+      top: sensor.bodyY * svgHeight - _markerSize / 2,
       child: Container(
-        width: 30,
-        height: 30,
+        width: _markerSize,
+        height: _markerSize,
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: color,
@@ -262,8 +284,44 @@ Color _markerColor(String sensorId) {
   return _emgColor;
 }
 
-class _SensorCheckTile extends StatelessWidget {
-  const _SensorCheckTile({
+/// 콤팩트 체크리스트 — 한 카드 안에 모든 센서 한 줄씩.
+///
+/// 각 row 는 [E1 색 동그라미] [위치명] [체크 아이콘] 구조.
+/// 위 SVG 의 마커와 같은 색/약어로 매칭, 사용자가 어느 센서가 어디인지 즉시 파악.
+class _SensorChecklistCard extends StatelessWidget {
+  const _SensorChecklistCard({
+    required this.sensors,
+    required this.checkedIds,
+    required this.onToggle,
+  });
+
+  final List<_SensorInfo> sensors;
+  final Set<String> checkedIds;
+  final ValueChanged<String> onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    return ImoCard(
+      paddingSize: ImoCardPadding.none,
+      child: Column(
+        children: [
+          for (var i = 0; i < sensors.length; i++) ...[
+            if (i > 0)
+              const Divider(height: 1, color: AppColors.divider),
+            _SensorCheckRow(
+              sensor: sensors[i],
+              checked: checkedIds.contains(sensors[i].id),
+              onTap: () => onToggle(sensors[i].id),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _SensorCheckRow extends StatelessWidget {
+  const _SensorCheckRow({
     required this.sensor,
     required this.checked,
     required this.onTap,
@@ -275,45 +333,63 @@ class _SensorCheckTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ImoCard(
-      interactive: true,
+    final color = _markerColor(sensor.id);
+    final label = _markerLabel(sensor.id);
+    return InkWell(
       onTap: onTap,
-      variant: checked ? ImoCardVariant.subtle : ImoCardVariant.defaultCard,
-      paddingSize: ImoCardPadding.lg,
-      child: Row(
-        children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 140),
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: checked ? AppColors.primary : Colors.transparent,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: checked ? AppColors.primary : AppColors.border,
-                width: 2,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
+        child: Row(
+          children: [
+            // 마커와 동일한 색/약어 동그라미
+            Container(
+              width: 30,
+              height: 30,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+              ),
+              child: Text(
+                label,
+                style: AppTextStyles.caption.copyWith(
+                  color: AppColors.card,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 11,
+                  height: 1.0,
+                ),
               ),
             ),
-            child: checked
-                ? const Icon(
-                    Icons.check_rounded,
-                    color: AppColors.card,
-                    size: 20,
-                  )
-                : null,
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(sensor.position, style: AppTextStyles.sectionTitle),
-                const SizedBox(height: AppSpacing.xxs),
-                Text(sensor.label, style: AppTextStyles.body),
-              ],
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Text(
+                sensor.position,
+                style: AppTextStyles.bodyLg.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
-          ),
-        ],
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 140),
+              child: checked
+                  ? const Icon(
+                      Icons.check_circle_rounded,
+                      key: ValueKey('checked'),
+                      color: AppColors.success,
+                      size: 24,
+                    )
+                  : const Icon(
+                      Icons.radio_button_unchecked,
+                      key: ValueKey('unchecked'),
+                      color: AppColors.textTertiary,
+                      size: 24,
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -381,76 +457,66 @@ class _SensorConfig {
   final List<_SensorInfo> sensors;
 }
 
+/// 센서 정보.
+///
+/// [bodyX], [bodyY] 는 SVG 바디 위 위치를 0~1 비율로 표현.
+/// - bodyX: 0 = 좌측 끝, 0.5 = 중심, 1 = 우측 끝 (사용자 = 화면 기준)
+/// - bodyY: 0 = 머리 꼭대기, 1 = 발 끝
+///
+/// SVG 좌표계 안에서 표현하므로 SVG 가 crop / zoom 되어도 마커가 같이 따라감.
 class _SensorInfo {
   const _SensorInfo({
     required this.id,
     required this.label,
     required this.position,
-    required this.top,
-    this.left,
-    this.right,
+    required this.bodyX,
+    required this.bodyY,
   });
 
   final String id;
   final String label;
   final String position;
-  final double top;
-  final double? left;
-  final double? right;
+  final double bodyX;
+  final double bodyY;
 }
 
+// 좌표는 v3 SVG viewBox (0 -80 724 1450) 안에서 0~1 비율.
+// 머리 ~0.05, 어깨 ~0.13, 가슴 ~0.20, 팔 위쪽 ~0.25, 전완 ~0.38,
+// 손 ~0.50, 골반 ~0.45, 무릎 ~0.70, 발 ~1.0 대략.
+// hot reload 로 시각 튜닝.
 const _sensorConfigs = {
   'pushup': _SensorConfig(
     title: '푸시업',
     sensors: [
       _SensorInfo(
-        id: 'emg_1',
-        label: 'EMG 1',
-        position: '왼쪽 대흉근',
-        top: 104,
-        left: 96,
+        id: 'emg_1', label: 'EMG 1', position: '왼쪽 대흉근',
+        bodyX: 0.40, bodyY: 0.20,
       ),
       _SensorInfo(
-        id: 'emg_2',
-        label: 'EMG 2',
-        position: '오른쪽 대흉근',
-        top: 142,
-        right: 42,
+        id: 'emg_2', label: 'EMG 2', position: '오른쪽 대흉근',
+        bodyX: 0.60, bodyY: 0.20,
+      ),
+      // 삼두근은 후면 근육이지만 전면 SVG 옆 팔 위치에 표시
+      _SensorInfo(
+        id: 'emg_3', label: 'EMG 3', position: '왼쪽 삼두근',
+        bodyX: 0.22, bodyY: 0.25,
       ),
       _SensorInfo(
-        id: 'emg_3',
-        label: 'EMG 3',
-        position: '왼쪽 삼두근',
-        top: 82,
-        left: 134,
+        id: 'emg_4', label: 'EMG 4', position: '오른쪽 삼두근',
+        bodyX: 0.78, bodyY: 0.25,
+      ),
+      // 등 상부 중앙 — 전면에서는 목/어깨 사이 중앙
+      _SensorInfo(
+        id: 'imu_1', label: 'IMU 1', position: '등 상부 중앙',
+        bodyX: 0.50, bodyY: 0.12,
       ),
       _SensorInfo(
-        id: 'emg_4',
-        label: 'EMG 4',
-        position: '오른쪽 삼두근',
-        top: 118,
-        right: 96,
+        id: 'imu_2', label: 'IMU 2', position: '왼쪽 상완',
+        bodyX: 0.18, bodyY: 0.31,
       ),
       _SensorInfo(
-        id: 'imu_1',
-        label: 'IMU 1',
-        position: '등 상부 중앙',
-        top: 172,
-        right: 64,
-      ),
-      _SensorInfo(
-        id: 'imu_2',
-        label: 'IMU 2',
-        position: '왼쪽 상완',
-        top: 218,
-        left: 56,
-      ),
-      _SensorInfo(
-        id: 'imu_3',
-        label: 'IMU 3',
-        position: '오른쪽 상완',
-        top: 218,
-        right: 56,
+        id: 'imu_3', label: 'IMU 3', position: '오른쪽 상완',
+        bodyX: 0.82, bodyY: 0.31,
       ),
     ],
   ),
@@ -458,53 +524,33 @@ const _sensorConfigs = {
     title: '사이드 레터럴 레이즈',
     sensors: [
       _SensorInfo(
-        id: 'emg_1',
-        label: 'EMG 1',
-        position: '왼쪽 측면 삼각근',
-        top: 92,
-        left: 56,
+        id: 'emg_1', label: 'EMG 1', position: '왼쪽 측면 삼각근',
+        bodyX: 0.30, bodyY: 0.17,
       ),
       _SensorInfo(
-        id: 'emg_2',
-        label: 'EMG 2',
-        position: '오른쪽 측면 삼각근',
-        top: 92,
-        right: 56,
+        id: 'emg_2', label: 'EMG 2', position: '오른쪽 측면 삼각근',
+        bodyX: 0.70, bodyY: 0.17,
       ),
       _SensorInfo(
-        id: 'emg_3',
-        label: 'EMG 3',
-        position: '왼쪽 상부 승모근',
-        top: 62,
-        left: 114,
+        id: 'emg_3', label: 'EMG 3', position: '왼쪽 상부 승모근',
+        bodyX: 0.42, bodyY: 0.10,
       ),
       _SensorInfo(
-        id: 'emg_4',
-        label: 'EMG 4',
-        position: '오른쪽 상부 승모근',
-        top: 62,
-        right: 114,
+        id: 'emg_4', label: 'EMG 4', position: '오른쪽 상부 승모근',
+        bodyX: 0.58, bodyY: 0.10,
       ),
       _SensorInfo(
-        id: 'imu_1',
-        label: 'IMU 1',
-        position: '왼쪽 전완',
-        top: 192,
-        left: 46,
+        id: 'imu_1', label: 'IMU 1', position: '왼쪽 전완',
+        bodyX: 0.14, bodyY: 0.40,
       ),
       _SensorInfo(
-        id: 'imu_2',
-        label: 'IMU 2',
-        position: '오른쪽 전완',
-        top: 192,
-        right: 46,
+        id: 'imu_2', label: 'IMU 2', position: '오른쪽 전완',
+        bodyX: 0.86, bodyY: 0.40,
       ),
+      // 등 중앙 — 전면에서는 가슴 중앙
       _SensorInfo(
-        id: 'imu_3',
-        label: 'IMU 3',
-        position: '등 중앙',
-        top: 150,
-        right: 92,
+        id: 'imu_3', label: 'IMU 3', position: '등 중앙',
+        bodyX: 0.50, bodyY: 0.22,
       ),
     ],
   ),
@@ -512,53 +558,32 @@ const _sensorConfigs = {
     title: '이두컬',
     sensors: [
       _SensorInfo(
-        id: 'emg_1',
-        label: 'EMG 1',
-        position: '왼쪽 이두근',
-        top: 136,
-        left: 54,
+        id: 'emg_1', label: 'EMG 1', position: '왼쪽 이두근',
+        bodyX: 0.28, bodyY: 0.26,
       ),
       _SensorInfo(
-        id: 'emg_2',
-        label: 'EMG 2',
-        position: '오른쪽 이두근',
-        top: 136,
-        right: 54,
+        id: 'emg_2', label: 'EMG 2', position: '오른쪽 이두근',
+        bodyX: 0.72, bodyY: 0.26,
       ),
       _SensorInfo(
-        id: 'emg_3',
-        label: 'EMG 3',
-        position: '왼쪽 전완근',
-        top: 186,
-        left: 48,
+        id: 'emg_3', label: 'EMG 3', position: '왼쪽 전완근',
+        bodyX: 0.22, bodyY: 0.36,
       ),
       _SensorInfo(
-        id: 'emg_4',
-        label: 'EMG 4',
-        position: '오른쪽 전완근',
-        top: 186,
-        right: 48,
+        id: 'emg_4', label: 'EMG 4', position: '오른쪽 전완근',
+        bodyX: 0.78, bodyY: 0.36,
       ),
       _SensorInfo(
-        id: 'imu_1',
-        label: 'IMU 1',
-        position: '왼쪽 전완',
-        top: 206,
-        left: 46,
+        id: 'imu_1', label: 'IMU 1', position: '왼쪽 전완',
+        bodyX: 0.18, bodyY: 0.42,
       ),
       _SensorInfo(
-        id: 'imu_2',
-        label: 'IMU 2',
-        position: '오른쪽 전완',
-        top: 206,
-        right: 46,
+        id: 'imu_2', label: 'IMU 2', position: '오른쪽 전완',
+        bodyX: 0.82, bodyY: 0.42,
       ),
       _SensorInfo(
-        id: 'imu_3',
-        label: 'IMU 3',
-        position: '몸통',
-        top: 112,
-        right: 58,
+        id: 'imu_3', label: 'IMU 3', position: '몸통',
+        bodyX: 0.50, bodyY: 0.30,
       ),
     ],
   ),
