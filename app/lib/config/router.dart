@@ -20,8 +20,8 @@ import '../ui/mypage/widgets/wearable_settings_screen.dart';
 import '../ui/onboarding/screens/onboarding_screen.dart';
 import '../ui/onboarding/screens/splash_screen.dart';
 import '../ui/session_result/widgets/session_result_screen.dart';
+import '../ui/smartglass_display/widgets/smartglass_display_screen.dart';
 import '../ui/stats/widgets/stats_screen.dart';
-import '../ui/workout/widgets/workout_screen.dart';
 import '../ui/workout_setup/widgets/exercise_catalog_screen.dart';
 import '../ui/workout_setup/widgets/exercise_guide_screen.dart';
 import '../ui/workout_setup/widgets/exercise_select_screen.dart';
@@ -123,7 +123,7 @@ GoRouter buildRouter() {
       ),
       GoRoute(
         path: '/workout',
-        builder: (context, state) => const WorkoutScreen(),
+        builder: (context, state) => const SmartglassDisplayScreen(),
       ),
       GoRoute(
         path: '/chat',
