@@ -92,7 +92,7 @@ class SmartglassFocusCard extends StatelessWidget {
               minHeight: 10,
               value: focusProgress,
               color: toneColor,
-              backgroundColor: AppColors.borderSubtle,
+              backgroundColor: AppColors.border,
             ),
           ),
           const SizedBox(height: AppSpacing.xs),
