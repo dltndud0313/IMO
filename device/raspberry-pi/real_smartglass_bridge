@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
+SERIAL_PORT="${1:-/dev/ttyUSB0}"
+BAUD="${2:-115200}"
+WS_HOST="${3:-0.0.0.0}"
+WS_PORT="${4:-8765}"
+UI_HOST="${5:-0.0.0.0}"
+UI_PORT="${6:-8080}"
+
+cd "${ROOT_DIR}"
+
+python3 device/raspberry-pi/pi_sensor_bridge.py \
+  --serial-port "${SERIAL_PORT}" \
+  --baud "${BAUD}" \
+  --ws-host "${WS_HOST}" \
+  --ws-port "${WS_PORT}" \
+  --ui-host "${UI_HOST}" \
+  --ui-port "${UI_PORT}"
