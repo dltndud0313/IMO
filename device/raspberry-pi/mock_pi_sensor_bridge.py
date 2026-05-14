@@ -67,6 +67,7 @@ class SessionSnapshot:
     rest_sec: int
     rest_remaining_sec: int
     current_rep: Optional[int]
+    current_speed_label: str
     sensors_attached: bool
 
 
@@ -103,6 +104,7 @@ class BridgeState:
         self._motion_active = False
         self._last_rep_timestamp_ms: Optional[int] = None
         self._last_device_rep_index: Optional[int] = None
+        self._current_speed_label = "분석 중"
         self._calibration_data = CalibrationData()
         self._calibration_frames: list[DecodedFrame] = []
         self._calibration_collecting = False
@@ -150,6 +152,7 @@ class BridgeState:
             self._motion_active = False
             self._last_rep_timestamp_ms = None
             self._last_device_rep_index = None
+            self._current_speed_label = "분석 중"
             self._calibration_data = CalibrationData(exercise_type=exercise_type)
             self._calibration_frames = []
             self._calibration_collecting = False
@@ -221,6 +224,7 @@ class BridgeState:
                 rest_sec=self._rest_sec,
                 rest_remaining_sec=self._rest_remaining_sec_locked(),
                 current_rep=self._current_rep,
+                current_speed_label=self._current_speed_label,
                 sensors_attached=self._sensors_attached,
             )
 
@@ -241,6 +245,7 @@ class BridgeState:
             self._last_device_rep_index = frame.rep_index
             if self._phase == "monitoring":
                 self._current_rep = frame.rep_index + 1
+                self._update_speed_label_locked(frame.timestamp_ms)
                 self._last_rep_timestamp_ms = frame.timestamp_ms
                 return self._maybe_advance_workout_locked(frame.timestamp_ms)
             return events
@@ -249,6 +254,7 @@ class BridgeState:
             self._last_device_rep_index = frame.rep_index
             if self._phase == "monitoring":
                 self._current_rep = frame.rep_index + 1
+                self._update_speed_label_locked(frame.timestamp_ms)
                 self._last_rep_timestamp_ms = frame.timestamp_ms
                 return self._maybe_advance_workout_locked(frame.timestamp_ms)
             return events
@@ -264,6 +270,7 @@ class BridgeState:
 
         next_rep = 0 if self._current_rep is None else self._current_rep
         self._current_rep = next_rep + delta
+        self._update_speed_label_locked(frame.timestamp_ms)
         self._last_rep_timestamp_ms = frame.timestamp_ms
         return self._maybe_advance_workout_locked(frame.timestamp_ms)
 
@@ -284,6 +291,7 @@ class BridgeState:
             )
             if enough_gap:
                 self._current_rep = 1 if self._current_rep is None else self._current_rep + 1
+                self._update_speed_label_locked(frame.timestamp_ms)
                 self._last_rep_timestamp_ms = frame.timestamp_ms
                 self._motion_active = active_now
                 return self._maybe_advance_workout_locked(frame.timestamp_ms)
@@ -312,6 +320,7 @@ class BridgeState:
         self._rest_deadline_monotonic = None
         self._phase = "monitoring"
         self._current_rep = 0
+        self._current_speed_label = "분석 중"
         return [
             {
                 "event": "rest_finished",
@@ -410,6 +419,21 @@ class BridgeState:
         self._calibration_collecting = False
         self._calibration_frames = []
         self._phase = "monitoring"
+        self._current_rep = 0
+        self._current_speed_label = "분석 중"
+
+    def _update_speed_label_locked(self, timestamp_ms: int) -> None:
+        if self._last_rep_timestamp_ms is None:
+            self._current_speed_label = "분석 중"
+            return
+
+        gap_ms = max(0, timestamp_ms - self._last_rep_timestamp_ms)
+        if gap_ms < 1200:
+            self._current_speed_label = "빠름"
+        elif gap_ms < 2600:
+            self._current_speed_label = "적정"
+        else:
+            self._current_speed_label = "느림"
 
     @staticmethod
     def _phase_label(phase: str) -> str:
@@ -478,6 +502,7 @@ def build_glass_display_data(
             "phase_label": session.phase_label,
             "current_set_index": session.current_set_index,
             "current_rep": session.current_rep,
+            "current_speed_label": session.current_speed_label,
             "target_rep": session.target_rep,
             "target_reps_per_set": session.target_reps_per_set,
             "rest_remaining_sec": session.rest_remaining_sec,
@@ -594,7 +619,18 @@ def build_error_message(code: str, message: str) -> dict[str, Any]:
 
 
 class SensorBridge:
-    def __init__(self, serial_port: str, baud_rate: int, input_file: str = "") -> None:
+    def __init__(
+        self,
+        serial_port: str,
+        baud_rate: int,
+        input_file: str = "",
+        *,
+        auto_exercise: str = "",
+        auto_sets: int = 0,
+        auto_reps: Optional[list[int]] = None,
+        auto_rest_sec: int = 0,
+        auto_start: bool = False,
+    ) -> None:
         self._serial_port = serial_port
         self._baud_rate = baud_rate
         self._input_file = input_file
@@ -603,6 +639,11 @@ class SensorBridge:
         self._queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._last_frame: Optional[DecodedFrame] = None
+        self._auto_exercise = auto_exercise
+        self._auto_sets = auto_sets
+        self._auto_reps = auto_reps or []
+        self._auto_rest_sec = auto_rest_sec
+        self._auto_start = auto_start
 
     async def run(
         self,
@@ -613,6 +654,7 @@ class SensorBridge:
     ) -> None:
         self._loop = asyncio.get_running_loop()
         self._start_ui_http_server(ui_host, ui_port)
+        self._bootstrap_mock_session()
 
         worker = threading.Thread(target=self._serial_reader_main, daemon=True)
         worker.start()
@@ -647,6 +689,20 @@ class SensorBridge:
             self._clients.discard(websocket)
             self._state.set_glass_connected(bool(self._clients))
             self._emit_from_thread(build_connection_status(self._state.connection_snapshot()))
+
+    def _bootstrap_mock_session(self) -> None:
+        if not self._auto_exercise:
+            return
+
+        self._state.set_workout_plan(
+            exercise_type=self._auto_exercise,
+            set_count=self._auto_sets,
+            target_reps_per_set=list(self._auto_reps),
+            rest_sec=self._auto_rest_sec,
+        )
+        self._state.mark_sensors_attached()
+        if self._auto_start:
+            self._state.start_calibration_collection()
 
     async def _handle_client_message(
         self,
@@ -1066,15 +1122,39 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--ws-port", type=int, default=8765, help="WebSocket bind port")
     parser.add_argument("--ui-host", default="0.0.0.0", help="Glass UI bind host")
     parser.add_argument("--ui-port", type=int, default=8080, help="Glass UI bind port")
+    parser.add_argument(
+        "--auto-exercise",
+        default="",
+        choices=["", "pushup", "bicep_curl", "lateral_raise"],
+        help="Optionally preload a workout plan for mock validation.",
+    )
+    parser.add_argument("--auto-sets", type=int, default=3, help="Auto plan set count")
+    parser.add_argument(
+        "--auto-reps",
+        default="12,12,10",
+        help="Comma-separated target reps for the auto plan.",
+    )
+    parser.add_argument("--auto-rest-sec", type=int, default=60, help="Auto plan rest seconds")
+    parser.add_argument(
+        "--auto-start",
+        action="store_true",
+        help="Automatically mark sensors attached and start calibration for the mock plan.",
+    )
     return parser.parse_args()
 
 
 async def async_main() -> int:
     args = parse_args()
+    auto_reps = [int(value.strip()) for value in args.auto_reps.split(",") if value.strip()]
     bridge = SensorBridge(
         serial_port=args.serial_port,
         baud_rate=args.baud,
         input_file=args.input_file,
+        auto_exercise=args.auto_exercise,
+        auto_sets=args.auto_sets,
+        auto_reps=auto_reps,
+        auto_rest_sec=args.auto_rest_sec,
+        auto_start=args.auto_start,
     )
     await bridge.run(
         ws_host=args.ws_host,
