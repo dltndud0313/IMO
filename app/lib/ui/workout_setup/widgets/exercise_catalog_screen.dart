@@ -159,19 +159,11 @@ class _ExerciseOptionCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        exercise.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTextStyles.sectionTitle,
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.xs),
-                    Text(exercise.titleEn, style: AppTextStyles.caption),
-                  ],
+                Text(
+                  exercise.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.sectionTitle,
                 ),
                 const SizedBox(height: AppSpacing.xxs),
                 Text(exercise.target, style: AppTextStyles.bodyLg),

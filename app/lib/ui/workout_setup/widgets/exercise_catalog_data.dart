@@ -23,7 +23,6 @@ class ExerciseCatalogItem {
     required this.id,
     required this.categoryId,
     required this.title,
-    required this.titleEn,
     required this.target,
     required this.description,
     required this.levelLabel,
@@ -36,7 +35,6 @@ class ExerciseCatalogItem {
   final String id;
   final String categoryId;
   final String title;
-  final String titleEn;
   final String target;
   final String description;
   final String levelLabel;
@@ -53,7 +51,6 @@ class ExerciseCatalogItem {
     return [
       id,
       title,
-      titleEn,
       target,
       description,
       ...keywords,
@@ -85,16 +82,16 @@ const exerciseCategoryOptions = [
   ),
 ];
 
+// 운동 표시명은 한국어로 통일. 검색은 keywords 로 영어/별칭 호환.
 const exerciseCatalogItems = [
   ExerciseCatalogItem(
     id: 'pushup',
     categoryId: 'upper',
     title: '푸시업',
-    titleEn: 'Push-up',
     target: '가슴 · 삼두 · 어깨',
     description: '상체 전반을 강화하는 기본 운동',
     levelLabel: '초급',
-    keywords: ['팔굽혀펴기', '가슴', '삼두근', '대흉근', '어깨'],
+    keywords: ['팔굽혀펴기', '가슴', '삼두근', '대흉근', '어깨', 'pushup', 'push-up'],
     icon: Icons.sports_kabaddi_rounded,
     gradient: [AppColors.primary, AppColors.primaryStrong],
   ),
@@ -102,23 +99,28 @@ const exerciseCatalogItems = [
     id: 'lateral_raise',
     categoryId: 'upper',
     title: '사이드 레터럴 레이즈',
-    titleEn: 'Lateral Raise',
     target: '어깨 · 측면 삼각근',
     description: '어깨 측면을 집중적으로 쓰는 운동',
     levelLabel: '초급',
-    keywords: ['싸레레', '어깨', '측면삼각근', '승모근'],
+    keywords: [
+      '싸레레', '사레레', // 줄임 별칭
+      '어깨', '측면삼각근', '승모근',
+      'lateral raise', 'lateral_raise', // 영어 검색 호환
+    ],
     icon: Icons.accessibility_new_rounded,
     gradient: [AppColors.secondary, Color(0xFF5DC447)],
   ),
   ExerciseCatalogItem(
     id: 'bicep_curl',
     categoryId: 'upper',
-    title: '바이셉 컬',
-    titleEn: 'Bicep Curl',
+    title: '이두컬',
     target: '이두근 · 전완근',
     description: '팔꿈치 축을 유지하며 이두근을 쓰는 운동',
     levelLabel: '초급',
-    keywords: ['이두컬', '이두근', '전완근', '팔'],
+    keywords: [
+      '바이셉컬', '바이셉 컬', '이두근', '전완근', '팔',
+      'bicep curl', 'bicep_curl',
+    ],
     icon: Icons.fitness_center_rounded,
     gradient: [Color(0xFFFFB371), AppColors.warning],
   ),
