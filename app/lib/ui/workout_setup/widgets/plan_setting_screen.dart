@@ -26,6 +26,9 @@ class _PlanSettingScreenState extends State<PlanSettingScreen> {
   int _restSeconds = 60;
   bool _submitting = false;
   bool _perSetMode = false;
+  // 제출 단계별 안내 문구. 비어 있으면 표시하지 않음.
+  String _submitMessage = '';
+  Timer? _submitStageTimer;
   late final WorkoutSetupViewModel _viewModel;
 
   int get _totalReps => _targetRepsPerSet.fold(0, (sum, reps) => sum + reps);
@@ -37,6 +40,12 @@ class _PlanSettingScreenState extends State<PlanSettingScreen> {
   void initState() {
     super.initState();
     _viewModel = WorkoutSetupViewModel(getIt<WorkoutRepository>());
+  }
+
+  @override
+  void dispose() {
+    _submitStageTimer?.cancel();
+    super.dispose();
   }
 
   void _syncSetCount(int nextCount) {
@@ -61,6 +70,22 @@ class _PlanSettingScreenState extends State<PlanSettingScreen> {
     });
   }
 
+  void _setAllReps(int value) {
+    final clamped = value.clamp(1, 50);
+    setState(() {
+      _targetRepsPerSet = List<int>.filled(_setCount, clamped);
+    });
+  }
+
+  void _setSetReps(int index, int value) {
+    final clamped = value.clamp(1, 50);
+    setState(() {
+      final nextReps = [..._targetRepsPerSet];
+      nextReps[index] = clamped;
+      _targetRepsPerSet = nextReps;
+    });
+  }
+
   void _changeSetReps(int index, int delta) {
     setState(() {
       final nextReps = [..._targetRepsPerSet];
@@ -80,7 +105,18 @@ class _PlanSettingScreenState extends State<PlanSettingScreen> {
   }
 
   Future<void> _submitPlan() async {
-    setState(() => _submitting = true);
+    // 즉시 "보내는 중" 상태로 전환해 사용자가 버튼을 다시 누르지 않도록 한다.
+    setState(() {
+      _submitting = true;
+      _submitMessage = 'Pi 에 운동 계획을 전송하고 있어요...';
+    });
+    // 2초 이상 걸리면 "응답 대기" 로 문구를 바꿔, 멈춘 게 아니라 Pi 가 처리 중임을 안내.
+    _submitStageTimer?.cancel();
+    _submitStageTimer = Timer(const Duration(seconds: 2), () {
+      if (mounted) {
+        setState(() => _submitMessage = 'Pi 응답을 기다리는 중이에요...');
+      }
+    });
     try {
       final result = await _viewModel.submitWorkoutPlan(
         exerciseType: widget.exerciseId,
@@ -106,8 +142,12 @@ class _PlanSettingScreenState extends State<PlanSettingScreen> {
         ).showSnackBar(const SnackBar(content: Text('Pi connection failed.')));
       }
     } finally {
+      _submitStageTimer?.cancel();
       if (mounted) {
-        setState(() => _submitting = false);
+        setState(() {
+          _submitting = false;
+          _submitMessage = '';
+        });
       }
     }
   }
@@ -119,11 +159,20 @@ class _PlanSettingScreenState extends State<PlanSettingScreen> {
       showBackButton: true,
       onBack: () => context.go('/workout-guide?exercise=${widget.exerciseId}'),
       scrollable: true,
-      bottom: ImoButton(
-        label: '다음',
-        loading: _submitting,
-        disabled: _submitting,
-        onPressed: _submitPlan,
+      bottom: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (_submitting && _submitMessage.isNotEmpty) ...[
+            _SubmitProgressBanner(message: _submitMessage),
+            const SizedBox(height: AppSpacing.sm),
+          ],
+          ImoButton(
+            label: _submitting ? '전송 중...' : '다음',
+            loading: _submitting,
+            disabled: _submitting,
+            onPressed: _submitPlan,
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -134,8 +183,12 @@ class _PlanSettingScreenState extends State<PlanSettingScreen> {
             description: '최대 10세트',
             value: _setCount,
             suffix: '',
+            min: 1,
+            max: 10,
+            inputTitle: '세트 수 입력',
             onDecrease: () => _syncSetCount((_setCount - 1).clamp(1, 10)),
             onIncrease: () => _syncSetCount((_setCount + 1).clamp(1, 10)),
+            onValueChanged: _syncSetCount,
           ),
           const SizedBox(height: AppSpacing.md),
           _SettingCard(
@@ -143,11 +196,15 @@ class _PlanSettingScreenState extends State<PlanSettingScreen> {
             description: _perSetMode ? '세트별로 각각 설정' : '모든 세트 동일',
             value: _targetRepsPerSet.first,
             suffix: '',
+            min: 1,
+            max: 50,
+            inputTitle: '목표 횟수 입력',
             chipLabel: _perSetMode ? '전체 동일' : '세트별',
             chipSelected: _perSetMode,
             onChipTap: _togglePerSetMode,
             onDecrease: () => _changeAllReps(-1),
             onIncrease: () => _changeAllReps(1),
+            onValueChanged: _perSetMode ? null : _setAllReps,
             showCounter: !_perSetMode,
           ),
           if (_perSetMode) ...[
@@ -156,6 +213,7 @@ class _PlanSettingScreenState extends State<PlanSettingScreen> {
               repsPerSet: _targetRepsPerSet,
               onDecrease: (index) => _changeSetReps(index, -1),
               onIncrease: (index) => _changeSetReps(index, 1),
+              onSet: _setSetReps,
             ),
           ],
           const SizedBox(height: AppSpacing.md),
@@ -164,18 +222,71 @@ class _PlanSettingScreenState extends State<PlanSettingScreen> {
             description: '30 ~ 300초',
             value: _restSeconds,
             suffix: '초',
+            min: 30,
+            max: 300,
+            inputTitle: '휴식 시간 입력',
             onDecrease: () => setState(
               () => _restSeconds = (_restSeconds - 15).clamp(30, 300),
             ),
             onIncrease: () => setState(
               () => _restSeconds = (_restSeconds + 15).clamp(30, 300),
             ),
+            onValueChanged: (v) =>
+                setState(() => _restSeconds = v.clamp(30, 300)),
           ),
           const SizedBox(height: AppSpacing.md),
           _PlanTotalCard(
             setCount: _setCount,
             totalReps: _totalReps,
             estimatedMinutes: _estimatedMinutes,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 운동 계획 전송 중 사용자에게 단계별 안내 문구를 보여주는 작은 배너.
+///
+/// Pi WebSocket ack 까지 대기하는 동안 화면이 멈춘 것처럼 보여서 추가.
+class _SubmitProgressBanner extends StatelessWidget {
+  const _SubmitProgressBanner({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: AppColors.primaryStrong,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Flexible(
+            child: Text(
+              message,
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.primaryStrong,
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+            ),
           ),
         ],
       ),
@@ -212,21 +323,9 @@ class _ExerciseNameHeader extends StatelessWidget {
           ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '운동 계획',
-                  style: AppTextStyles.caption.copyWith(
-                    color: AppColors.textTertiary,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                Text(
-                  exerciseDisplayName(exerciseId),
-                  style: AppTextStyles.sectionTitle,
-                ),
-              ],
+            child: Text(
+              exerciseDisplayName(exerciseId),
+              style: AppTextStyles.sectionTitle,
             ),
           ),
         ],
@@ -247,6 +346,10 @@ class _SettingCard extends StatelessWidget {
     this.chipSelected = false,
     this.onChipTap,
     this.showCounter = true,
+    this.onValueChanged,
+    this.min = 1,
+    this.max = 999,
+    this.inputTitle,
   });
 
   final String title;
@@ -259,6 +362,12 @@ class _SettingCard extends StatelessWidget {
   final bool chipSelected;
   final VoidCallback? onChipTap;
   final bool showCounter;
+  /// 숫자 영역 탭 시 직접 입력 다이얼로그 결과 처리.
+  /// null 이면 직접 입력 비활성.
+  final ValueChanged<int>? onValueChanged;
+  final int min;
+  final int max;
+  final String? inputTitle;
 
   @override
   Widget build(BuildContext context) {
@@ -301,21 +410,37 @@ class _SettingCard extends StatelessWidget {
               iconColor: AppColors.textPrimary,
               onTap: onDecrease,
             ),
-            SizedBox(
-              width: suffix.isEmpty ? 48 : 64,
-              child: Text.rich(
-                TextSpan(
-                  text: '$value',
-                  children: [
-                    if (suffix.isNotEmpty)
-                      TextSpan(
-                        text: ' $suffix',
-                        style: AppTextStyles.bodySmall,
-                      ),
-                  ],
+            InkWell(
+              onTap: onValueChanged == null
+                  ? null
+                  : () async {
+                      final result = await showNumberInputDialog(
+                        context,
+                        title: inputTitle ?? title,
+                        initialValue: value,
+                        min: min,
+                        max: max,
+                        suffix: suffix,
+                      );
+                      if (result != null) onValueChanged!(result);
+                    },
+              borderRadius: BorderRadius.circular(AppSpacing.sm),
+              child: SizedBox(
+                width: suffix.isEmpty ? 48 : 64,
+                child: Text.rich(
+                  TextSpan(
+                    text: '$value',
+                    children: [
+                      if (suffix.isNotEmpty)
+                        TextSpan(
+                          text: ' $suffix',
+                          style: AppTextStyles.bodySmall,
+                        ),
+                    ],
+                  ),
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.sectionTitle,
                 ),
-                textAlign: TextAlign.center,
-                style: AppTextStyles.sectionTitle,
               ),
             ),
             _RoundButton(
@@ -331,16 +456,83 @@ class _SettingCard extends StatelessWidget {
   }
 }
 
+/// 숫자 직접 입력 다이얼로그.
+///
+/// [min] ~ [max] 범위로 자동 clamp. 입력값이 숫자가 아니면 null 반환 (취소 동일).
+Future<int?> showNumberInputDialog(
+  BuildContext context, {
+  required String title,
+  required int initialValue,
+  required int min,
+  required int max,
+  String suffix = '',
+}) async {
+  final controller = TextEditingController(text: '$initialValue');
+  return showDialog<int>(
+    context: context,
+    builder: (ctx) {
+      return AlertDialog(
+        title: Text(title, style: AppTextStyles.sectionTitle),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              autofocus: true,
+              textAlign: TextAlign.center,
+              style: AppTextStyles.title,
+              decoration: InputDecoration(
+                hintText: '$min ~ $max',
+                suffixText: suffix.isEmpty ? null : suffix,
+                border: const OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              '$min ~ $max 범위로 입력해주세요',
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.textTertiary,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () {
+              final parsed = int.tryParse(controller.text.trim());
+              if (parsed == null) {
+                Navigator.of(ctx).pop();
+                return;
+              }
+              Navigator.of(ctx).pop(parsed.clamp(min, max));
+            },
+            child: const Text('확인'),
+          ),
+        ],
+      );
+    },
+  );
+}
+
 class _PerSetRepsCard extends StatelessWidget {
   const _PerSetRepsCard({
     required this.repsPerSet,
     required this.onDecrease,
     required this.onIncrease,
+    required this.onSet,
   });
 
   final List<int> repsPerSet;
   final ValueChanged<int> onDecrease;
   final ValueChanged<int> onIncrease;
+  /// (index, newValue) — 직접 입력 결과
+  final void Function(int index, int newValue) onSet;
 
   @override
   Widget build(BuildContext context) {
@@ -358,6 +550,7 @@ class _PerSetRepsCard extends StatelessWidget {
               reps: repsPerSet[index],
               onDecrease: () => onDecrease(index),
               onIncrease: () => onIncrease(index),
+              onSet: (v) => onSet(index, v),
             ),
             if (index != repsPerSet.length - 1)
               const SizedBox(height: AppSpacing.sm),
@@ -374,12 +567,14 @@ class _PerSetRepsRow extends StatelessWidget {
     required this.reps,
     required this.onDecrease,
     required this.onIncrease,
+    required this.onSet,
   });
 
   final int index;
   final int reps;
   final VoidCallback onDecrease;
   final VoidCallback onIncrease;
+  final ValueChanged<int> onSet;
 
   @override
   Widget build(BuildContext context) {
@@ -392,12 +587,25 @@ class _PerSetRepsRow extends StatelessWidget {
           iconColor: AppColors.textPrimary,
           onTap: onDecrease,
         ),
-        SizedBox(
-          width: 52,
-          child: Text(
-            '$reps',
-            textAlign: TextAlign.center,
-            style: AppTextStyles.sectionTitle,
+        InkWell(
+          onTap: () async {
+            final result = await showNumberInputDialog(
+              context,
+              title: '${index + 1}세트 횟수 입력',
+              initialValue: reps,
+              min: 1,
+              max: 50,
+            );
+            if (result != null) onSet(result);
+          },
+          borderRadius: BorderRadius.circular(AppSpacing.sm),
+          child: SizedBox(
+            width: 52,
+            child: Text(
+              '$reps',
+              textAlign: TextAlign.center,
+              style: AppTextStyles.sectionTitle,
+            ),
           ),
         ),
         _RoundButton(
