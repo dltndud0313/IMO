@@ -43,35 +43,21 @@ class _ChatbotFab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      shape: const CircleBorder(),
-      child: Ink(
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [AppColors.primary, AppColors.primaryStrong],
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primaryStrong.withValues(alpha: 0.3),
-              blurRadius: 16,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: InkWell(
-          onTap: () => context.go('/chat'),
-          customBorder: const CircleBorder(),
-          child: const SizedBox(
-            width: 56,
-            height: 56,
-            child: Icon(
-              Icons.smart_toy_rounded,
-              color: Colors.white,
-              size: 26,
+    return Transform.translate(
+      offset: const Offset(35, 40),
+      child: GestureDetector(
+        onTap: () => context.go('/chat'),
+        behavior: HitTestBehavior.opaque,
+        child: ClipRect(
+          child: SizedBox(
+            width: 128,
+            height: 128,
+            child: Transform.scale(
+              scale: 1.4,
+              child: Image.asset(
+                'assets/images/chatbot.png',
+                fit: BoxFit.contain,
+              ),
             ),
           ),
         ),
