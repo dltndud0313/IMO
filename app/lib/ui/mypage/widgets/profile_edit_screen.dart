@@ -16,9 +16,10 @@ class ProfileEditScreen extends StatefulWidget {
 }
 
 class _ProfileEditScreenState extends State<ProfileEditScreen> {
-  final _nicknameController = TextEditingController(text: 'x');
-  final _heightController = TextEditingController(text: '170');
-  final _weightController = TextEditingController(text: '65');
+  final _nicknameController = TextEditingController();
+  final _birthYearController = TextEditingController();
+  final _heightController = TextEditingController();
+  final _weightController = TextEditingController();
   final _currentPasswordController = TextEditingController();
   final _passwordController = TextEditingController();
   final _passwordConfirmController = TextEditingController();
@@ -26,7 +27,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   String? _passwordError;
   String? _passwordConfirmError;
   String _gender = '여성';
-  UserProfile? _profile;
   String? _profileLoadError;
   bool _submitting = false;
   bool _changingPassword = false;
@@ -40,6 +40,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   @override
   void dispose() {
     _nicknameController.dispose();
+    _birthYearController.dispose();
     _heightController.dispose();
     _weightController.dispose();
     _currentPasswordController.dispose();
@@ -57,9 +58,10 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         return;
       }
       setState(() {
-        _profile = profile;
         _profileLoadError = null;
         _nicknameController.text = profile.nickname;
+        _birthYearController.text =
+            (DateTime.now().year - profile.age).toString();
         _heightController.text = profile.heightCm.round().toString();
         _weightController.text = profile.weightKg.round().toString();
         _gender = _genderLabel(profile.gender);
@@ -73,21 +75,29 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
 
   Future<void> _saveProfile() async {
     final nickname = _nicknameController.text.trim();
+    final birthYear = int.tryParse(_birthYearController.text);
     final height = double.tryParse(_heightController.text);
     final weight = double.tryParse(_weightController.text);
-    if (nickname.isEmpty || height == null || weight == null) {
+    final currentYear = DateTime.now().year;
+    if (nickname.isEmpty ||
+        birthYear == null ||
+        birthYear < currentYear - 120 ||
+        birthYear > currentYear ||
+        height == null ||
+        weight == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('프로필 정보를 확인해주세요.')),
       );
       return;
     }
+    final age = currentYear - birthYear;
 
     setState(() => _submitting = true);
     try {
       await getIt<UserProfileRepository>().updateProfile(
         UserProfile(
           nickname: nickname,
-          age: _profile?.age ?? 31,
+          age: age,
           gender: _genderCode,
           heightCm: height,
           weightKg: weight,
@@ -275,7 +285,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
             child: Column(
               children: [
                 _EditableRow(
-                  label: '이름',
+                  label: '닉네임',
                   child: ImoTextField(
                     controller: _nicknameController,
                     hint: '닉네임',
@@ -298,7 +308,14 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                   ),
                 ),
                 const Divider(height: 1, color: AppColors.divider),
-                const _InfoRow(label: '생년월일', value: '1995'),
+                _EditableRow(
+                  label: '출생 년도',
+                  child: ImoTextField(
+                    controller: _birthYearController,
+                    keyboardType: TextInputType.number,
+                    suffixIcon: const Text('년'),
+                  ),
+                ),
                 const Divider(height: 1, color: AppColors.divider),
                 Row(
                   children: [
@@ -394,23 +411,3 @@ class _EditableRow extends StatelessWidget {
   }
 }
 
-class _InfoRow extends StatelessWidget {
-  const _InfoRow({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      child: Row(
-        children: [
-          Text(label, style: AppTextStyles.body),
-          const Spacer(),
-          Text(value, style: AppTextStyles.label),
-        ],
-      ),
-    );
-  }
-}

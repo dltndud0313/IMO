@@ -78,6 +78,9 @@ class AuthService {
       }
       _throwApiError(res.data, 'Login failed');
     } on DioException catch (error) {
+      if (error.response == null) {
+        throw Exception('Network unavailable');
+      }
       _throwApiError(error.response?.data, 'Login failed');
     }
   }

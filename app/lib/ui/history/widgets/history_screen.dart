@@ -58,6 +58,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
+      nested: true,
       title: '운동 기록',
       scrollable: true,
       body: Column(

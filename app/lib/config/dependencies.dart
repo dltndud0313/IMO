@@ -19,6 +19,7 @@ import '../data/repositories/workout_repository.dart';
 import '../domain/use_cases/end_workout_session_usecase.dart';
 import '../ui/chat/view_model/chat_viewmodel.dart';
 import '../ui/home/view_model/home_viewmodel.dart';
+import '../ui/stats/view_model/stats_viewmodel.dart';
 
 final getIt = GetIt.instance;
 
@@ -87,6 +88,12 @@ Future<void> setupDependencies() async {
   );
   getIt.registerFactory(() => HomeViewModel(getIt<UserProfileRepository>()));
   getIt.registerFactory(() => ChatViewModel(getIt<ChatRepository>()));
+  getIt.registerLazySingleton(
+    () => StatsViewModel(
+      getIt<StatsRepository>(),
+      getIt<UserProfileRepository>(),
+    ),
+  );
 
   await getIt<AuthRepository>().init();
   getIt<EndWorkoutSessionUseCase>().listenAndSaveAutomatically();

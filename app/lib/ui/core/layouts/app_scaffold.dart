@@ -24,6 +24,7 @@ class AppScaffold extends StatelessWidget {
     this.bottomNavigationBar,
     this.background,
     this.floatingActionButton,
+    this.nested = false,
   }) : assert(child != null || body != null, 'child or body is required');
 
   final String? title;
@@ -42,6 +43,9 @@ class AppScaffold extends StatelessWidget {
   final Widget? bottomNavigationBar;
   final Color? background;
   final Widget? floatingActionButton;
+  // When true, skips the inner Scaffold so this widget can live inside
+  // BottomNavShell's Scaffold without nesting two Scaffolds.
+  final bool nested;
 
   @override
   Widget build(BuildContext context) {
@@ -79,6 +83,10 @@ class AppScaffold extends StatelessWidget {
 
     final theme = Theme.of(context);
 
+    if (nested) {
+      return _buildNestedLayout(context, bodyContent, theme);
+    }
+
     return Scaffold(
       backgroundColor: background ?? theme.scaffoldBackgroundColor,
       extendBody: true,
@@ -86,6 +94,50 @@ class AppScaffold extends StatelessWidget {
       body: safeArea ? SafeArea(top: false, child: bodyContent) : bodyContent,
       bottomNavigationBar: bottomNavigationBar ?? _buildBottom(),
       floatingActionButton: floatingActionButton,
+    );
+  }
+
+  Widget _buildNestedLayout(
+    BuildContext context,
+    Widget bodyContent,
+    ThemeData theme,
+  ) {
+    final hasBar =
+        title != null || subtitle != null || showBackButton || actions != null;
+    final safeBody =
+        safeArea ? SafeArea(top: false, child: bodyContent) : bodyContent;
+
+    return ColoredBox(
+      color: background ?? theme.scaffoldBackgroundColor,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (hasBar)
+            ClipRect(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surface.withValues(alpha: 0.86),
+                    border: Border(
+                      bottom: BorderSide(
+                        color: AppColors.border.withValues(alpha: 0.8),
+                      ),
+                    ),
+                  ),
+                  child: SafeArea(
+                    bottom: false,
+                    child: SizedBox(
+                      height: AppSpacing.appBarHeight,
+                      child: _buildToolbar(context),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          Expanded(child: safeBody),
+        ],
+      ),
     );
   }
 

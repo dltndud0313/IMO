@@ -60,45 +60,48 @@ class AuthFrame extends StatelessWidget {
                     flex: topFlex,
                     child: Align(
                       alignment: topContentAlignment,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (showCharacter) ...[
-                            if (characterImage != null)
-                              Image.asset(
-                                characterImage!,
-                                width: characterSize,
-                                height: characterSize,
-                                fit: BoxFit.contain,
-                              )
-                            else
-                              Container(
-                                width: characterSize,
-                                height: characterSize,
-                                decoration: BoxDecoration(
-                                  color: AppColors.card.withValues(alpha: 0.18),
-                                  shape: BoxShape.circle,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (showCharacter) ...[
+                              if (characterImage != null)
+                                Image.asset(
+                                  characterImage!,
+                                  width: characterSize,
+                                  height: characterSize,
+                                  fit: BoxFit.contain,
+                                )
+                              else
+                                Container(
+                                  width: characterSize,
+                                  height: characterSize,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.card.withValues(alpha: 0.18),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    Icons.accessibility_new_rounded,
+                                    color: AppColors.card,
+                                    size: characterSize * 0.54,
+                                  ),
                                 ),
-                                child: Icon(
-                                  Icons.accessibility_new_rounded,
-                                  color: AppColors.card,
-                                  size: characterSize * 0.54,
-                                ),
-                              ),
+                              if (showBrandText)
+                                const SizedBox(height: AppSpacing.xl),
+                            ],
                             if (showBrandText)
-                              const SizedBox(height: AppSpacing.xl),
-                          ],
-                          if (showBrandText)
-                            Text(
-                              'IMO',
-                              style: AppTextStyles.display.copyWith(
-                                color: AppColors.card,
-                                fontSize: 56,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 16,
+                              Text(
+                                'IMO',
+                                style: AppTextStyles.display.copyWith(
+                                  color: AppColors.card,
+                                  fontSize: 56,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 16,
+                                ),
                               ),
-                            ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
