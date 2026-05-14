@@ -204,7 +204,7 @@ class _EmptyState extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _ChatBubble(message: greeting),
+          _ChatBubble(message: greeting, maxWidthFactor: 0.95),
           const SizedBox(height: AppSpacing.md),
           Wrap(
             spacing: AppSpacing.xs,
@@ -224,14 +224,19 @@ class _EmptyState extends StatelessWidget {
 }
 
 class _ChatBubble extends StatelessWidget {
-  const _ChatBubble({required this.message});
+  const _ChatBubble({
+    required this.message,
+    this.maxWidthFactor = 0.82,
+  });
 
   final ChatMessage message;
+  final double maxWidthFactor;
 
   @override
   Widget build(BuildContext context) {
     final isUser = message.role == ChatRole.user;
-    final maxWidth = MediaQuery.sizeOf(context).width * 0.75;
+    final maxWidth =
+        MediaQuery.sizeOf(context).width * maxWidthFactor;
 
     final bubble = Container(
       constraints: BoxConstraints(maxWidth: maxWidth),
@@ -258,21 +263,20 @@ class _ChatBubble extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [AppColors.primary, AppColors.primaryStrong],
+        Transform.translate(
+          offset: const Offset(0, -16),
+          child: ClipRect(
+            child: SizedBox(
+              width: 96,
+              height: 96,
+              child: Transform.scale(
+                scale: 1.4,
+                child: Image.asset(
+                  'assets/images/chatbot.png',
+                  fit: BoxFit.contain,
+                ),
+              ),
             ),
-          ),
-          child: const Icon(
-            Icons.smart_toy_rounded,
-            color: Colors.white,
-            size: 18,
           ),
         ),
         const SizedBox(width: AppSpacing.xs),
@@ -313,21 +317,17 @@ class _TypingIndicatorState extends State<_TypingIndicator>
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: 32,
-          height: 32,
-          decoration: const BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [AppColors.primary, AppColors.primaryStrong],
+        ClipRect(
+          child: SizedBox(
+            width: 96,
+            height: 96,
+            child: Transform.scale(
+              scale: 1.4,
+              child: Image.asset(
+                'assets/images/chatbot.png',
+                fit: BoxFit.contain,
+              ),
             ),
-          ),
-          child: const Icon(
-            Icons.smart_toy_rounded,
-            color: Colors.white,
-            size: 18,
           ),
         ),
         const SizedBox(width: AppSpacing.xs),
