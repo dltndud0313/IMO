@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
+EXERCISE="${1:-pushup}"
+SPEED="${2:-1.0}"
+INTENSITY="${3:-1.0}"
+WS_HOST="${4:-0.0.0.0}"
+WS_PORT="${5:-8765}"
+UI_HOST="${6:-0.0.0.0}"
+UI_PORT="${7:-8080}"
+
+cd "${ROOT_DIR}"
+
+./device/raspberry-pi/mock_bridge \
+  "${EXERCISE}" \
+  "${SPEED}" \
+  "${INTENSITY}" \
+  "${WS_HOST}" \
+  "${WS_PORT}" \
+  "${UI_HOST}" \
+  "${UI_PORT}"
