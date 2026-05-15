@@ -75,6 +75,9 @@ class WorkoutSetupViewModel {
 
     await calibrationRepository.connect();
     calibrationRepository.markSensorsAttached();
+    // Pi 상태머신이 sensors_attached 처리(phase 전환)를 끝낼 시간을 준다.
+    // 간격 없이 start_calibration을 보내면 캘리브레이션 collection이 시작되지 않음.
+    await Future<void>.delayed(const Duration(milliseconds: 600));
     calibrationRepository.startCalibration(exerciseType: exerciseType);
   }
 
