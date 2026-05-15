@@ -392,7 +392,7 @@ class _CalibrationPalette {
       case _CalibrationStage.ready:
         return const _CalibrationPalette(
           title: '기준값 측정 준비',
-          description: '측정하는 동안 팔에 힘을 빼고 편하게 있어 주세요.\n준비되면 측정을 시작하세요.',
+          description: '안정 자세 측정 후 최대 힘주기 측정이 이어져요.\n글래스 안내에 따라 진행해 주세요.',
           glassMessage: '측정 대기 중',
           badgeLabel: '대기',
           badgeVariant: StatusVariant.neutral,
@@ -402,7 +402,7 @@ class _CalibrationPalette {
       case _CalibrationStage.measuring:
         return const _CalibrationPalette(
           title: '기준값 측정 중',
-          description: '팔에 힘을 빼고 움직이지 말고 가만히 있어 주세요.',
+          description: '안정 자세에서는 힘을 빼고,\n최대 측정 안내가 나오면 최대한 힘을 주세요.',
           glassMessage: 'EMG 기준값 측정 중...',
           badgeLabel: '측정 중',
           badgeVariant: StatusVariant.info,
