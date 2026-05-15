@@ -16,11 +16,16 @@ class PiSocketService {
   PiSocketService({
     // String url = 'ws://192.168.100.253:8765',
     String url = 'ws://172.20.10.10:8765',
-  }) : _url = url;
+    bool verboseLogging = false,
+  })  : _url = url,
+        _verboseLogging = verboseLogging;
 
   final String _url;
+  final bool _verboseLogging;
   WebSocketChannel? _channel;
   StreamSubscription<dynamic>? _subscription;
+  DateTime? _lastSensorFrameLogAt;
+  DateTime? _lastGlassDisplayLogAt;
 
   final _messageController = StreamController<PiMessage>.broadcast();
   final _connectionController =
@@ -194,8 +199,6 @@ class PiSocketService {
   }
 
   void _handleRawMessage(dynamic rawData) {
-    debugPrint('[PiSocketService] receive $rawData');
-
     if (rawData is! String) {
       return;
     }
@@ -206,9 +209,14 @@ class PiSocketService {
         return;
       }
 
+      _logIncomingMessage(decoded, rawData);
+
       final message = PiMessage.tryParse(decoded);
       if (message == null) {
-        debugPrint('[PiSocketService] ignored invalid Pi message: $decoded');
+        debugPrint(
+          '[PiSocketService] ignored invalid Pi message: '
+          '${_messageSummary(decoded)}',
+        );
         return;
       }
 
@@ -216,6 +224,63 @@ class PiSocketService {
     } catch (_) {
       debugPrint('[PiSocketService] message parse failed: $rawData');
     }
+  }
+
+  void _logIncomingMessage(Map<String, dynamic> decoded, String rawData) {
+    if (_verboseLogging) {
+      debugPrint('[PiSocketService] receive $rawData');
+      return;
+    }
+
+    final type = decoded['type'];
+    final now = DateTime.now();
+    if (type == 'sensor_frame') {
+      if (!_shouldLogThrottled(now, _lastSensorFrameLogAt)) {
+        return;
+      }
+      _lastSensorFrameLogAt = now;
+    } else if (type == 'glass_display_data') {
+      if (!_shouldLogThrottled(
+        now,
+        _lastGlassDisplayLogAt,
+        interval: const Duration(seconds: 1),
+      )) {
+        return;
+      }
+      _lastGlassDisplayLogAt = now;
+    }
+
+    debugPrint('[PiSocketService] receive ${_messageSummary(decoded)}');
+  }
+
+  bool _shouldLogThrottled(
+    DateTime now,
+    DateTime? lastLogAt, {
+    Duration interval = const Duration(seconds: 2),
+  }) {
+    return lastLogAt == null || now.difference(lastLogAt) >= interval;
+  }
+
+  String _messageSummary(Map<String, dynamic> decoded) {
+    final payload = decoded['payload'];
+    final payloadMap = payload is Map<String, dynamic> ? payload : const {};
+    final type = decoded['type'] ?? 'unknown';
+    final details = <String>[];
+
+    void add(String label, Object? value) {
+      if (value != null) {
+        details.add('$label=$value');
+      }
+    }
+
+    add('seq', payloadMap['seq'] ?? payloadMap['frame_seq']);
+    add('phase', payloadMap['phase']);
+    add('rep', payloadMap['current_rep'] ?? payloadMap['rep_index']);
+    add('activation', payloadMap['activation_percent']);
+    add('status', payloadMap['status']);
+    add('requestId', decoded['requestId']);
+
+    return details.isEmpty ? 'type=$type' : 'type=$type ${details.join(' ')}';
   }
 
   void _handleSocketError(Object error, StackTrace stackTrace) {

@@ -119,19 +119,6 @@ class _SmartglassDisplayScreenState extends State<SmartglassDisplayScreen> {
     } catch (_) {}
   }
 
-  void _handleEmergencyStop() {
-    unawaited(_emergencyStop());
-  }
-
-  Future<void> _emergencyStop() async {
-    try {
-      final requested = await _viewModel.emergencyStop();
-      if (requested) {
-        _scheduleSessionResultTimeout(statusFallback: 'emergency_stopped');
-      }
-    } catch (_) {}
-  }
-
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -164,7 +151,6 @@ class _SmartglassDisplayScreenState extends State<SmartglassDisplayScreen> {
                     canSendControl: canSendControl,
                     onPauseToggle: _handlePauseToggle,
                     onStop: _handleStopWorkout,
-                    onEmergencyStop: _handleEmergencyStop,
                   ),
                 ),
               ),
@@ -186,7 +172,6 @@ class _GlassHudLayout extends StatelessWidget {
     required this.canSendControl,
     required this.onPauseToggle,
     required this.onStop,
-    required this.onEmergencyStop,
   });
 
   final SmartglassDisplayState state;
@@ -197,7 +182,6 @@ class _GlassHudLayout extends StatelessWidget {
   final bool canSendControl;
   final VoidCallback onPauseToggle;
   final VoidCallback onStop;
-  final VoidCallback onEmergencyStop;
 
   @override
   Widget build(BuildContext context) {
@@ -272,7 +256,7 @@ class _GlassHudLayout extends StatelessWidget {
                         compact: true,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    SizedBox(height: compact ? 8 : 12),
                     Expanded(
                       flex: 10,
                       child: _TopCard(
@@ -282,7 +266,7 @@ class _GlassHudLayout extends StatelessWidget {
                         compact: true,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    SizedBox(height: compact ? 8 : 12),
                     Expanded(
                       flex: 10,
                       child: _TopCard(
@@ -292,7 +276,7 @@ class _GlassHudLayout extends StatelessWidget {
                         compact: true,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    SizedBox(height: compact ? 8 : 12),
                     Expanded(
                       flex: 10,
                       child: _TopCard(
@@ -302,9 +286,9 @@ class _GlassHudLayout extends StatelessWidget {
                         compact: true,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    SizedBox(height: compact ? 8 : 12),
                     Expanded(
-                      flex: 14,
+                      flex: 12,
                       child: _ControlCard(
                         paused: paused,
                         awaitingSessionResult: awaitingSessionResult,
@@ -312,7 +296,6 @@ class _GlassHudLayout extends StatelessWidget {
                         canSendControl: canSendControl,
                         onPauseToggle: onPauseToggle,
                         onStop: onStop,
-                        onEmergencyStop: onEmergencyStop,
                         compact: compact,
                       ),
                     ),
@@ -378,6 +361,7 @@ class _TopCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _GlassPanel(
+      padding: EdgeInsets.all(compact ? 10 : 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -438,7 +422,7 @@ class _CenterStatusCard extends StatelessWidget {
     return _GlassPanel(
       padding: EdgeInsets.symmetric(
         horizontal: compact ? 24 : 30,
-        vertical: compact ? 22 : 28,
+        vertical: compact ? 18 : 28,
       ),
       child: Column(
         children: [
@@ -451,7 +435,7 @@ class _CenterStatusCard extends StatelessWidget {
               fontSize: compact ? 22 : 26,
             ),
           ),
-          const SizedBox(height: 14),
+          SizedBox(height: compact ? 10 : 14),
           Expanded(
             child: Center(
               child: FittedBox(
@@ -480,16 +464,6 @@ class _CenterStatusCard extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(AppSpacing.pillRadius),
-            child: LinearProgressIndicator(
-              minHeight: compact ? 8 : 10,
-              value: state.focusProgress,
-              color: accent,
-              backgroundColor: Colors.white.withValues(alpha: 0.08),
-            ),
-          ),
         ],
       ),
     );
@@ -504,7 +478,6 @@ class _ControlCard extends StatelessWidget {
     required this.canSendControl,
     required this.onPauseToggle,
     required this.onStop,
-    required this.onEmergencyStop,
     required this.compact,
   });
 
@@ -514,7 +487,6 @@ class _ControlCard extends StatelessWidget {
   final bool canSendControl;
   final VoidCallback onPauseToggle;
   final VoidCallback onStop;
-  final VoidCallback onEmergencyStop;
   final bool compact;
 
   @override
@@ -522,16 +494,13 @@ class _ControlCard extends StatelessWidget {
     final stopDisabled = !canSendControl || awaitingSessionResult;
     final pauseDisabled =
         !canSendControl || awaitingSessionResult || emergencyStopped;
-    final emergencyDisabled =
-        !canSendControl || awaitingSessionResult || emergencyStopped;
-
     return _GlassPanel(
       padding: EdgeInsets.symmetric(
         horizontal: compact ? 14 : 18,
-        vertical: compact ? 12 : 16,
+        vertical: compact ? 8 : 16,
       ),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Row(
             children: [
@@ -553,29 +522,6 @@ class _ControlCard extends StatelessWidget {
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 10),
-          TextButton.icon(
-            onPressed: emergencyDisabled ? null : onEmergencyStop,
-            icon: Icon(
-              Icons.emergency_rounded,
-              size: compact ? 14 : 16,
-            ),
-            label: Text(emergencyStopped ? '긴급 정지됨' : '긴급 중지'),
-            style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFFFF886F),
-              disabledForegroundColor: const Color(0xFF7B8F8A),
-              padding: EdgeInsets.symmetric(
-                horizontal: compact ? 8 : 10,
-                vertical: compact ? 2 : 4,
-              ),
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              minimumSize: Size.zero,
-              textStyle: AppTextStyles.caption.copyWith(
-                fontWeight: FontWeight.w700,
-                fontSize: compact ? 11 : 12,
-              ),
-            ),
           ),
         ],
       ),
@@ -606,7 +552,7 @@ class _ControlButton extends StatelessWidget {
       child: Ink(
         padding: EdgeInsets.symmetric(
           horizontal: 10,
-          vertical: compact ? 12 : 14,
+          vertical: compact ? 8 : 14,
         ),
         decoration: BoxDecoration(
           color: disabled
