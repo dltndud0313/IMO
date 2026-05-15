@@ -121,6 +121,7 @@ class _LoginScreenState extends State<LoginScreen> {
             controller: _emailController,
             clearable: true,
             errorText: _emailError,
+            pill: true,
             onChanged: (_) {
               if (_emailError != null) {
                 setState(() => _emailError = null);
@@ -134,6 +135,7 @@ class _LoginScreenState extends State<LoginScreen> {
             controller: _passwordController,
             obscureText: true,
             errorText: _passwordError,
+            pill: true,
             onChanged: (_) {
               if (_passwordError != null) {
                 setState(() => _passwordError = null);
@@ -145,6 +147,7 @@ class _LoginScreenState extends State<LoginScreen> {
             label: '로그인',
             loading: _submitting,
             disabled: _submitting,
+            pill: true,
             onPressed: _submitting ? null : _submit,
           ),
           const SizedBox(height: AppSpacing.md),
@@ -152,7 +155,7 @@ class _LoginScreenState extends State<LoginScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               TextButton(
-                onPressed: () => context.go('/signup'),
+                onPressed: () => context.push('/signup'),
                 child: Text(
                   '가입하기',
                   style: AppTextStyles.bodyLg.copyWith(
