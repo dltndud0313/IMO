@@ -4,6 +4,8 @@ import 'smartglass_snapshot_payload_dto.dart';
 
 abstract final class SmartglassSnapshotMessageType {
   static const smartglassSnapshot = 'smartglass_snapshot';
+  static const glassSessionState = 'glass_session_state';
+  static const glassDisplayData = 'glass_display_data';
 }
 
 class SmartglassPiSnapshotAdapter {
@@ -27,6 +29,10 @@ class SmartglassPiSnapshotAdapter {
         return _fromConnectionStatus(payload);
       case 'plan_ack':
         return _fromPlanAck(payload);
+      case SmartglassSnapshotMessageType.glassSessionState:
+        return _fromGlassSessionState(payload);
+      case SmartglassSnapshotMessageType.glassDisplayData:
+        return _fromGlassDisplayData(payload);
       case 'calibration_status':
         return _fromCalibrationStatus(payload);
       case 'workout_started':
@@ -145,6 +151,94 @@ class SmartglassPiSnapshotAdapter {
       sourceLabel: 'Pi calibration_status',
       sessionMessage: message,
       warningMessage: status == 'failed' ? '캘리브레이션 재시도 필요' : null,
+    );
+  }
+
+  SmartglassSessionSnapshot _fromGlassSessionState(
+    Map<String, dynamic> payload,
+  ) {
+    final phase = payload['phase'] as String? ?? 'idle';
+    final phaseLabel = payload['phase_label'] as String?;
+    final targetRep = _toInt(payload['target_rep']);
+    final restSeconds = _toInt(payload['rest_remaining_sec']);
+    final sensorsAttached = payload['sensors_attached'] as bool? ?? false;
+
+    return SmartglassSessionSnapshot(
+      connectionState: SmartglassConnectionState.connected,
+      sessionPhase: _sessionPhaseFromBridgePhase(phase),
+      workoutLabel:
+          payload['exercise_label'] as String? ??
+          payload['exercise_type'] as String? ??
+          'Workout',
+      currentSet: _toInt(payload['current_set_index']),
+      totalSets: _toInt(payload['set_count']),
+      repCount: _toInt(payload['current_rep']),
+      targetRep: targetRep,
+      paceState: _paceFromBridgePhase(phase),
+      poseState: _poseFromBridgePhase(phase),
+      activationPercent: 0,
+      activationLabel: sensorsAttached ? '준비 중' : '센서 확인',
+      restSeconds: restSeconds,
+      calibrationProgress: 0,
+      sensorPlacements: sensorsAttached
+          ? const ['센서 부착 확인됨']
+          : const ['센서 부착 필요'],
+      statusHighlights: [
+        if (phaseLabel != null && phaseLabel.isNotEmpty) phaseLabel,
+        if (targetRep > 0) '목표 $targetRep회',
+      ],
+      sourceLabel: 'Pi glass_session_state',
+      sessionMessage: phaseLabel,
+      detailMessage: phaseLabel,
+    );
+  }
+
+  SmartglassSessionSnapshot _fromGlassDisplayData(
+    Map<String, dynamic> payload,
+  ) {
+    final phase = payload['phase'] as String? ?? 'idle';
+    final currentSpeedLabel = payload['current_speed_label'] as String?;
+    final usageTone = payload['usage_tone'] as String?;
+    final poseTone = payload['pose_tone'] as String?;
+    final usageText = payload['usage_text'] as String?;
+    final poseTitle = payload['pose_title'] as String?;
+    final poseDetail = payload['pose_detail'] as String?;
+    final activationLevel = payload['activation_level'] as String?;
+    final targetRep = _toInt(payload['target_rep']);
+    final sensorPlacements = _sensorPlacements(payload['sensors']);
+
+    return SmartglassSessionSnapshot(
+      connectionState: SmartglassConnectionState.connected,
+      sessionPhase: _sessionPhaseFromBridgePhase(phase),
+      workoutLabel:
+          payload['exercise_label'] as String? ??
+          payload['exercise_type'] as String? ??
+          'Workout',
+      currentSet: _toInt(payload['current_set_index']),
+      totalSets: _listLength(payload['target_reps_per_set']),
+      repCount: _toInt(payload['current_rep']),
+      targetRep: targetRep,
+      paceState: _paceFromDisplayData(
+        phase: phase,
+        currentSpeedLabel: currentSpeedLabel,
+        usageTone: usageTone,
+      ),
+      poseState: _poseFromDisplayData(phase: phase, poseTone: poseTone),
+      activationPercent: _toInt(payload['activation_percent']),
+      activationLabel: activationLevel?.toUpperCase() ?? 'LOW',
+      restSeconds: _toInt(payload['rest_remaining_sec']),
+      calibrationProgress: 0,
+      sensorPlacements: sensorPlacements,
+      statusHighlights: _statusHighlights(
+        phaseLabel: payload['phase_label'] as String?,
+        currentSpeedLabel: currentSpeedLabel,
+        usageText: usageText,
+        poseTitle: poseTitle,
+      ),
+      sourceLabel: 'Pi glass_display_data',
+      sessionMessage: usageText,
+      detailMessage: poseDetail,
+      warningMessage: poseTitle,
     );
   }
 
@@ -289,6 +383,174 @@ class SmartglassPiSnapshotAdapter {
     }
 
     return (payload['status'] == 'success') ? 1 : 0;
+  }
+
+  SmartglassSessionPhase _sessionPhaseFromBridgePhase(String phase) {
+    switch (phase) {
+      case 'ready_for_calibration':
+        return SmartglassSessionPhase.sensorAttachmentPending;
+      case 'sensors_ready':
+        return SmartglassSessionPhase.calibrationReady;
+      case 'calibrating':
+      case 'calibrating_mvc':
+        return SmartglassSessionPhase.calibrating;
+      case 'awaiting_workout_start':
+        return SmartglassSessionPhase.calibrationSuccess;
+      case 'monitoring':
+      case 'paused':
+        return SmartglassSessionPhase.workoutActive;
+      case 'resting':
+        return SmartglassSessionPhase.resting;
+      case 'completed':
+        return SmartglassSessionPhase.workoutCompleted;
+      case 'idle':
+      default:
+        return SmartglassSessionPhase.waitingWorkoutSelection;
+    }
+  }
+
+  SmartglassPaceState _paceFromBridgePhase(String phase) {
+    switch (phase) {
+      case 'ready_for_calibration':
+      case 'idle':
+        return SmartglassPaceState.waiting;
+      case 'sensors_ready':
+      case 'awaiting_workout_start':
+        return SmartglassPaceState.ready;
+      case 'resting':
+        return SmartglassPaceState.recovering;
+      case 'completed':
+        return SmartglassPaceState.completed;
+      default:
+        return SmartglassPaceState.optimal;
+    }
+  }
+
+  SmartglassPoseState _poseFromBridgePhase(String phase) {
+    switch (phase) {
+      case 'ready_for_calibration':
+      case 'idle':
+        return SmartglassPoseState.unknown;
+      case 'sensors_ready':
+      case 'awaiting_workout_start':
+        return SmartglassPoseState.ready;
+      case 'calibrating':
+      case 'calibrating_mvc':
+        return SmartglassPoseState.holdStill;
+      case 'resting':
+        return SmartglassPoseState.recovery;
+      case 'completed':
+        return SmartglassPoseState.completed;
+      default:
+        return SmartglassPoseState.stable;
+    }
+  }
+
+  SmartglassPaceState _paceFromDisplayData({
+    required String phase,
+    required String? currentSpeedLabel,
+    required String? usageTone,
+  }) {
+    if (phase == 'resting') {
+      return SmartglassPaceState.recovering;
+    }
+    if (phase == 'awaiting_workout_start' || phase == 'sensors_ready') {
+      return SmartglassPaceState.ready;
+    }
+    if (_containsAny(currentSpeedLabel, const ['빠름', 'fast'])) {
+      return SmartglassPaceState.fast;
+    }
+    if (_containsAny(currentSpeedLabel, const ['느림', 'slow'])) {
+      return SmartglassPaceState.slow;
+    }
+    if (usageTone == 'warn' && _containsAny(currentSpeedLabel, const ['분석', '대기'])) {
+      return SmartglassPaceState.waiting;
+    }
+    return SmartglassPaceState.optimal;
+  }
+
+  SmartglassPoseState _poseFromDisplayData({
+    required String phase,
+    required String? poseTone,
+  }) {
+    if (phase == 'calibrating' || phase == 'calibrating_mvc') {
+      return SmartglassPoseState.holdStill;
+    }
+    if (phase == 'awaiting_workout_start' || phase == 'sensors_ready') {
+      return SmartglassPoseState.ready;
+    }
+    if (phase == 'resting') {
+      return SmartglassPoseState.recovery;
+    }
+    if (phase == 'completed') {
+      return SmartglassPoseState.completed;
+    }
+    if (poseTone == 'danger') {
+      return SmartglassPoseState.imbalance;
+    }
+    if (poseTone == 'warn') {
+      return SmartglassPoseState.holdStill;
+    }
+    return SmartglassPoseState.stable;
+  }
+
+  List<String> _sensorPlacements(Object? sensors) {
+    if (sensors is! List) {
+      return const ['센서 데이터 수신 중'];
+    }
+
+    final placements = <String>[];
+    for (final sensor in sensors) {
+      if (sensor is! Map) {
+        continue;
+      }
+      final name = sensor['name'];
+      final position = sensor['position'];
+      if (name is String && position is String) {
+        placements.add('$name: $position');
+      } else if (position is String) {
+        placements.add(position);
+      }
+    }
+
+    return placements.isEmpty ? const ['센서 데이터 수신 중'] : placements;
+  }
+
+  List<String> _statusHighlights({
+    required String? phaseLabel,
+    required String? currentSpeedLabel,
+    required String? usageText,
+    required String? poseTitle,
+  }) {
+    final highlights = <String>[];
+
+    void addIfPresent(String? value) {
+      if (value == null || value.isEmpty || highlights.contains(value)) {
+        return;
+      }
+      highlights.add(value);
+    }
+
+    addIfPresent(phaseLabel);
+    addIfPresent(currentSpeedLabel);
+    addIfPresent(usageText);
+    addIfPresent(poseTitle);
+
+    return highlights;
+  }
+
+  bool _containsAny(String? value, List<String> keywords) {
+    if (value == null || value.isEmpty) {
+      return false;
+    }
+    return keywords.any(value.contains);
+  }
+
+  int _listLength(Object? value) {
+    if (value is List) {
+      return value.length;
+    }
+    return 0;
   }
 
   SmartglassPaceState _paceFromEvent(String event) {
