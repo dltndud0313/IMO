@@ -21,6 +21,9 @@ class _SignupScreenState extends State<SignupScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _passwordConfirmController = TextEditingController();
+  final _emailFocusNode = FocusNode();
+  final _passwordFocusNode = FocusNode();
+  final _passwordConfirmFocusNode = FocusNode();
   Timer? _emailCheckTimer;
   String? _emailError;
   String? _passwordError;
@@ -35,6 +38,9 @@ class _SignupScreenState extends State<SignupScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     _passwordConfirmController.dispose();
+    _emailFocusNode.dispose();
+    _passwordFocusNode.dispose();
+    _passwordConfirmFocusNode.dispose();
     super.dispose();
   }
 
@@ -213,9 +219,19 @@ class _SignupScreenState extends State<SignupScreen> {
             hint: 'example@email.com',
             keyboardType: TextInputType.emailAddress,
             controller: _emailController,
+            focusNode: _emailFocusNode,
+            textInputAction: TextInputAction.next,
+            onSubmitted: (_) => _passwordFocusNode.requestFocus(),
             clearable: true,
             errorText: _emailError,
             helperText: _emailHelperText,
+            helperColor: _emailAvailable == true ? AppColors.success : null,
+            suffixIcon: _emailAvailable == true
+                ? const Icon(
+                    Icons.check_circle_rounded,
+                    color: AppColors.success,
+                  )
+                : null,
             onChanged: _handleEmailChanged,
           ),
           const SizedBox(height: AppSpacing.md),
@@ -223,6 +239,9 @@ class _SignupScreenState extends State<SignupScreen> {
             label: '비밀번호',
             hint: '8자 이상 입력',
             controller: _passwordController,
+            focusNode: _passwordFocusNode,
+            textInputAction: TextInputAction.next,
+            onSubmitted: (_) => _passwordConfirmFocusNode.requestFocus(),
             obscureText: true,
             errorText: _passwordError,
             onChanged: (_) => _clearErrors(),
@@ -232,6 +251,12 @@ class _SignupScreenState extends State<SignupScreen> {
             label: '비밀번호 확인',
             hint: '비밀번호 재입력',
             controller: _passwordConfirmController,
+            focusNode: _passwordConfirmFocusNode,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) {
+              _passwordConfirmFocusNode.unfocus();
+              _submit();
+            },
             obscureText: true,
             errorText: _confirmError,
             onChanged: (_) => _clearErrors(),

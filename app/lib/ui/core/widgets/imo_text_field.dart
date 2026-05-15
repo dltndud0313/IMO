@@ -19,6 +19,10 @@ class ImoTextField extends StatefulWidget {
     this.obscureText = false,
     this.onChanged,
     this.enabled = true,
+    this.focusNode,
+    this.textInputAction,
+    this.onSubmitted,
+    this.helperColor,
   });
 
   final String? label;
@@ -34,6 +38,10 @@ class ImoTextField extends StatefulWidget {
   final bool obscureText;
   final ValueChanged<String>? onChanged;
   final bool enabled;
+  final FocusNode? focusNode;
+  final TextInputAction? textInputAction;
+  final ValueChanged<String>? onSubmitted;
+  final Color? helperColor;
 
   @override
   State<ImoTextField> createState() => _ImoTextFieldState();
@@ -113,11 +121,14 @@ class _ImoTextFieldState extends State<ImoTextField> {
                   Expanded(
                     child: TextField(
                       controller: _controller,
+                      focusNode: widget.focusNode,
                       enabled: widget.enabled,
                       keyboardType: widget.keyboardType,
                       inputFormatters: widget.inputFormatters,
                       obscureText: _obscureText,
+                      textInputAction: widget.textInputAction,
                       onChanged: widget.onChanged,
+                      onSubmitted: widget.onSubmitted,
                       style: AppTextStyles.bodyLg,
                       decoration: InputDecoration(
                         border: InputBorder.none,
@@ -179,7 +190,9 @@ class _ImoTextFieldState extends State<ImoTextField> {
           Text(
             widget.errorText ?? widget.helperText!,
             style: AppTextStyles.caption.copyWith(
-              color: hasError ? AppColors.error : AppColors.textTertiary,
+              color: hasError
+                  ? AppColors.error
+                  : widget.helperColor ?? AppColors.textTertiary,
             ),
           ),
         ],
