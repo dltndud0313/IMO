@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../config/app_runtime_flags.dart';
 import '../../../config/dependencies.dart';
 import '../../../data/repositories/calibration_repository.dart';
+import '../../../data/repositories/workout_repository.dart';
 import '../../core/layouts/app_scaffold.dart';
 import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
@@ -29,7 +30,6 @@ class CalibrationScreen extends StatefulWidget {
 
 class _CalibrationScreenState extends State<CalibrationScreen> {
   _CalibrationStage _stage = _CalibrationStage.ready;
-  bool _hasNavigatedToWorkout = false;
   late final WorkoutSetupViewModel _viewModel;
 
   @override
@@ -37,6 +37,7 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
     super.initState();
     _viewModel = WorkoutSetupViewModel.withCalibration(
       getIt<CalibrationRepository>(),
+      workoutRepository: getIt<WorkoutRepository>(),
     );
     _viewModel.listenCalibrationStatus(
       onStarted: () => _setStage(_CalibrationStage.measuring),
@@ -62,15 +63,10 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
   }
 
   void _handleCalibrationSuccess() {
-    if (_hasNavigatedToWorkout) {
-      return;
-    }
-    _hasNavigatedToWorkout = true;
     if (!mounted) {
       return;
     }
     setState(() => _stage = _CalibrationStage.success);
-    context.go('/workout');
   }
 
   void _startCalibration({bool sendToPi = true}) {
@@ -79,7 +75,6 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
         _viewModel.startCalibration(exerciseType: widget.exerciseId),
       );
     }
-    _hasNavigatedToWorkout = false;
     setState(() => _stage = _CalibrationStage.measuring);
   }
 
@@ -123,7 +118,13 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
       case _CalibrationStage.success:
         return ImoButton(
           label: '운동 시작',
-          onPressed: () => context.go('/workout'),
+          onPressed: () async {
+            await _viewModel.startWorkout();
+            if (!context.mounted) {
+              return;
+            }
+            context.go('/workout');
+          },
         );
       case _CalibrationStage.failed:
         return ImoButton(
