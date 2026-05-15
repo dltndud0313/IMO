@@ -11,6 +11,8 @@ abstract interface class IWorkoutRepository {
     required int restSec,
   });
 
+  void startWorkout();
+
   void stopWorkout({
     String reason = 'user_request',
     bool saveResult = true,

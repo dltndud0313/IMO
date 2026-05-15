@@ -114,6 +114,15 @@ class PiSocketService {
     );
   }
 
+  void startWorkout() {
+    send(
+      const OutgoingPiMessage(
+        type: PiMessageType.startWorkout,
+        payload: {},
+      ),
+    );
+  }
+
   void markSensorsAttached() {
     send(
       const OutgoingPiMessage(

@@ -59,6 +59,7 @@ abstract final class PiMessageType {
   static const submitWorkoutPlan = 'submit_workout_plan';
   static const sensorsAttached = 'sensors_attached';
   static const startCalibration = 'start_calibration';
+  static const startWorkout = 'start_workout';
   static const emergencyStop = 'emergency_stop';
   static const stopWorkout = 'stop_workout';
   static const pauseWorkout = 'pause_workout';

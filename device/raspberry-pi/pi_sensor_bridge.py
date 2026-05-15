@@ -151,7 +151,9 @@ class BridgeState:
             events: list[dict[str, Any]] = []
             self._esp32_connected = True
             if self._phase == "calibrating" and not self._calibration_collecting:
-                self._phase = "monitoring"
+                # calibrating 상태에서 collection 이 꺼졌다는 건 캘리브레이션이 끝났다는 의미.
+                # 앱의 start_workout 입력 전까지 monitoring 으로 자동 진입하지 않도록 대기 상태로 보낸다.
+                self._phase = "awaiting_workout_start"
             events.extend(self._maybe_finish_rest_locked())
             if frame.rep_index is not None:
                 events.extend(self._apply_device_rep_index_locked(frame))
@@ -237,6 +239,16 @@ class BridgeState:
                 self._paused_rest_remaining_sec = 0
                 return
             self._phase = "monitoring"
+
+    def start_workout(self) -> bool:
+        # 앱의 start_workout 요청을 받아 monitoring 으로 진입하고 세션 시작 시각을 기록.
+        # awaiting_workout_start 가 아닌 다른 phase 에서 호출되면 무시한다.
+        with self._lock:
+            if self._phase != "awaiting_workout_start":
+                return False
+            self._phase = "monitoring"
+            self._ensure_session_started_locked()
+            return True
 
     def mark_completed(self) -> None:
         with self._lock:
@@ -779,8 +791,9 @@ class BridgeState:
         self._calibration_collecting = False
         self._calibration_frames = []
         self._calibration_stage = "done"
-        self._phase = "monitoring"
-        self._ensure_session_started_locked()
+        # 앱의 "운동 시작" 버튼 입력 전까지 monitoring 진입을 보류한다.
+        # 사용자가 글래스를 착용하고 start_workout 메시지를 보내야 monitoring 으로 전환.
+        self._phase = "awaiting_workout_start"
 
     @staticmethod
     def _phase_label(phase: str) -> str:
@@ -790,6 +803,7 @@ class BridgeState:
             "sensors_ready": "캘리브레이션 준비",
             "calibrating": "안정 자세 측정 중",
             "calibrating_mvc": "최대 수축 측정 중",
+            "awaiting_workout_start": "운동 시작 대기",
             "monitoring": "실시간 측정 중",
             "resting": "세트 간 휴식 중",
             "paused": "일시정지",
@@ -1269,6 +1283,39 @@ class SensorBridge:
                     )
                 )
             )
+            return
+
+        if msg_type == "start_workout":
+            if session.exercise_type is None or session.phase != "awaiting_workout_start":
+                await websocket.send(
+                    json.dumps(
+                        build_error_message(
+                            "INVALID_STATE",
+                            "start_workout must be sent after calibration completes.",
+                        )
+                    )
+                )
+                return
+            if not self._state.start_workout():
+                await websocket.send(
+                    json.dumps(
+                        build_error_message(
+                            "INVALID_STATE",
+                            "start_workout transition rejected by session state.",
+                        )
+                    )
+                )
+                return
+            self._workout_started_emitted = False
+            self._emit_from_thread(build_glass_session_state(self._state.session_snapshot()))
+            self._emit_from_thread(
+                build_glass_display_data(
+                    self._state.session_snapshot(),
+                    self._last_frame,
+                    self._state.calibration_snapshot(),
+                )
+            )
+            self._emit_workout_started_if_needed()
             return
 
         if msg_type == "pause_workout":

@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../data/services/pi_message.dart';
+import '../../../data/services/pi_socket_service.dart';
 import '../data/smartglass_mock_live_messages.dart';
 import '../data/smartglass_preview_scenarios.dart';
 import '../data/smartglass_pi_snapshot_adapter.dart';
@@ -15,15 +17,19 @@ class SmartglassDisplayViewModel extends ChangeNotifier {
         SmartglassPreviewScenario.waiting,
     SmartglassSessionSnapshotMapper? snapshotMapper,
     SmartglassPiSnapshotAdapter? snapshotAdapter,
+    PiSocketService? piSocketService,
   }) : _scenario = initialScenario,
        _snapshotMapper = snapshotMapper ?? const SmartglassSessionSnapshotMapper(),
        _snapshotAdapter = snapshotAdapter ?? const SmartglassPiSnapshotAdapter(),
+       _piSocketService = piSocketService,
        _state = SmartglassPreviewScenarios.build(initialScenario);
 
   SmartglassPreviewScenario _scenario;
   SmartglassDisplayState _state;
   final SmartglassSessionSnapshotMapper _snapshotMapper;
   final SmartglassPiSnapshotAdapter _snapshotAdapter;
+  final PiSocketService? _piSocketService;
+  StreamSubscription<PiMessage>? _piSubscription;
   bool _usingLiveSnapshot = false;
   Timer? _mockPlaybackTimer;
   int _mockPlaybackIndex = 0;
@@ -44,6 +50,18 @@ class SmartglassDisplayViewModel extends ChangeNotifier {
     _usingLiveSnapshot = false;
     _state = SmartglassPreviewScenarios.build(scenario);
     notifyListeners();
+  }
+
+  // PiSocketService.messages 스트림을 구독해서 들어오는 Pi 메시지를 화면 상태로 반영.
+  // SmartglassDisplayScreen 이 ViewModel 을 자체적으로 소유할 때만 호출된다.
+  Future<void> startListeningToPi() async {
+    final socket = _piSocketService;
+    if (socket == null) return;
+    await socket.connect();
+    _piSubscription?.cancel();
+    _piSubscription = socket.messages.listen((message) {
+      applyPiMessageEnvelope(message.toJson());
+    });
   }
 
   void applySessionSnapshot(SmartglassSessionSnapshot snapshot) {
@@ -107,6 +125,8 @@ class SmartglassDisplayViewModel extends ChangeNotifier {
 
   @override
   void dispose() {
+    _piSubscription?.cancel();
+    _piSubscription = null;
     _mockPlaybackTimer?.cancel();
     super.dispose();
   }

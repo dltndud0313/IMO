@@ -65,6 +65,11 @@ class WorkoutRepository implements IWorkoutRepository {
   }
 
   @override
+  void startWorkout() {
+    _socket.startWorkout();
+  }
+
+  @override
   void pauseWorkout() {
     _socket.pauseWorkout();
   }
