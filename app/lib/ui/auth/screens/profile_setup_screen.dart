@@ -181,16 +181,6 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           icon: const Icon(Icons.chevron_left_rounded),
           onPressed: _goBack,
         ),
-        centerTitle: true,
-        title: Column(
-          children: [
-            Text(step.appBarTitle, style: AppTextStyles.sectionTitle),
-            Text(
-              '${_step + 1} / ${_steps.length}',
-              style: AppTextStyles.body.copyWith(color: AppColors.textTertiary),
-            ),
-          ],
-        ),
       ),
       bottomNavigationBar: Container(
         padding: const EdgeInsets.fromLTRB(
@@ -212,41 +202,35 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           ),
         ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.screenHorizontal,
-          AppSpacing.lg,
-          AppSpacing.screenHorizontal,
-          AppSpacing.lg,
-        ),
-        child: Column(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(AppSpacing.pillRadius),
-              child: LinearProgressIndicator(
-                value: (_step + 1) / _steps.length,
-                minHeight: 4,
-                backgroundColor: AppColors.divider,
-                color: AppColors.primary,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.screenHorizontal,
+            AppSpacing.lg,
+            AppSpacing.screenHorizontal,
+            AppSpacing.lg,
+          ),
+          child: Column(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(AppSpacing.pillRadius),
+                child: LinearProgressIndicator(
+                  value: (_step + 1) / _steps.length,
+                  minHeight: 4,
+                  backgroundColor: AppColors.divider,
+                  color: AppColors.primary,
+                ),
               ),
-            ),
-            const SizedBox(height: 46),
-            Text(
-              step.title,
-              textAlign: TextAlign.center,
-              style: AppTextStyles.title.copyWith(fontSize: 24),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              step.subtitle,
-              textAlign: TextAlign.center,
-              style: AppTextStyles.bodyLg.copyWith(
-                color: AppColors.textSecondary,
+              const SizedBox(height: 46),
+              Text(
+                step.title,
+                textAlign: TextAlign.center,
+                style: AppTextStyles.title.copyWith(fontSize: 24),
               ),
-            ),
-            const SizedBox(height: 42),
-            Expanded(child: _buildStepBody()),
-          ],
+              const SizedBox(height: 42),
+              _buildStepBody(),
+            ],
+          ),
         ),
       ),
     );
@@ -266,19 +250,22 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           onChanged: (value) => setState(() => _gender = value),
         );
       case 2:
-        return ProfileUnitValuePicker(
-          value: '$_birthYear',
-          unit: '년',
-          onTap: () => _pickNumber(
-            title: '출생년도',
-            min: 1940,
-            max: DateTime.now().year,
-            value: _birthYear,
-            onSelected: (value) => setState(() => _birthYear = value),
+        return Center(
+          child: ProfileUnitValuePicker(
+            value: '$_birthYear',
+            unit: '년',
+            onTap: () => _pickNumber(
+              title: '출생년도',
+              min: 1940,
+              max: DateTime.now().year,
+              value: _birthYear,
+              onSelected: (value) => setState(() => _birthYear = value),
+            ),
           ),
         );
       case 3:
         return Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             ProfileUnitValuePicker(
               value: '$_height',
@@ -415,36 +402,14 @@ class _ProfileNextButton extends StatelessWidget {
 }
 
 class _ProfileSetupStep {
-  const _ProfileSetupStep({
-    required this.appBarTitle,
-    required this.title,
-    required this.subtitle,
-  });
+  const _ProfileSetupStep({required this.title});
 
-  final String appBarTitle;
   final String title;
-  final String subtitle;
 }
 
 const _steps = [
-  _ProfileSetupStep(
-    appBarTitle: '닉네임 & 프로필',
-    title: '닉네임과 프로필 사진',
-    subtitle: '앱에서 사용할 정보예요',
-  ),
-  _ProfileSetupStep(
-    appBarTitle: '성별 선택',
-    title: '성별을 선택해주세요',
-    subtitle: '정확한 분석에 사용돼요',
-  ),
-  _ProfileSetupStep(
-    appBarTitle: '출생년도',
-    title: '출생년도',
-    subtitle: '입력란을 눌러 선택하세요',
-  ),
-  _ProfileSetupStep(
-    appBarTitle: '키 & 몸무게',
-    title: '키와 몸무게',
-    subtitle: '입력란을 눌러 선택하세요',
-  ),
+  _ProfileSetupStep(title: '닉네임과 프로필 사진'),
+  _ProfileSetupStep(title: '성별을 선택해주세요'),
+  _ProfileSetupStep(title: '출생년도'),
+  _ProfileSetupStep(title: '키와 몸무게'),
 ];
