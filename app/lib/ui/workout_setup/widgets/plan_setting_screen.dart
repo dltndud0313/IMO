@@ -24,28 +24,15 @@ class _PlanSettingScreenState extends State<PlanSettingScreen> {
   int _setCount = 3;
   List<int> _targetRepsPerSet = [12, 12, 10];
   int _restSeconds = 60;
-  bool _submitting = false;
   bool _perSetMode = false;
-  // 제출 단계별 안내 문구. 비어 있으면 표시하지 않음.
-  String _submitMessage = '';
-  Timer? _submitStageTimer;
   late final WorkoutSetupViewModel _viewModel;
 
   int get _totalReps => _targetRepsPerSet.fold(0, (sum, reps) => sum + reps);
-
-  int get _estimatedMinutes =>
-      ((_totalReps * 3 + _restSeconds * (_setCount - 1)) / 60).ceil();
 
   @override
   void initState() {
     super.initState();
     _viewModel = WorkoutSetupViewModel(getIt<WorkoutRepository>());
-  }
-
-  @override
-  void dispose() {
-    _submitStageTimer?.cancel();
-    super.dispose();
   }
 
   void _syncSetCount(int nextCount) {
@@ -104,52 +91,17 @@ class _PlanSettingScreenState extends State<PlanSettingScreen> {
     });
   }
 
-  Future<void> _submitPlan() async {
-    // 즉시 "보내는 중" 상태로 전환해 사용자가 버튼을 다시 누르지 않도록 한다.
-    setState(() {
-      _submitting = true;
-      _submitMessage = 'Pi 에 운동 계획을 전송하고 있어요...';
-    });
-    // 2초 이상 걸리면 "응답 대기" 로 문구를 바꿔, 멈춘 게 아니라 Pi 가 처리 중임을 안내.
-    _submitStageTimer?.cancel();
-    _submitStageTimer = Timer(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() => _submitMessage = 'Pi 응답을 기다리는 중이에요...');
-      }
-    });
-    try {
-      final result = await _viewModel.submitWorkoutPlan(
+  void _submitPlan() {
+    // Pi 응답을 기다리지 않고 fire-and-forget. 화면은 즉시 다음으로 진행.
+    unawaited(
+      _viewModel.submitWorkoutPlan(
         exerciseType: widget.exerciseId,
         setCount: _setCount,
         targetRepsPerSet: _targetRepsPerSet,
         restSec: _restSeconds,
-      );
-      if (!result.accepted) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(result.validationErrors.join(', '))),
-          );
-        }
-        return;
-      }
-      if (mounted) {
-        context.go('/sensor-guide?exercise=${widget.exerciseId}');
-      }
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Pi connection failed.')));
-      }
-    } finally {
-      _submitStageTimer?.cancel();
-      if (mounted) {
-        setState(() {
-          _submitting = false;
-          _submitMessage = '';
-        });
-      }
-    }
+      ),
+    );
+    context.push('/sensor-guide?exercise=${widget.exerciseId}');
   }
 
   @override
@@ -157,22 +109,13 @@ class _PlanSettingScreenState extends State<PlanSettingScreen> {
     return AppScaffold(
       title: '운동 계획 설정',
       showBackButton: true,
-      onBack: () => context.go('/workout-guide?exercise=${widget.exerciseId}'),
+      onBack: () => context.canPop()
+          ? context.pop()
+          : context.go('/workout-guide?exercise=${widget.exerciseId}'),
       scrollable: true,
-      bottom: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (_submitting && _submitMessage.isNotEmpty) ...[
-            _SubmitProgressBanner(message: _submitMessage),
-            const SizedBox(height: AppSpacing.sm),
-          ],
-          ImoButton(
-            label: _submitting ? '전송 중...' : '다음',
-            loading: _submitting,
-            disabled: _submitting,
-            onPressed: _submitPlan,
-          ),
-        ],
+      bottom: ImoButton(
+        label: '다음',
+        onPressed: _submitPlan,
       ),
       body: Column(
         children: [
@@ -238,55 +181,6 @@ class _PlanSettingScreenState extends State<PlanSettingScreen> {
           _PlanTotalCard(
             setCount: _setCount,
             totalReps: _totalReps,
-            estimatedMinutes: _estimatedMinutes,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// 운동 계획 전송 중 사용자에게 단계별 안내 문구를 보여주는 작은 배너.
-///
-/// Pi WebSocket ack 까지 대기하는 동안 화면이 멈춘 것처럼 보여서 추가.
-class _SubmitProgressBanner extends StatelessWidget {
-  const _SubmitProgressBanner({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.sm,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const SizedBox(
-            width: 14,
-            height: 14,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: AppColors.primaryStrong,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Flexible(
-            child: Text(
-              message,
-              style: AppTextStyles.bodySmall.copyWith(
-                color: AppColors.primaryStrong,
-                fontWeight: FontWeight.w600,
-              ),
-              textAlign: TextAlign.center,
-            ),
           ),
         ],
       ),
@@ -654,12 +548,10 @@ class _PlanTotalCard extends StatelessWidget {
   const _PlanTotalCard({
     required this.setCount,
     required this.totalReps,
-    required this.estimatedMinutes,
   });
 
   final int setCount;
   final int totalReps;
-  final int estimatedMinutes;
 
   @override
   Widget build(BuildContext context) {
@@ -674,8 +566,6 @@ class _PlanTotalCard extends StatelessWidget {
           _SummaryLine(label: '총 세트', value: '$setCount세트'),
           const SizedBox(height: AppSpacing.xs),
           _SummaryLine(label: '총 횟수', value: '$totalReps회'),
-          const SizedBox(height: AppSpacing.xs),
-          _SummaryLine(label: '예상 소요', value: '약 $estimatedMinutes분'),
         ],
       ),
     );
