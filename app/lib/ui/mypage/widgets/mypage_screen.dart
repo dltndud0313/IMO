@@ -18,11 +18,22 @@ class MyPageScreen extends StatefulWidget {
 }
 
 class _MyPageScreenState extends State<MyPageScreen> {
-  bool _voiceCue = false;
-  bool _hapticCue = false;
+  static const bool _voiceCue = false;
+  static const bool _hapticCue = false;
   UserProfile? _profile;
   bool _profileLoading = true;
   String? _profileLoadError;
+
+  void _showComingSoon() {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('서비스 준비 중입니다.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+  }
 
   @override
   void initState() {
@@ -67,7 +78,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
           _ProfileCard(
             profile: _profile,
             loading: _profileLoading,
-            onEdit: () => context.go('/profile-edit'),
+            onEdit: () => context.push('/profile-edit'),
           ),
           if (_profileLoadError != null) ...[
             const SizedBox(height: AppSpacing.sm),
@@ -86,20 +97,26 @@ class _MyPageScreenState extends State<MyPageScreen> {
                 _SettingsRow(
                   icon: Icons.volume_up_rounded,
                   label: '음성 피드백',
-                  trailing: Switch(
-                    value: _voiceCue,
-                    activeThumbColor: AppColors.primary,
-                    onChanged: (value) => setState(() => _voiceCue = value),
+                  onTap: _showComingSoon,
+                  trailing: IgnorePointer(
+                    child: Switch(
+                      value: _voiceCue,
+                      activeThumbColor: AppColors.primary,
+                      onChanged: (_) {},
+                    ),
                   ),
                 ),
                 const Divider(height: 1, color: AppColors.divider),
                 _SettingsRow(
                   icon: Icons.vibration_rounded,
                   label: '진동 피드백',
-                  trailing: Switch(
-                    value: _hapticCue,
-                    activeThumbColor: AppColors.primary,
-                    onChanged: (value) => setState(() => _hapticCue = value),
+                  onTap: _showComingSoon,
+                  trailing: IgnorePointer(
+                    child: Switch(
+                      value: _hapticCue,
+                      activeThumbColor: AppColors.primary,
+                      onChanged: (_) {},
+                    ),
                   ),
                 ),
                 const Divider(height: 1, color: AppColors.divider),
@@ -175,6 +192,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
         confirmLabel: '예',
         cancelLabel: '아니오',
         danger: true,
+        pillButtons: true,
         onConfirm: () => Navigator.of(dialogContext).pop(),
       ),
     );
@@ -187,6 +205,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
         message: '로그아웃 하시겠습니까?',
         confirmLabel: '예',
         cancelLabel: '아니오',
+        pillButtons: true,
         onConfirm: () async {
           Navigator.of(dialogContext).pop();
           await getIt<AuthRepository>().logout();
