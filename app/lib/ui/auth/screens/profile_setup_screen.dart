@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../config/dependencies.dart';
+import '../../../data/repositories/auth_repository.dart';
 import '../../../data/repositories/user_profile_repository.dart';
 import '../../../domain/models/user_profile.dart';
 import '../../core/themes/design_tokens.dart';
@@ -10,7 +11,10 @@ import '../widgets/profile_photo_picker_placeholder.dart';
 import '../widgets/profile_unit_value_picker.dart';
 
 class ProfileSetupScreen extends StatefulWidget {
-  const ProfileSetupScreen({super.key});
+  const ProfileSetupScreen({super.key, this.email, this.password});
+
+  final String? email;
+  final String? password;
 
   @override
   State<ProfileSetupScreen> createState() => _ProfileSetupScreenState();
@@ -51,18 +55,31 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       return;
     }
     if (_step == _steps.length - 1) {
-      await _saveProfile();
+      await _completeSignUp();
       return;
     }
     setState(() => _step += 1);
   }
 
-  Future<void> _saveProfile() async {
+  Future<void> _completeSignUp() async {
+    final email = widget.email;
+    final password = widget.password;
+    if (email == null || password == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('회원가입 정보가 없습니다. 처음부터 다시 시도해주세요.')),
+      );
+      context.go('/signup');
+      return;
+    }
+
     setState(() => _submitting = true);
     try {
+      final nickname = _nicknameController.text.trim();
+      await getIt<AuthRepository>().signUp(email, password, nickname);
+      getIt<UserProfileRepository>().clearCache();
       await getIt<UserProfileRepository>().updateProfile(
         UserProfile(
-          nickname: _nicknameController.text.trim(),
+          nickname: nickname,
           age: DateTime.now().year - _birthYear,
           gender: _genderCode,
           heightCm: _height.toDouble(),
@@ -73,12 +90,15 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         return;
       }
       context.go('/home');
-    } catch (_) {
+    } catch (error) {
       if (!mounted) {
         return;
       }
+      final message = error.toString().contains('Email already exists')
+          ? '이미 가입된 이메일입니다.'
+          : '가입에 실패했습니다.';
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('프로필 저장에 실패했습니다.')),
+        SnackBar(content: Text(message)),
       );
     } finally {
       if (mounted) {
@@ -103,56 +123,111 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     required ValueChanged<int> onSelected,
   }) async {
     final values = [for (var i = min; i <= max; i++) i];
-    var selected = value;
     final initialIndex = values.indexOf(value).clamp(0, values.length - 1);
     final controller = FixedExtentScrollController(initialItem: initialIndex);
+    var selectedIndex = initialIndex;
 
     final result = await showModalBottomSheet<int>(
       context: context,
       backgroundColor: AppColors.card,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       builder: (context) {
-        return SafeArea(
-          child: SizedBox(
-            height: 280,
-            child: Column(
-              children: [
-                const SizedBox(height: AppSpacing.md),
-                Text(title, style: AppTextStyles.sectionTitle),
-                Expanded(
-                  child: ListWheelScrollView.useDelegate(
-                    controller: controller,
-                    itemExtent: 42,
-                    physics: const FixedExtentScrollPhysics(),
-                    onSelectedItemChanged: (index) => selected = values[index],
-                    childDelegate: ListWheelChildBuilderDelegate(
-                      childCount: values.length,
-                      builder: (context, index) {
-                        return Center(
-                          child: Text(
-                            '${values[index]}',
-                            style: AppTextStyles.title,
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return SafeArea(
+              child: SizedBox(
+                height: 360,
+                child: Column(
+                  children: [
+                    const SizedBox(height: AppSpacing.lg),
+                    Text(title, style: AppTextStyles.sectionTitle),
+                    const SizedBox(height: AppSpacing.sm),
+                    Expanded(
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Container(
+                            height: 52,
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.xl,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(
+                                AppSpacing.buttonRadius,
+                              ),
+                            ),
                           ),
-                        );
-                      },
+                          ListWheelScrollView.useDelegate(
+                            controller: controller,
+                            itemExtent: 52,
+                            physics: const FixedExtentScrollPhysics(),
+                            onSelectedItemChanged: (index) {
+                              setModalState(() => selectedIndex = index);
+                            },
+                            childDelegate: ListWheelChildBuilderDelegate(
+                              childCount: values.length,
+                              builder: (context, index) {
+                                final isSelected = index == selectedIndex;
+                                return Center(
+                                  child: Text(
+                                    '${values[index]}',
+                                    style: TextStyle(
+                                      fontSize: isSelected ? 28 : 22,
+                                      fontWeight: isSelected
+                                          ? FontWeight.w800
+                                          : FontWeight.w500,
+                                      color: isSelected
+                                          ? AppColors.primaryStrong
+                                          : AppColors.textTertiary,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.of(context).pop(selected),
-                      child: const Text('선택'),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.lg,
+                        AppSpacing.md,
+                        AppSpacing.lg,
+                        AppSpacing.lg,
+                      ),
+                      child: Material(
+                        color: AppColors.primary,
+                        borderRadius:
+                            BorderRadius.circular(AppSpacing.pillRadius),
+                        child: InkWell(
+                          onTap: () => Navigator.of(context)
+                              .pop(values[selectedIndex]),
+                          borderRadius:
+                              BorderRadius.circular(AppSpacing.pillRadius),
+                          child: SizedBox(
+                            width: double.infinity,
+                            height: 56,
+                            child: Center(
+                              child: Text(
+                                '선택',
+                                style: AppTextStyles.bodyLg.copyWith(
+                                  color: AppColors.card,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );
@@ -164,7 +239,11 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   void _goBack() {
     if (_step == 0) {
-      context.go('/signup');
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        context.go('/signup');
+      }
       return;
     }
     setState(() => _step -= 1);
@@ -196,7 +275,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         child: SafeArea(
           top: false,
           child: _ProfileNextButton(
-            label: _step == _steps.length - 1 ? '완료' : '다음',
+            label: _step == _steps.length - 1 ? '가입 완료' : '다음',
             enabled: _canProceed && !_submitting,
             onTap: _goNext,
           ),
