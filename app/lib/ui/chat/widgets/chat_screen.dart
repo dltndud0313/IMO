@@ -61,10 +61,10 @@ class _ChatScreenState extends State<ChatScreen> {
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => ImoConfirmDialog(
-        title: '대화 초기화',
-        message: '대화 내용을 모두 삭제할까요?',
-        confirmLabel: '삭제',
-        danger: true,
+        title: '새 채팅 시작',
+        message: '현재 대화를 끝내고 새 채팅을 시작할까요?',
+        confirmLabel: '시작',
+        danger: false,
         onConfirm: () {
           Navigator.of(dialogContext).pop();
           vm.clearHistory();
@@ -94,12 +94,12 @@ class _ChatScreenState extends State<ChatScreen> {
           horizontalPadding: false,
           actions: [
             IconButton(
-              tooltip: '대화 초기화',
+              tooltip: '새 채팅 시작',
               onPressed: vm.messages.isEmpty || vm.isClearing
                   ? null
                   : () => _confirmClear(context, vm),
               icon: const Icon(
-                Icons.delete_outline_rounded,
+                Icons.refresh_rounded,
                 color: AppColors.textSecondary,
               ),
             ),
@@ -226,17 +226,25 @@ class _EmptyState extends StatelessWidget {
 class _ChatBubble extends StatelessWidget {
   const _ChatBubble({
     required this.message,
-    this.maxWidthFactor = 0.82,
+    this.maxWidthFactor = 0.72,
   });
 
   final ChatMessage message;
   final double maxWidthFactor;
+
+  static String _formatTime(DateTime dt) {
+    final isAm = dt.hour < 12;
+    final displayHour = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+    final minute = dt.minute.toString().padLeft(2, '0');
+    return '${isAm ? '오전' : '오후'} $displayHour:$minute';
+  }
 
   @override
   Widget build(BuildContext context) {
     final isUser = message.role == ChatRole.user;
     final maxWidth =
         MediaQuery.sizeOf(context).width * maxWidthFactor;
+    final hasRealTimestamp = message.timestamp.millisecondsSinceEpoch > 0;
 
     final bubble = Container(
       constraints: BoxConstraints(maxWidth: maxWidth),
@@ -245,8 +253,17 @@ class _ChatBubble extends StatelessWidget {
         vertical: AppSpacing.sm,
       ),
       decoration: BoxDecoration(
-        color: isUser ? AppColors.primary : AppColors.cardSubtle,
+        color: isUser ? AppColors.primary : AppColors.card,
         borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+        boxShadow: isUser
+            ? null
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 4,
+                  offset: const Offset(0, 1),
+                ),
+              ],
       ),
       child: Text(
         message.content,
@@ -256,31 +273,64 @@ class _ChatBubble extends StatelessWidget {
       ),
     );
 
+    final timeLabel = hasRealTimestamp
+        ? Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            child: Text(
+              _formatTime(message.timestamp),
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.textTertiary,
+                fontSize: 11,
+              ),
+            ),
+          )
+        : null;
+
     if (isUser) {
-      return Align(alignment: Alignment.centerRight, child: bubble);
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          ?timeLabel,
+          Flexible(child: bubble),
+        ],
+      );
     }
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Transform.translate(
-          offset: const Offset(0, -16),
-          child: ClipRect(
-            child: SizedBox(
-              width: 96,
-              height: 96,
-              child: Transform.scale(
-                scale: 1.4,
-                child: Image.asset(
-                  'assets/images/chatbot.png',
-                  fit: BoxFit.contain,
-                ),
-              ),
-            ),
-          ),
+        Image.asset(
+          'assets/images/chatbot.png',
+          width: 40,
+          height: 40,
+          fit: BoxFit.contain,
         ),
         const SizedBox(width: AppSpacing.xs),
-        Flexible(child: bubble),
+        Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(left: 4, bottom: 4),
+                child: Text(
+                  'AI 코치',
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.textSecondary,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Flexible(child: bubble),
+                  ?timeLabel,
+                ],
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -317,18 +367,11 @@ class _TypingIndicatorState extends State<_TypingIndicator>
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ClipRect(
-          child: SizedBox(
-            width: 96,
-            height: 96,
-            child: Transform.scale(
-              scale: 1.4,
-              child: Image.asset(
-                'assets/images/chatbot.png',
-                fit: BoxFit.contain,
-              ),
-            ),
-          ),
+        Image.asset(
+          'assets/images/chatbot.png',
+          width: 40,
+          height: 40,
+          fit: BoxFit.contain,
         ),
         const SizedBox(width: AppSpacing.xs),
         Container(
@@ -337,8 +380,15 @@ class _TypingIndicatorState extends State<_TypingIndicator>
             vertical: AppSpacing.sm,
           ),
           decoration: BoxDecoration(
-            color: AppColors.cardSubtle,
+            color: AppColors.card,
             borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 4,
+                offset: const Offset(0, 1),
+              ),
+            ],
           ),
           child: AnimatedBuilder(
             animation: _controller,

@@ -32,7 +32,8 @@ class BottomNavShell extends StatelessWidget {
         onDestinationSelected: (index) => context.go(_tabs[index].path),
         tabs: _tabs,
       ),
-      floatingActionButton: const _ChatbotFab(),
+      floatingActionButton:
+          location.startsWith('/home') ? const _ChatbotFab() : null,
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
@@ -44,22 +45,15 @@ class _ChatbotFab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Transform.translate(
-      offset: const Offset(35, 40),
+      offset: const Offset(0, 5),
       child: GestureDetector(
         onTap: () => context.push('/chat'),
         behavior: HitTestBehavior.opaque,
-        child: ClipRect(
-          child: SizedBox(
-            width: 128,
-            height: 128,
-            child: Transform.scale(
-              scale: 1.4,
-              child: Image.asset(
-                'assets/images/chatbot.png',
-                fit: BoxFit.contain,
-              ),
-            ),
-          ),
+        child: Image.asset(
+          'assets/images/chatbot.png',
+          width: 64,
+          height: 64,
+          fit: BoxFit.contain,
         ),
       ),
     );
