@@ -157,6 +157,10 @@ class BridgeState:
             if self._phase == "calibrating" and not self._calibration_collecting:
                 # calibrating 상태에서 collection 이 꺼졌다는 건 캘리브레이션이 끝났다는 의미.
                 # 앱의 start_workout 입력 전까지 monitoring 으로 자동 진입하지 않도록 대기 상태로 보낸다.
+                print(
+                    "[calib] WARN update_frame found phase=calibrating but collecting=False"
+                    " — falling back to awaiting_workout_start"
+                )
                 self._phase = "awaiting_workout_start"
             events.extend(self._maybe_finish_rest_locked())
             if frame.rep_index is not None:
@@ -168,6 +172,27 @@ class BridgeState:
     def tick(self) -> list[dict[str, Any]]:
         with self._lock:
             return self._maybe_finish_rest_locked()
+
+    def check_calibration_timeout(self) -> bool:
+        # 프레임 수신이 멈춰서 maybe_collect_calibration_frame 자체가 호출되지 않을 때도
+        # 타임아웃이 발화되도록 별도 진입점에서 검사한다.
+        with self._lock:
+            if not self._calibration_collecting:
+                return False
+            if self._calibration_started_monotonic is None:
+                return False
+            if time.monotonic() - self._calibration_started_monotonic <= CALIBRATION_TIMEOUT_SEC:
+                return False
+            stage = self._calibration_stage
+            frame_count = len(self._calibration_frames)
+            print(
+                f"[calib] timeout fired stage={stage} collected={frame_count} "
+                f"(no frames advancing for >{CALIBRATION_TIMEOUT_SEC:.0f}s)"
+            )
+            self._fail_calibration_locked(
+                "캘리브레이션 제한 시간을 초과했습니다. 센서를 다시 확인하고 재시도하세요."
+            )
+            return True
 
     def set_glass_connected(self, connected: bool) -> None:
         with self._lock:
@@ -224,6 +249,10 @@ class BridgeState:
             self._phase = "calibrating"
             self._calibration_started_monotonic = time.monotonic()
             self._calibration_failure_message = None
+            print(
+                f"[calib] start stage=rest need_frames={CALIBRATION_REST_FRAMES} "
+                f"timeout={CALIBRATION_TIMEOUT_SEC:.0f}s"
+            )
 
     def mark_paused(self) -> None:
         with self._lock:
@@ -723,33 +752,55 @@ class BridgeState:
                 and time.monotonic() - self._calibration_started_monotonic
                 > CALIBRATION_TIMEOUT_SEC
             ):
+                print(
+                    f"[calib] timeout via frame path stage={self._calibration_stage} "
+                    f"collected={len(self._calibration_frames)}"
+                )
                 self._fail_calibration_locked(
                     "캘리브레이션 제한 시간을 초과했습니다. 센서를 다시 확인하고 재시도하세요."
                 )
                 return "failed"
 
             self._calibration_frames.append(frame)
-            if self._calibration_stage == "rest":
-                if len(self._calibration_frames) < CALIBRATION_REST_FRAMES:
+            stage = self._calibration_stage
+            count = len(self._calibration_frames)
+            target = CALIBRATION_REST_FRAMES if stage == "rest" else CALIBRATION_MVC_FRAMES
+            if count == 1 or count % 25 == 0 or count == target:
+                detached_mask = [
+                    "X" if frame.emg[index] >= EMG_DETACHED_THRESHOLD else "o"
+                    for index in range(4)
+                ]
+                emg_preview = [f"{frame.emg[index]:.3f}" for index in range(4)]
+                print(
+                    f"[calib] progress stage={stage} {count}/{target} "
+                    f"emg=[{', '.join(emg_preview)}] detach=[{','.join(detached_mask)}]"
+                )
+
+            if stage == "rest":
+                if count < CALIBRATION_REST_FRAMES:
                     return None
                 try:
                     self._finalize_rest_calibration_locked()
                 except ValueError as exc:
+                    print(f"[calib] rest finalize failed: {exc}")
                     self._fail_calibration_locked(str(exc))
                     return "failed"
+                print("[calib] rest_complete — switching to MVC stage")
                 self._calibration_frames = []
                 self._calibration_stage = "mvc"
                 self._phase = "calibrating_mvc"
                 return "rest_complete"
 
-            if len(self._calibration_frames) < CALIBRATION_MVC_FRAMES:
+            if count < CALIBRATION_MVC_FRAMES:
                 return None
 
             try:
                 self._finalize_mvc_calibration_locked()
             except ValueError as exc:
+                print(f"[calib] mvc finalize failed: {exc}")
                 self._fail_calibration_locked(str(exc))
                 return "failed"
+            print("[calib] mvc_complete — calibration success")
             return "mvc_complete"
 
     def _finalize_rest_calibration_locked(self) -> None:
@@ -831,6 +882,7 @@ class BridgeState:
         self._phase = "awaiting_workout_start"
 
     def _fail_calibration_locked(self, message: str) -> None:
+        print(f"[calib] FAIL: {message}")
         self._calibration_collecting = False
         self._calibration_frames = []
         self._calibration_stage = "failed"
@@ -1517,6 +1569,22 @@ class SensorBridge:
     async def _state_tick_loop(self) -> None:
         while True:
             await asyncio.sleep(0.2)
+            if self._state.check_calibration_timeout():
+                failure_message = self._state.consume_calibration_failure_message()
+                self._emit_from_thread(
+                    build_calibration_status(
+                        status="failed",
+                        message=failure_message or "캘리브레이션에 실패했습니다. 다시 시도하세요.",
+                    )
+                )
+                self._emit_from_thread(build_glass_session_state(self._state.session_snapshot()))
+                self._emit_from_thread(
+                    build_glass_display_data(
+                        self._state.session_snapshot(),
+                        self._last_frame,
+                        self._state.calibration_snapshot(),
+                    )
+                )
             workout_events = self._state.tick()
             if not workout_events:
                 continue
