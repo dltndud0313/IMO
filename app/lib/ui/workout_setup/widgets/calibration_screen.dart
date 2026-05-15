@@ -31,6 +31,8 @@ class CalibrationScreen extends StatefulWidget {
 class _CalibrationScreenState extends State<CalibrationScreen> {
   _CalibrationStage _stage = _CalibrationStage.ready;
   late final WorkoutSetupViewModel _viewModel;
+  Timer? _calibrationTimeout;
+  static const _calibrationTimeoutDuration = Duration(seconds: 15);
 
   @override
   void initState() {
@@ -51,6 +53,7 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
 
   @override
   void dispose() {
+    _calibrationTimeout?.cancel();
     _viewModel.dispose();
     super.dispose();
   }
@@ -59,6 +62,9 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
     if (!mounted) {
       return;
     }
+    if (stage != _CalibrationStage.measuring) {
+      _calibrationTimeout?.cancel();
+    }
     setState(() => _stage = stage);
   }
 
@@ -66,6 +72,7 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
     if (!mounted) {
       return;
     }
+    _calibrationTimeout?.cancel();
     setState(() => _stage = _CalibrationStage.success);
   }
 
@@ -75,6 +82,12 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
         _viewModel.startCalibration(exerciseType: widget.exerciseId),
       );
     }
+    _calibrationTimeout?.cancel();
+    _calibrationTimeout = Timer(_calibrationTimeoutDuration, () {
+      if (mounted && _stage == _CalibrationStage.measuring) {
+        _setStage(_CalibrationStage.failed);
+      }
+    });
     setState(() => _stage = _CalibrationStage.measuring);
   }
 
@@ -379,7 +392,7 @@ class _CalibrationPalette {
       case _CalibrationStage.ready:
         return const _CalibrationPalette(
           title: '기준값 측정 준비',
-          description: '자세를 잡고 글래스의 안내에 따라 측정을 시작하세요.',
+          description: '측정하는 동안 팔에 힘을 빼고 편하게 있어 주세요.\n준비되면 측정을 시작하세요.',
           glassMessage: '측정 대기 중',
           badgeLabel: '대기',
           badgeVariant: StatusVariant.neutral,
@@ -389,7 +402,7 @@ class _CalibrationPalette {
       case _CalibrationStage.measuring:
         return const _CalibrationPalette(
           title: '기준값 측정 중',
-          description: '글래스에서 자동으로 진행됩니다. 필요한 자세로 가만히 있어주세요.',
+          description: '팔에 힘을 빼고 움직이지 말고 가만히 있어 주세요.',
           glassMessage: 'EMG 기준값 측정 중...',
           badgeLabel: '측정 중',
           badgeVariant: StatusVariant.info,
