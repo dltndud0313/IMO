@@ -44,7 +44,8 @@ class _ExerciseCatalogScreenState extends State<ExerciseCatalogScreen> {
     return AppScaffold(
       title: '운동 종목 선택',
       showBackButton: true,
-      onBack: () => context.go('/workout-setup'),
+      onBack: () =>
+          context.canPop() ? context.pop() : context.go('/workout-setup'),
       scrollable: true,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -68,7 +69,7 @@ class _ExerciseCatalogScreenState extends State<ExerciseCatalogScreen> {
               _ExerciseOptionCard(
                 exercise: exercise,
                 onTap: exercise.enabled
-                    ? () => context.go(
+                    ? () => context.push(
                         '/workout-guide?exercise=${exercise.id}'
                         '&category=${widget.categoryId}',
                       )

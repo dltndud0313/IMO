@@ -45,7 +45,7 @@ class _SensorGuideScreenState extends State<SensorGuideScreen> {
         exerciseType: widget.exerciseId,
       );
       if (mounted) {
-        context.go(
+        context.push(
           '/workout-calibration?exercise=${widget.exerciseId}&autoStart=true',
         );
       }
@@ -73,7 +73,9 @@ class _SensorGuideScreenState extends State<SensorGuideScreen> {
     return AppScaffold(
       title: '센서 부착 안내',
       showBackButton: true,
-      onBack: () => context.go('/workout-plan?exercise=${widget.exerciseId}'),
+      onBack: () => context.canPop()
+          ? context.pop()
+          : context.go('/workout-plan?exercise=${widget.exerciseId}'),
       scrollable: true,
       bottom: ImoButton(
         label: _allChecked ? '캘리브레이션 시작' : '부착 확인 필요',

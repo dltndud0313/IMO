@@ -88,7 +88,9 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
     return AppScaffold(
       title: '캘리브레이션',
       showBackButton: _stage != _CalibrationStage.measuring,
-      onBack: () => context.go('/sensor-guide?exercise=${widget.exerciseId}'),
+      onBack: () => context.canPop()
+          ? context.pop()
+          : context.go('/sensor-guide?exercise=${widget.exerciseId}'),
       scrollable: true,
       bottom: AppRuntimeFlags.uiPreviewMode
           ? _buildPreviewBottom(context)
