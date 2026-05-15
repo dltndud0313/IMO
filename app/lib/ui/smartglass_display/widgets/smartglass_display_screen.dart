@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../config/dependencies.dart';
+import '../../../data/services/pi_socket_service.dart';
 import '../../core/layouts/app_scaffold.dart';
 import '../../core/themes/design_tokens.dart';
 import '../model/smartglass_display_models.dart';
@@ -32,7 +34,15 @@ class _SmartglassDisplayScreenState extends State<SmartglassDisplayScreen> {
   void initState() {
     super.initState();
     _ownsViewModel = widget.viewModel == null;
-    _viewModel = widget.viewModel ?? SmartglassDisplayViewModel();
+    _viewModel = widget.viewModel ??
+        SmartglassDisplayViewModel(
+          piSocketService: getIt<PiSocketService>(),
+        );
+    if (_ownsViewModel) {
+      // 화면에서 직접 생성한 ViewModel 인 경우에만 Pi 메시지 구독을 시작한다.
+      // 외부에서 주입된 경우 (미리보기/테스트 등) 에는 호출자가 책임진다.
+      _viewModel.startListeningToPi();
+    }
     SystemChrome.setPreferredOrientations(const [
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
