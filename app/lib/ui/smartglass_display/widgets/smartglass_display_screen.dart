@@ -555,11 +555,27 @@ class _ControlCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          _ControlButton(
-            label: emergencyStopped ? '긴급 정지됨' : '긴급 중지',
-            color: const Color(0xFFFF886F),
-            onTap: emergencyDisabled ? null : onEmergencyStop,
-            compact: compact,
+          TextButton.icon(
+            onPressed: emergencyDisabled ? null : onEmergencyStop,
+            icon: Icon(
+              Icons.emergency_rounded,
+              size: compact ? 14 : 16,
+            ),
+            label: Text(emergencyStopped ? '긴급 정지됨' : '긴급 중지'),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFFFF886F),
+              disabledForegroundColor: const Color(0xFF7B8F8A),
+              padding: EdgeInsets.symmetric(
+                horizontal: compact ? 8 : 10,
+                vertical: compact ? 2 : 4,
+              ),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              minimumSize: Size.zero,
+              textStyle: AppTextStyles.caption.copyWith(
+                fontWeight: FontWeight.w700,
+                fontSize: compact ? 11 : 12,
+              ),
+            ),
           ),
         ],
       ),
