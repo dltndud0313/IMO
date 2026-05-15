@@ -18,6 +18,8 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _emailFocusNode = FocusNode();
+  final _passwordFocusNode = FocusNode();
   String? _emailError;
   String? _passwordError;
   bool _submitting = false;
@@ -26,6 +28,8 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _emailFocusNode.dispose();
+    _passwordFocusNode.dispose();
     super.dispose();
   }
 
@@ -119,6 +123,9 @@ class _LoginScreenState extends State<LoginScreen> {
             hint: 'example@email.com',
             keyboardType: TextInputType.emailAddress,
             controller: _emailController,
+            focusNode: _emailFocusNode,
+            textInputAction: TextInputAction.next,
+            onSubmitted: (_) => _passwordFocusNode.requestFocus(),
             clearable: true,
             errorText: _emailError,
             pill: true,
@@ -133,6 +140,12 @@ class _LoginScreenState extends State<LoginScreen> {
             label: '비밀번호',
             hint: '비밀번호를 입력하세요',
             controller: _passwordController,
+            focusNode: _passwordFocusNode,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) {
+              _passwordFocusNode.unfocus();
+              _submit();
+            },
             obscureText: true,
             errorText: _passwordError,
             pill: true,

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import '../../domain/models/user_profile.dart';
 import '../services/api_service.dart';
 
@@ -5,8 +7,11 @@ import '../services/api_service.dart';
 class UserProfileRepository {
   final ApiService _api;
   UserProfile? _cachedProfile;
+  final _profileChanges = StreamController<UserProfile>.broadcast();
 
   UserProfileRepository(this._api);
+
+  Stream<UserProfile> get profileChanges => _profileChanges.stream;
 
   Future<UserProfile> getProfile({bool forceRefresh = false}) async {
     if (!forceRefresh && _cachedProfile != null) return _cachedProfile!;
@@ -17,6 +22,7 @@ class UserProfileRepository {
   Future<void> updateProfile(UserProfile profile) async {
     final updated = await _api.updateProfile(profile);
     _cachedProfile = updated;
+    _profileChanges.add(updated);
   }
 
   Future<void> changePassword({
