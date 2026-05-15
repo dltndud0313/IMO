@@ -26,7 +26,7 @@ import '../ui/workout_setup/widgets/exercise_catalog_screen.dart';
 import '../ui/workout_setup/widgets/exercise_guide_screen.dart';
 import '../ui/workout_setup/widgets/exercise_select_screen.dart';
 import '../ui/workout_setup/widgets/plan_setting_screen.dart';
-import '../ui/workout_setup/widgets/calibration_screen.dart';
+import '../ui/workout_setup/widgets/calibration_screen_app_version.dart';
 import '../ui/workout_setup/widgets/sensor_guide_screen.dart';
 import 'dependencies.dart';
 
@@ -116,7 +116,7 @@ GoRouter buildRouter() {
       ),
       GoRoute(
         path: '/workout-calibration',
-        builder: (context, state) => CalibrationScreen(
+        builder: (context, state) => CalibrationScreenAppVersion(
           exerciseId: state.uri.queryParameters['exercise'] ?? 'pushup',
           autoStart: state.uri.queryParameters['autoStart'] == 'true',
         ),
