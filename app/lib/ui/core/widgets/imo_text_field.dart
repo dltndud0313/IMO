@@ -23,6 +23,7 @@ class ImoTextField extends StatefulWidget {
     this.textInputAction,
     this.onSubmitted,
     this.helperColor,
+    this.pill = false,
   });
 
   final String? label;
@@ -42,6 +43,7 @@ class ImoTextField extends StatefulWidget {
   final TextInputAction? textInputAction;
   final ValueChanged<String>? onSubmitted;
   final Color? helperColor;
+  final bool pill;
 
   @override
   State<ImoTextField> createState() => _ImoTextFieldState();
@@ -96,7 +98,9 @@ class _ImoTextFieldState extends State<ImoTextField> {
           child: DecoratedBox(
             decoration: BoxDecoration(
               color: widget.enabled ? AppColors.cardSubtle : AppColors.disabledBg,
-              borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
+              borderRadius: BorderRadius.circular(
+                widget.pill ? AppSpacing.pillRadius : AppSpacing.buttonRadius,
+              ),
               border: Border.all(
                 color: borderColor,
                 width: hasError ? 1.5 : AppSpacing.borderWidth,
