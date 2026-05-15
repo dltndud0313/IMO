@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -25,10 +27,12 @@ class SmartglassDisplayScreen extends StatefulWidget {
 }
 
 class _SmartglassDisplayScreenState extends State<SmartglassDisplayScreen> {
+  static const _sessionResultTimeoutDuration = Duration(seconds: 5);
+
   late final SmartglassDisplayViewModel _viewModel;
   late final bool _ownsViewModel;
-  bool _paused = false;
-  bool _emergencyStopped = false;
+  Timer? _sessionResultTimeout;
+  bool _navigatingToResult = false;
 
   @override
   void initState() {
@@ -38,6 +42,7 @@ class _SmartglassDisplayScreenState extends State<SmartglassDisplayScreen> {
         SmartglassDisplayViewModel(
           piSocketService: getIt<PiSocketService>(),
         );
+    _viewModel.addListener(_handleViewModelChanged);
     if (_ownsViewModel) {
       // 화면에서 직접 생성한 ViewModel 인 경우에만 Pi 메시지 구독을 시작한다.
       // 외부에서 주입된 경우 (미리보기/테스트 등) 에는 호출자가 책임진다.
@@ -51,6 +56,8 @@ class _SmartglassDisplayScreenState extends State<SmartglassDisplayScreen> {
 
   @override
   void dispose() {
+    _sessionResultTimeout?.cancel();
+    _viewModel.removeListener(_handleViewModelChanged);
     SystemChrome.setPreferredOrientations(const [DeviceOrientation.portraitUp]);
     if (_ownsViewModel) {
       _viewModel.dispose();
@@ -58,18 +65,71 @@ class _SmartglassDisplayScreenState extends State<SmartglassDisplayScreen> {
     super.dispose();
   }
 
-  void _togglePause() {
-    setState(() {
-      _paused = !_paused;
+  void _handleViewModelChanged() {
+    final session = _viewModel.completedSession;
+    if (session == null || _navigatingToResult || !mounted) {
+      return;
+    }
+
+    _navigatingToResult = true;
+    _sessionResultTimeout?.cancel();
+
+    final sessionId = Uri.encodeQueryComponent(session.sessionId);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      context.go('/session-result?sessionId=$sessionId', extra: session);
     });
   }
 
-  void _triggerEmergencyStop() {
-    setState(() {
-      _emergencyStopped = true;
-      _paused = false;
+  void _scheduleSessionResultTimeout({String? statusFallback}) {
+    _sessionResultTimeout?.cancel();
+    _sessionResultTimeout = Timer(_sessionResultTimeoutDuration, () {
+      if (!mounted || _navigatingToResult) {
+        return;
+      }
+
+      _navigatingToResult = true;
+      final query = statusFallback == null ? '' : '?status=$statusFallback';
+      context.go('/session-result$query');
     });
-    context.go('/session-result');
+  }
+
+  void _handlePauseToggle() {
+    unawaited(_togglePause());
+  }
+
+  Future<void> _togglePause() async {
+    try {
+      await _viewModel.togglePause();
+    } catch (_) {}
+  }
+
+  void _handleStopWorkout() {
+    unawaited(_stopWorkout());
+  }
+
+  Future<void> _stopWorkout() async {
+    try {
+      final requested = await _viewModel.stopWorkout();
+      if (requested) {
+        _scheduleSessionResultTimeout(statusFallback: 'stopped');
+      }
+    } catch (_) {}
+  }
+
+  void _handleEmergencyStop() {
+    unawaited(_emergencyStop());
+  }
+
+  Future<void> _emergencyStop() async {
+    try {
+      final requested = await _viewModel.emergencyStop();
+      if (requested) {
+        _scheduleSessionResultTimeout(statusFallback: 'emergency_stopped');
+      }
+    } catch (_) {}
   }
 
   @override
@@ -79,6 +139,10 @@ class _SmartglassDisplayScreenState extends State<SmartglassDisplayScreen> {
       builder: (context, _) {
         final state = _viewModel.state;
         final compact = MediaQuery.sizeOf(context).height < 700;
+        final paused = _viewModel.paused;
+        final emergencyStopped = _viewModel.emergencyStopped;
+        final awaitingSessionResult = _viewModel.awaitingSessionResult;
+        final canSendControl = _viewModel.isConnected && !_viewModel.controlsLocked;
 
         return AppScaffold(
           horizontalPadding: false,
@@ -94,10 +158,13 @@ class _SmartglassDisplayScreenState extends State<SmartglassDisplayScreen> {
                   child: _GlassHudLayout(
                     state: state,
                     compact: compact,
-                    paused: _paused,
-                    emergencyStopped: _emergencyStopped,
-                    onPauseToggle: _togglePause,
-                    onEmergencyStop: _triggerEmergencyStop,
+                    paused: paused,
+                    awaitingSessionResult: awaitingSessionResult,
+                    emergencyStopped: emergencyStopped,
+                    canSendControl: canSendControl,
+                    onPauseToggle: _handlePauseToggle,
+                    onStop: _handleStopWorkout,
+                    onEmergencyStop: _handleEmergencyStop,
                   ),
                 ),
               ),
@@ -114,16 +181,22 @@ class _GlassHudLayout extends StatelessWidget {
     required this.state,
     required this.compact,
     required this.paused,
+    required this.awaitingSessionResult,
     required this.emergencyStopped,
+    required this.canSendControl,
     required this.onPauseToggle,
+    required this.onStop,
     required this.onEmergencyStop,
   });
 
   final SmartglassDisplayState state;
   final bool compact;
   final bool paused;
+  final bool awaitingSessionResult;
   final bool emergencyStopped;
+  final bool canSendControl;
   final VoidCallback onPauseToggle;
+  final VoidCallback onStop;
   final VoidCallback onEmergencyStop;
 
   @override
@@ -180,6 +253,7 @@ class _GlassHudLayout extends StatelessWidget {
                 child: _CenterStatusCard(
                   state: state,
                   paused: paused,
+                  awaitingSessionResult: awaitingSessionResult,
                   emergencyStopped: emergencyStopped,
                   compact: compact,
                 ),
@@ -233,8 +307,11 @@ class _GlassHudLayout extends StatelessWidget {
                       flex: 14,
                       child: _ControlCard(
                         paused: paused,
+                        awaitingSessionResult: awaitingSessionResult,
                         emergencyStopped: emergencyStopped,
+                        canSendControl: canSendControl,
                         onPauseToggle: onPauseToggle,
+                        onStop: onStop,
                         onEmergencyStop: onEmergencyStop,
                         compact: compact,
                       ),
@@ -343,12 +420,14 @@ class _CenterStatusCard extends StatelessWidget {
   const _CenterStatusCard({
     required this.state,
     required this.paused,
+    required this.awaitingSessionResult,
     required this.emergencyStopped,
     required this.compact,
   });
 
   final SmartglassDisplayState state;
   final bool paused;
+  final bool awaitingSessionResult;
   final bool emergencyStopped;
   final bool compact;
 
@@ -382,7 +461,12 @@ class _CenterStatusCard extends StatelessWidget {
                     maxWidth: compact ? 560 : 760,
                   ),
                   child: Text(
-                    _mainStatusMessage(state, paused, emergencyStopped),
+                    _mainStatusMessage(
+                      state,
+                      paused,
+                      awaitingSessionResult,
+                      emergencyStopped,
+                    ),
                     textAlign: TextAlign.center,
                     maxLines: compact ? 3 : 2,
                     overflow: TextOverflow.ellipsis,
@@ -415,20 +499,32 @@ class _CenterStatusCard extends StatelessWidget {
 class _ControlCard extends StatelessWidget {
   const _ControlCard({
     required this.paused,
+    required this.awaitingSessionResult,
     required this.emergencyStopped,
+    required this.canSendControl,
     required this.onPauseToggle,
+    required this.onStop,
     required this.onEmergencyStop,
     required this.compact,
   });
 
   final bool paused;
+  final bool awaitingSessionResult;
   final bool emergencyStopped;
+  final bool canSendControl;
   final VoidCallback onPauseToggle;
+  final VoidCallback onStop;
   final VoidCallback onEmergencyStop;
   final bool compact;
 
   @override
   Widget build(BuildContext context) {
+    final stopDisabled = !canSendControl || awaitingSessionResult;
+    final pauseDisabled =
+        !canSendControl || awaitingSessionResult || emergencyStopped;
+    final emergencyDisabled =
+        !canSendControl || awaitingSessionResult || emergencyStopped;
+
     return _GlassPanel(
       padding: EdgeInsets.symmetric(
         horizontal: compact ? 14 : 18,
@@ -441,9 +537,9 @@ class _ControlCard extends StatelessWidget {
             children: [
               Expanded(
                 child: _ControlButton(
-                  label: emergencyStopped ? '정지됨' : '중지',
-                  color: const Color(0xFFFF886F),
-                  onTap: emergencyStopped ? null : onEmergencyStop,
+                  label: awaitingSessionResult ? '정리 중' : '중지',
+                  color: const Color(0xFFFFD37F),
+                  onTap: stopDisabled ? null : onStop,
                   compact: compact,
                 ),
               ),
@@ -452,11 +548,18 @@ class _ControlCard extends StatelessWidget {
                 child: _ControlButton(
                   label: paused ? '재개' : '일시정지',
                   color: const Color(0xFF70E8CD),
-                  onTap: emergencyStopped ? null : onPauseToggle,
+                  onTap: pauseDisabled ? null : onPauseToggle,
                   compact: compact,
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 10),
+          _ControlButton(
+            label: emergencyStopped ? '긴급 정지됨' : '긴급 중지',
+            color: const Color(0xFFFF886F),
+            onTap: emergencyDisabled ? null : onEmergencyStop,
+            compact: compact,
           ),
         ],
       ),
@@ -550,9 +653,11 @@ List<int> _emgValues(SmartglassDisplayState state) {
 String _mainStatusMessage(
   SmartglassDisplayState state,
   bool paused,
+  bool awaitingSessionResult,
   bool emergencyStopped,
 ) {
-  if (emergencyStopped) return '운동을 정지했습니다';
+  if (emergencyStopped) return '긴급 중지를 요청했습니다';
+  if (awaitingSessionResult) return '운동 결과를 정리하고 있습니다';
   if (paused) return '운동이 일시정지되었습니다';
   if (state.isResting) return '휴식 ${state.restSeconds}초';
   if (state.isCalibrating) {
