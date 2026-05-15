@@ -54,82 +54,97 @@ class AuthFrame extends StatelessWidget {
             SafeArea(
               top: false,
               bottom: false,
-              child: Column(
-                children: [
-                  Expanded(
-                    flex: topFlex,
-                    child: Align(
-                      alignment: topContentAlignment,
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return SingleChildScrollView(
+                    physics: const ClampingScrollPhysics(),
+                    child: ConstrainedBox(
+                      constraints:
+                          BoxConstraints(minHeight: constraints.maxHeight),
+                      child: IntrinsicHeight(
                         child: Column(
-                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            if (showCharacter) ...[
-                              if (characterImage != null)
-                                Image.asset(
-                                  characterImage!,
-                                  width: characterSize,
-                                  height: characterSize,
-                                  fit: BoxFit.contain,
-                                )
-                              else
-                                Container(
-                                  width: characterSize,
-                                  height: characterSize,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.card.withValues(alpha: 0.18),
-                                    shape: BoxShape.circle,
+                            Expanded(
+                              flex: topFlex,
+                              child: Align(
+                                alignment: topContentAlignment,
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (showCharacter) ...[
+                                        if (characterImage != null)
+                                          Image.asset(
+                                            characterImage!,
+                                            width: characterSize,
+                                            height: characterSize,
+                                            fit: BoxFit.contain,
+                                          )
+                                        else
+                                          Container(
+                                            width: characterSize,
+                                            height: characterSize,
+                                            decoration: BoxDecoration(
+                                              color: AppColors.card
+                                                  .withValues(alpha: 0.18),
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: Icon(
+                                              Icons.accessibility_new_rounded,
+                                              color: AppColors.card,
+                                              size: characterSize * 0.54,
+                                            ),
+                                          ),
+                                        if (showBrandText)
+                                          const SizedBox(
+                                              height: AppSpacing.xl),
+                                      ],
+                                      if (showBrandText)
+                                        Text(
+                                          'IMO',
+                                          style: AppTextStyles.display.copyWith(
+                                            color: AppColors.card,
+                                            fontSize: 56,
+                                            fontWeight: FontWeight.w600,
+                                            letterSpacing: 16,
+                                          ),
+                                        ),
+                                    ],
                                   ),
-                                  child: Icon(
-                                    Icons.accessibility_new_rounded,
-                                    color: AppColors.card,
-                                    size: characterSize * 0.54,
-                                  ),
-                                ),
-                              if (showBrandText)
-                                const SizedBox(height: AppSpacing.xl),
-                            ],
-                            if (showBrandText)
-                              Text(
-                                'IMO',
-                                style: AppTextStyles.display.copyWith(
-                                  color: AppColors.card,
-                                  fontSize: 56,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 16,
                                 ),
                               ),
+                            ),
+                            Container(
+                              width: double.infinity,
+                              padding: EdgeInsets.fromLTRB(
+                                sheetPadding.left,
+                                sheetPadding.top,
+                                sheetPadding.right,
+                                sheetPadding.bottom +
+                                    MediaQuery.paddingOf(context).bottom,
+                              ),
+                              decoration: const BoxDecoration(
+                                color: AppColors.card,
+                                borderRadius: BorderRadius.vertical(
+                                  top: Radius.circular(28),
+                                ),
+                              ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const SheetHandle(),
+                                  const SizedBox(height: AppSpacing.xl),
+                                  sheet,
+                                ],
+                              ),
+                            ),
                           ],
                         ),
                       ),
                     ),
-                  ),
-                  Container(
-                    width: double.infinity,
-                    padding: EdgeInsets.fromLTRB(
-                      sheetPadding.left,
-                      sheetPadding.top,
-                      sheetPadding.right,
-                      sheetPadding.bottom +
-                          MediaQuery.paddingOf(context).bottom,
-                    ),
-                    decoration: const BoxDecoration(
-                      color: AppColors.card,
-                      borderRadius: BorderRadius.vertical(
-                        top: Radius.circular(28),
-                      ),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const SheetHandle(),
-                        const SizedBox(height: AppSpacing.xl),
-                        sheet,
-                      ],
-                    ),
-                  ),
-                ],
+                  );
+                },
               ),
             ),
           ],
