@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../config/app_runtime_flags.dart';
 import '../../../config/dependencies.dart';
 import '../../../data/repositories/calibration_repository.dart';
+import '../../../data/repositories/workout_repository.dart';
 import '../../core/layouts/app_scaffold.dart';
 import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
@@ -38,6 +39,7 @@ class _CalibrationScreenAppVersionState
     super.initState();
     _viewModel = WorkoutSetupViewModel.withCalibration(
       getIt<CalibrationRepository>(),
+      workoutRepository: getIt<WorkoutRepository>(),
     );
     _viewModel.listenCalibrationStatus(
       onStarted: () => _setStage(_CalibrationStage.measuring),
@@ -107,7 +109,11 @@ class _CalibrationScreenAppVersionState
       case _CalibrationStage.wearGlasses:
         return ImoButton(
           label: '운동 시작',
-          onPressed: () => context.go('/workout'),
+          onPressed: () async {
+            await _viewModel.startWorkout();
+            if (!context.mounted) return;
+            context.go('/workout');
+          },
         );
       case _CalibrationStage.failed:
         return ImoButton(

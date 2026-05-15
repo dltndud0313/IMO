@@ -114,7 +114,8 @@ class BridgeState:
             events: list[dict[str, Any]] = []
             self._esp32_connected = True
             if self._phase == "calibrating" and not self._calibration_collecting:
-                self._phase = "monitoring"
+                # 캘리브레이션 종료 후 앱의 start_workout 요청 전까지 monitoring 진입을 보류한다.
+                self._phase = "awaiting_workout_start"
             events.extend(self._maybe_finish_rest_locked())
             if frame.rep_index is not None:
                 events.extend(self._apply_device_rep_index_locked(frame))
@@ -192,6 +193,14 @@ class BridgeState:
                 self._paused_rest_remaining_sec = 0
                 return
             self._phase = "monitoring"
+
+    def start_workout(self) -> bool:
+        # 앱의 start_workout 요청을 받아 monitoring 으로 진입.
+        with self._lock:
+            if self._phase != "awaiting_workout_start":
+                return False
+            self._phase = "monitoring"
+            return True
 
     def mark_completed(self) -> None:
         with self._lock:
@@ -418,7 +427,8 @@ class BridgeState:
 
         self._calibration_collecting = False
         self._calibration_frames = []
-        self._phase = "monitoring"
+        # 앱의 start_workout 입력 전까지 monitoring 으로 자동 진입하지 않는다.
+        self._phase = "awaiting_workout_start"
         self._current_rep = 0
         self._current_speed_label = "분석 중"
 
@@ -816,6 +826,37 @@ class SensorBridge:
                         message="센서 기준값 측정을 시작합니다.",
                         request_id=request_id,
                     )
+                )
+            )
+            return
+
+        if msg_type == "start_workout":
+            if session.exercise_type is None or session.phase != "awaiting_workout_start":
+                await websocket.send(
+                    json.dumps(
+                        build_error_message(
+                            "INVALID_STATE",
+                            "start_workout must be sent after calibration completes.",
+                        )
+                    )
+                )
+                return
+            if not self._state.start_workout():
+                await websocket.send(
+                    json.dumps(
+                        build_error_message(
+                            "INVALID_STATE",
+                            "start_workout transition rejected by session state.",
+                        )
+                    )
+                )
+                return
+            self._emit_from_thread(build_glass_session_state(self._state.session_snapshot()))
+            self._emit_from_thread(
+                build_glass_display_data(
+                    self._state.session_snapshot(),
+                    self._last_frame,
+                    self._state.calibration_snapshot(),
                 )
             )
             return
