@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../../config/dependencies.dart';
 import '../../../data/repositories/auth_repository.dart';
-import '../../../data/repositories/user_profile_repository.dart';
 import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../widgets/auth_frame.dart';
@@ -61,44 +60,12 @@ class _SignupScreenState extends State<SignupScreen> {
     if (!await _checkEmailAvailability(email)) {
       return;
     }
-
-    setState(() => _submitting = true);
-    try {
-      await getIt<AuthRepository>().signUp(
-        email,
-        password,
-        _initialNickname(email),
-      );
-      getIt<UserProfileRepository>().clearCache();
-      if (!mounted) {
-        return;
-      }
-      context.go('/profile-setup');
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_authErrorMessage(error))),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _submitting = false);
-      }
-    }
-  }
-
-  String _initialNickname(String email) {
-    final prefix = email.split('@').first.trim();
-    return prefix.isEmpty ? 'imo_user' : prefix;
-  }
-
-  String _authErrorMessage(Object error) {
-    final message = error.toString();
-    if (message.contains('Email already exists')) {
-      return '이미 가입된 이메일입니다. 로그인해주세요.';
-    }
-    return '회원가입에 실패했습니다.';
+    if (!mounted) return;
+    // 실제 가입은 프로필 설정 마지막 "가입 완료"에서 수행한다.
+    context.push(
+      '/profile-setup',
+      extra: {'email': email, 'password': password},
+    );
   }
 
   String? _validateEmail(String value) {
@@ -232,6 +199,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     color: AppColors.success,
                   )
                 : null,
+            pill: true,
             onChanged: _handleEmailChanged,
           ),
           const SizedBox(height: AppSpacing.md),
@@ -244,6 +212,7 @@ class _SignupScreenState extends State<SignupScreen> {
             onSubmitted: (_) => _passwordConfirmFocusNode.requestFocus(),
             obscureText: true,
             errorText: _passwordError,
+            pill: true,
             onChanged: (_) => _clearErrors(),
           ),
           const SizedBox(height: AppSpacing.md),
@@ -259,6 +228,7 @@ class _SignupScreenState extends State<SignupScreen> {
             },
             obscureText: true,
             errorText: _confirmError,
+            pill: true,
             onChanged: (_) => _clearErrors(),
           ),
           const SizedBox(height: AppSpacing.xl),
@@ -266,6 +236,7 @@ class _SignupScreenState extends State<SignupScreen> {
             label: '가입하기',
             loading: _submitting,
             disabled: _submitting || _checkingEmail || _emailAvailable == false,
+            pill: true,
             onPressed: (_submitting || _checkingEmail || _emailAvailable == false)
                 ? null
                 : _submit,
@@ -273,7 +244,9 @@ class _SignupScreenState extends State<SignupScreen> {
           const SizedBox(height: AppSpacing.md),
           Center(
             child: TextButton(
-              onPressed: () => context.go('/login'),
+              onPressed: () => context.canPop()
+                  ? context.pop()
+                  : context.go('/login'),
               child: Text(
                 '이미 계정이 있으신가요? 로그인하기',
                 style: AppTextStyles.bodyLg.copyWith(
