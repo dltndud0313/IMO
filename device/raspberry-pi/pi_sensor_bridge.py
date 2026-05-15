@@ -1607,6 +1607,9 @@ class SensorBridge:
     def _emit_from_thread(self, message: dict[str, Any]) -> None:
         if self._loop is None:
             return
+        mtype = message.get("type")
+        if mtype not in ("sensor_frame", "glass_display_data"):
+            print(f"[bridge] pi -> app type={mtype} payload={message.get('payload')}")
         self._loop.call_soon_threadsafe(self._queue.put_nowait, message)
 
     def _serial_reader_main(self) -> None:

@@ -42,10 +42,20 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
       workoutRepository: getIt<WorkoutRepository>(),
     );
     _viewModel.listenCalibrationStatus(
-      onStarted: () => _setStage(_CalibrationStage.measuring),
-      onSuccess: _handleCalibrationSuccess,
-      onFailed: () => _setStage(_CalibrationStage.failed),
+      onStarted: () {
+        debugPrint('[Calibration] onStarted');
+        _setStage(_CalibrationStage.measuring);
+      },
+      onSuccess: () {
+        debugPrint('[Calibration] onSuccess');
+        _handleCalibrationSuccess();
+      },
+      onFailed: () {
+        debugPrint('[Calibration] onFailed');
+        _setStage(_CalibrationStage.failed);
+      },
     );
+    debugPrint('[Calibration] initState autoStart=${widget.autoStart}');
     if (widget.autoStart) {
       _startCalibration(sendToPi: false);
     }
@@ -59,6 +69,7 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
   }
 
   void _setStage(_CalibrationStage stage) {
+    debugPrint('[Calibration] _setStage($stage) mounted=$mounted current=$_stage');
     if (!mounted) {
       return;
     }
@@ -77,6 +88,7 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
   }
 
   void _startCalibration({bool sendToPi = true}) {
+    debugPrint('[Calibration] _startCalibration(sendToPi=$sendToPi)');
     if (sendToPi) {
       unawaited(
         _viewModel.startCalibration(exerciseType: widget.exerciseId),
@@ -84,10 +96,14 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
     }
     _calibrationTimeout?.cancel();
     _calibrationTimeout = Timer(_calibrationTimeoutDuration, () {
+      debugPrint('[Calibration] timeout fired, stage=$_stage mounted=$mounted');
       if (mounted && _stage == _CalibrationStage.measuring) {
         _setStage(_CalibrationStage.failed);
       }
     });
+    debugPrint(
+      '[Calibration] timeout set (${_calibrationTimeoutDuration.inSeconds}s)',
+    );
     setState(() => _stage = _CalibrationStage.measuring);
   }
 
