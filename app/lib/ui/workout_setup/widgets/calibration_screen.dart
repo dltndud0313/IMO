@@ -132,11 +132,20 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
         return ImoButton(
           label: '운동 시작',
           onPressed: () async {
-            await _viewModel.startWorkout();
-            if (!context.mounted) {
-              return;
+            try {
+              await _viewModel.startWorkout();
+              if (!context.mounted) {
+                return;
+              }
+              context.go('/workout');
+            } catch (_) {
+              if (!context.mounted) {
+                return;
+              }
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('운동 시작 요청에 실패했습니다. 다시 시도해주세요.')),
+              );
             }
-            context.go('/workout');
           },
         );
       case _CalibrationStage.failed:

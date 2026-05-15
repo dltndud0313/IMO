@@ -45,6 +45,8 @@ UI_DIR = Path(__file__).with_name("glass-ui")
 EMG_DETACHED_THRESHOLD = 0.99
 CALIBRATION_REST_FRAMES = 100
 CALIBRATION_MVC_FRAMES = 100
+CALIBRATION_TIMEOUT_SEC = 12.0
+CALIBRATION_MIN_VALID_EMG_FRAMES = 10
 EXERCISE_LABELS = {
     "pushup": "Push-up",
     "bicep_curl": "Bicep Curl",
@@ -143,6 +145,8 @@ class BridgeState:
         self._calibration_frames: list[DecodedFrame] = []
         self._calibration_collecting = False
         self._calibration_stage = "idle"
+        self._calibration_started_monotonic: Optional[float] = None
+        self._calibration_failure_message: Optional[str] = None
         self._session_accumulator = SessionAccumulator()
         self._pending_session_result: Optional[dict[str, Any]] = None
 
@@ -197,6 +201,8 @@ class BridgeState:
             self._calibration_frames = []
             self._calibration_collecting = False
             self._calibration_stage = "idle"
+            self._calibration_started_monotonic = None
+            self._calibration_failure_message = None
             self._session_accumulator = SessionAccumulator(
                 session_id=f"sess_{uuid.uuid4().hex[:12]}",
                 actual_reps_per_set=[0] * set_count,
@@ -216,6 +222,8 @@ class BridgeState:
             self._calibration_data.ready = False
             self._calibration_stage = "rest"
             self._phase = "calibrating"
+            self._calibration_started_monotonic = time.monotonic()
+            self._calibration_failure_message = None
 
     def mark_paused(self) -> None:
         with self._lock:
@@ -298,6 +306,12 @@ class BridgeState:
                 imu_rest_gyro=[list(v) for v in self._calibration_data.imu_rest_gyro],
                 ready=self._calibration_data.ready,
             )
+
+    def consume_calibration_failure_message(self) -> Optional[str]:
+        with self._lock:
+            message = self._calibration_failure_message
+            self._calibration_failure_message = None
+            return message
 
     def consume_pending_session_result(self) -> Optional[dict[str, Any]]:
         with self._lock:
@@ -704,11 +718,25 @@ class BridgeState:
             if not self._calibration_collecting:
                 return None
 
+            if (
+                self._calibration_started_monotonic is not None
+                and time.monotonic() - self._calibration_started_monotonic
+                > CALIBRATION_TIMEOUT_SEC
+            ):
+                self._fail_calibration_locked(
+                    "캘리브레이션 제한 시간을 초과했습니다. 센서를 다시 확인하고 재시도하세요."
+                )
+                return "failed"
+
             self._calibration_frames.append(frame)
             if self._calibration_stage == "rest":
                 if len(self._calibration_frames) < CALIBRATION_REST_FRAMES:
                     return None
-                self._finalize_rest_calibration_locked()
+                try:
+                    self._finalize_rest_calibration_locked()
+                except ValueError as exc:
+                    self._fail_calibration_locked(str(exc))
+                    return "failed"
                 self._calibration_frames = []
                 self._calibration_stage = "mvc"
                 self._phase = "calibrating_mvc"
@@ -717,13 +745,17 @@ class BridgeState:
             if len(self._calibration_frames) < CALIBRATION_MVC_FRAMES:
                 return None
 
-            self._finalize_mvc_calibration_locked()
+            try:
+                self._finalize_mvc_calibration_locked()
+            except ValueError as exc:
+                self._fail_calibration_locked(str(exc))
+                return "failed"
             return "mvc_complete"
 
     def _finalize_rest_calibration_locked(self) -> None:
         frames = self._calibration_frames
         if not frames:
-            return
+            raise ValueError("안정 자세 프레임을 수집하지 못했습니다.")
 
         emg_sums = [0.0, 0.0, 0.0, 0.0]
         emg_counts = [0, 0, 0, 0]
@@ -746,6 +778,8 @@ class BridgeState:
                         imu_gyro_sums[imu_index][axis] += frame.imu_gyros[imu_index][axis]
 
         frame_count = float(len(frames))
+        if any(count < CALIBRATION_MIN_VALID_EMG_FRAMES for count in emg_counts):
+            raise ValueError("안정 자세 EMG 기준값이 부족합니다. 센서 밀착 상태를 확인하세요.")
         self._calibration_data.emg_rest_baseline = [
             (emg_sums[index] / emg_counts[index]) if emg_counts[index] > 0 else 0.0
             for index in range(4)
@@ -764,7 +798,7 @@ class BridgeState:
     def _finalize_mvc_calibration_locked(self) -> None:
         frames = self._calibration_frames
         if not frames:
-            return
+            raise ValueError("최대 수축 프레임을 수집하지 못했습니다.")
         top_values: list[list[float]] = [[] for _ in range(4)]
         for channel_index in range(4):
             samples = sorted(
@@ -775,8 +809,7 @@ class BridgeState:
                 ]
             )
             if not samples:
-                top_values[channel_index] = [self._calibration_data.emg_rest_baseline[channel_index] + 0.1]
-                continue
+                raise ValueError("최대 수축 EMG 샘플이 부족합니다. 힘을 준 상태로 다시 측정하세요.")
             top_count = max(1, math.ceil(len(samples) * 0.1))
             top_values[channel_index] = samples[-top_count:]
 
@@ -791,9 +824,20 @@ class BridgeState:
         self._calibration_collecting = False
         self._calibration_frames = []
         self._calibration_stage = "done"
+        self._calibration_started_monotonic = None
+        self._calibration_failure_message = None
         # 앱의 "운동 시작" 버튼 입력 전까지 monitoring 진입을 보류한다.
         # 사용자가 글래스를 착용하고 start_workout 메시지를 보내야 monitoring 으로 전환.
         self._phase = "awaiting_workout_start"
+
+    def _fail_calibration_locked(self, message: str) -> None:
+        self._calibration_collecting = False
+        self._calibration_frames = []
+        self._calibration_stage = "failed"
+        self._calibration_started_monotonic = None
+        self._calibration_data.ready = False
+        self._calibration_failure_message = message
+        self._phase = "sensors_ready"
 
     @staticmethod
     def _phase_label(phase: str) -> str:
@@ -1613,6 +1657,22 @@ class SensorBridge:
                                 self._state.session_snapshot(),
                                 decoded,
                                 calibration,
+                            )
+                        )
+                    if calibration_update == "failed":
+                        failure_message = self._state.consume_calibration_failure_message()
+                        self._emit_from_thread(
+                            build_calibration_status(
+                                status="failed",
+                                message=failure_message or "캘리브레이션에 실패했습니다. 다시 시도하세요.",
+                            )
+                        )
+                        self._emit_from_thread(build_glass_session_state(self._state.session_snapshot()))
+                        self._emit_from_thread(
+                            build_glass_display_data(
+                                self._state.session_snapshot(),
+                                decoded,
+                                self._state.calibration_snapshot(),
                             )
                         )
         finally:
