@@ -20,6 +20,7 @@ class ImoButton extends StatelessWidget {
     this.rightIcon,
     this.fullWidth,
     this.disabled = false,
+    this.pill = false,
   });
 
   final String label;
@@ -33,6 +34,7 @@ class ImoButton extends StatelessWidget {
   final Widget? rightIcon;
   final bool? fullWidth;
   final bool disabled;
+  final bool pill;
 
   @override
   Widget build(BuildContext context) {
@@ -125,6 +127,9 @@ class ImoButton extends StatelessWidget {
   }
 
   double _resolveRadius() {
+    if (pill) {
+      return AppSpacing.pillRadius;
+    }
     switch (size) {
       case ImoButtonSize.sm:
         return AppSpacing.sm;

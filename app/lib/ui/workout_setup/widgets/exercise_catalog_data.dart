@@ -134,9 +134,11 @@ ExerciseCategoryOption exerciseCategoryById(String categoryId) {
 }
 
 List<ExerciseCatalogItem> exercisesByCategory(String categoryId) {
-  return exerciseCatalogItems
+  final filtered = exerciseCatalogItems
       .where((exercise) => exercise.categoryId == categoryId)
-      .toList();
+      .toList()
+    ..sort((a, b) => a.title.compareTo(b.title));
+  return filtered;
 }
 
 String categoryIdForExercise(String exerciseId) {

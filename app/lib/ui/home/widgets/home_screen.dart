@@ -29,7 +29,7 @@ class HomeScreen extends StatelessWidget {
             description: '근력 트레이닝 · EMG-IMU 분석',
             icon: Icons.fitness_center_rounded,
             gradient: const [AppColors.primary, AppColors.primaryStrong],
-            onTap: () => context.go('/workout-setup'),
+            onTap: () => context.push('/workout-setup'),
           ),
           const SizedBox(height: AppSpacing.md),
           _HomeActionCard(

@@ -16,38 +16,54 @@ class ProfileUnitValuePicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.card,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppSpacing.pillRadius),
-        side: const BorderSide(color: AppColors.border, width: 1.5),
+    final unitLabel = Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(
+        unit,
+        style: AppTextStyles.bodyLg.copyWith(
+          color: AppColors.textSecondary,
+          fontWeight: FontWeight.w700,
+        ),
       ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppSpacing.pillRadius),
-        child: SizedBox(
-          height: 72,
-          child: Center(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(value, style: AppTextStyles.title),
-                const SizedBox(width: AppSpacing.xs),
-                Text(
-                  unit,
-                  style: AppTextStyles.bodyLg.copyWith(
+    );
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppSpacing.sm),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.md,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            // 숫자를 정확히 가운데 두기 위한 좌측 균형용(투명) 단위.
+            Opacity(opacity: 0, child: unitLabel),
+            const SizedBox(width: AppSpacing.xs),
+            Container(
+              padding: const EdgeInsets.only(bottom: 4),
+              decoration: const BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(
                     color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w700,
+                    width: 2,
                   ),
                 ),
-                const SizedBox(width: AppSpacing.xs),
-                const Icon(
-                  Icons.keyboard_arrow_down_rounded,
-                  color: AppColors.textTertiary,
+              ),
+              child: Text(
+                value,
+                style: AppTextStyles.display.copyWith(
+                  fontSize: 36,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
                 ),
-              ],
+              ),
             ),
-          ),
+            const SizedBox(width: AppSpacing.xs),
+            unitLabel,
+          ],
         ),
       ),
     );

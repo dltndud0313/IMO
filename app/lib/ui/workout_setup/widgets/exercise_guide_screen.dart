@@ -25,6 +25,10 @@ class ExerciseGuideScreen extends StatelessWidget {
       title: '자세 가이드',
       showBackButton: true,
       onBack: () {
+        if (context.canPop()) {
+          context.pop();
+          return;
+        }
         final resolvedCategoryId =
             categoryId ?? categoryIdForExercise(exerciseId);
         context.go('/workout-exercises?category=$resolvedCategoryId');
@@ -32,7 +36,7 @@ class ExerciseGuideScreen extends StatelessWidget {
       scrollable: true,
       bottom: ImoButton(
         label: '다음',
-        onPressed: () => context.go('/workout-plan?exercise=$exerciseId'),
+        onPressed: () => context.push('/workout-plan?exercise=$exerciseId'),
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

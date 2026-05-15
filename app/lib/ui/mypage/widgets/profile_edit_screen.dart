@@ -106,7 +106,11 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       if (!mounted) {
         return;
       }
-      context.go('/mypage');
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        context.go('/mypage');
+      }
     } catch (_) {
       if (!mounted) {
         return;
@@ -202,7 +206,8 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     return AppScaffold(
       title: '프로필 수정',
       showBackButton: true,
-      onBack: () => context.go('/mypage'),
+      onBack: () =>
+          context.canPop() ? context.pop() : context.go('/mypage'),
       scrollable: true,
       bottom: Row(
         children: [

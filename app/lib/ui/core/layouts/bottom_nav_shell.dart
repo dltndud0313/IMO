@@ -47,7 +47,7 @@ class _ChatbotFab extends StatelessWidget {
     return Transform.translate(
       offset: const Offset(0, 5),
       child: GestureDetector(
-        onTap: () => context.go('/chat'),
+        onTap: () => context.push('/chat'),
         behavior: HitTestBehavior.opaque,
         child: Image.asset(
           'assets/images/chatbot.png',

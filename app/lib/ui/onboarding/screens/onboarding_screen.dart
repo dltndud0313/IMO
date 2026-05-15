@@ -163,19 +163,19 @@ const _pages = [
   _OnboardingData(
     icon: Icons.sensors_rounded,
     color: AppColors.primary,
-    title: '움직임을 더 정확하게 확인해요',
-    description: 'EMG와 IMU 센서로 운동 자세와 근육 사용 흐름을 함께 확인할 수 있어요.',
+    title: '움직임을 더\n정확하게 확인해요',
+    description: 'EMG와 IMU 센서로\n운동 자세와 근육 사용 흐름을\n함께 확인할 수 있어요.',
   ),
   _OnboardingData(
     icon: Icons.fitness_center_rounded,
     color: AppColors.secondary,
-    title: '운동 준비부터 결과까지 안내해요',
-    description: '운동 계획, 센서 부착, 캘리브레이션, 결과 확인까지 한 흐름으로 이어져요.',
+    title: '운동 준비부터\n결과까지 안내해요',
+    description: '운동 계획, 센서 부착, 캘리브레이션,\n결과 확인까지 한 흐름으로 이어져요.',
   ),
   _OnboardingData(
     icon: Icons.insights_rounded,
     color: AppColors.warning,
-    title: '기록과 통계를 한눈에 봐요',
-    description: '운동 기록, 근활성도, 좌우 밸런스, 피로 추세를 앱에서 확인해요.',
+    title: '기록과 통계를\n한눈에 봐요',
+    description: '운동 기록, 근활성도, 좌우 밸런스,\n피로 추세를 앱에서 확인해요.',
   ),
 ];

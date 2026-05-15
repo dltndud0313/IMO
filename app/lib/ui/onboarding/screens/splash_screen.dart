@@ -20,7 +20,11 @@ class SplashScreen extends StatelessWidget {
       sheet: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          ImoButton(label: '로그인', onPressed: () => context.go('/login')),
+          ImoButton(
+            label: '로그인',
+            pill: true,
+            onPressed: () => context.go('/login'),
+          ),
           const SizedBox(height: AppSpacing.md),
           TextButton(
             onPressed: () => context.go('/onboarding'),

@@ -14,7 +14,7 @@ class ExerciseSelectScreen extends StatelessWidget {
     return AppScaffold(
       title: '운동하기',
       showBackButton: true,
-      onBack: () => context.go('/home'),
+      onBack: () => context.canPop() ? context.pop() : context.go('/home'),
       scrollable: true,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -60,7 +60,7 @@ class ExerciseSelectScreen extends StatelessWidget {
               category: category,
               exerciseCount: exercisesByCategory(category.id).length,
               onTap: () =>
-                  context.go('/workout-exercises?category=${category.id}'),
+                  context.push('/workout-exercises?category=${category.id}'),
             ),
             const SizedBox(height: AppSpacing.md),
           ],

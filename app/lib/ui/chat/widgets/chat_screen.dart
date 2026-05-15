@@ -62,9 +62,10 @@ class _ChatScreenState extends State<ChatScreen> {
       context: context,
       builder: (dialogContext) => ImoConfirmDialog(
         title: '새 채팅 시작',
-        message: '현재 대화를 끝내고 새 채팅을 시작할까요?',
+        message: '현재 대화를 끝내고\n새 채팅을 시작할까요?',
         confirmLabel: '시작',
         danger: false,
+        pillButtons: true,
         onConfirm: () {
           Navigator.of(dialogContext).pop();
           vm.clearHistory();
