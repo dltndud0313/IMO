@@ -31,6 +31,8 @@ class CalibrationScreen extends StatefulWidget {
 class _CalibrationScreenState extends State<CalibrationScreen> {
   _CalibrationStage _stage = _CalibrationStage.ready;
   late final WorkoutSetupViewModel _viewModel;
+  Timer? _calibrationTimeout;
+  static const _calibrationTimeoutDuration = Duration(seconds: 15);
 
   @override
   void initState() {
@@ -51,6 +53,7 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
 
   @override
   void dispose() {
+    _calibrationTimeout?.cancel();
     _viewModel.dispose();
     super.dispose();
   }
@@ -59,6 +62,9 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
     if (!mounted) {
       return;
     }
+    if (stage != _CalibrationStage.measuring) {
+      _calibrationTimeout?.cancel();
+    }
     setState(() => _stage = stage);
   }
 
@@ -66,6 +72,7 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
     if (!mounted) {
       return;
     }
+    _calibrationTimeout?.cancel();
     setState(() => _stage = _CalibrationStage.success);
   }
 
@@ -75,6 +82,12 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
         _viewModel.startCalibration(exerciseType: widget.exerciseId),
       );
     }
+    _calibrationTimeout?.cancel();
+    _calibrationTimeout = Timer(_calibrationTimeoutDuration, () {
+      if (mounted && _stage == _CalibrationStage.measuring) {
+        _setStage(_CalibrationStage.failed);
+      }
+    });
     setState(() => _stage = _CalibrationStage.measuring);
   }
 
