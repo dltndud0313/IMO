@@ -58,7 +58,16 @@ GoRouter buildRouter() {
       ),
       GoRoute(
         path: '/profile-setup',
-        builder: (context, state) => const ProfileSetupScreen(),
+        builder: (context, state) {
+          final extra = state.extra;
+          String? email;
+          String? password;
+          if (extra is Map) {
+            email = extra['email'] as String?;
+            password = extra['password'] as String?;
+          }
+          return ProfileSetupScreen(email: email, password: password);
+        },
       ),
       ShellRoute(
         navigatorKey: _shellNavigatorKey,
