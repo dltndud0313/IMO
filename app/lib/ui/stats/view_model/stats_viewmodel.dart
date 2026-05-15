@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../../../data/repositories/stats_repository.dart';
@@ -6,10 +8,18 @@ import '../widgets/stats_tab_bar.dart';
 import '../widgets/svg_body_heatmap_view.dart';
 
 class StatsViewModel extends ChangeNotifier {
-  StatsViewModel(this._repository, this._profileRepository);
+  StatsViewModel(this._repository, this._profileRepository) {
+    _profileSubscription = _profileRepository.profileChanges.listen((profile) {
+      final nextGender = bodyGenderFromCode(profile.gender);
+      if (gender == nextGender) return;
+      gender = nextGender;
+      notifyListeners();
+    });
+  }
 
   final StatsRepository _repository;
   final UserProfileRepository _profileRepository;
+  StreamSubscription? _profileSubscription;
 
   int weekOffset = 0;
   bool loading = false;
@@ -75,5 +85,11 @@ class StatsViewModel extends ChangeNotifier {
   void selectTab(StatsTab tab) {
     selectedTab = tab;
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _profileSubscription?.cancel();
+    super.dispose();
   }
 }
