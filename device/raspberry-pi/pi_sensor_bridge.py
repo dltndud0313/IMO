@@ -43,8 +43,12 @@ from glass_metrics import SENSOR_CONFIGS, analyze_frame, build_phase_result, bui
 
 UI_DIR = Path(__file__).with_name("glass-ui")
 EMG_DETACHED_THRESHOLD = 0.99
-CALIBRATION_REST_FRAMES = 100
-CALIBRATION_MVC_FRAMES = 100
+# ESP32 sample rate = 50Hz (kSampleIntervalMs=20). 따라서 프레임 수 / 50 = 측정 초.
+# REST 는 "힘 빼고 자세 유지" 라 짧아도 무방하나, MVC 는 사람이 "준비→최대 수축
+# →유지" 사이클을 거쳐야 해서 최소 3초는 필요. 너무 짧으면 기준값 noise 가
+# 결과 muscle_map 활성도 비율을 왜곡한다.
+CALIBRATION_REST_FRAMES = 150   # 3.0s @ 50Hz
+CALIBRATION_MVC_FRAMES = 200    # 4.0s @ 50Hz
 CALIBRATION_TIMEOUT_SEC = 12.0
 CALIBRATION_MIN_VALID_EMG_FRAMES = 10
 EXERCISE_LABELS = {
