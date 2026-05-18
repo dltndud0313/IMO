@@ -25,6 +25,10 @@ from schemas.session import SessionCreate
 router = APIRouter()
 
 
+def _decimal_to_float(value):
+    return float(value) if value is not None else None
+
+
 # ---- 좌우 밸런스 라벨링 (명세 §5-8) ----
 def _balance_status(ratio: float) -> str:
     if ratio >= 90.0:
@@ -287,6 +291,14 @@ async def get_session_detail(
         )
     ).scalar_one_or_none()
 
+    calibration = (
+        await db.execute(
+            select(WorkoutCalibration).where(
+                WorkoutCalibration.session_id == session_id
+            )
+        )
+    ).scalar_one_or_none()
+
     muscle_rows = (
         await db.execute(
             select(WorkoutMuscleMap).where(
@@ -376,6 +388,29 @@ async def get_session_detail(
         else 0
     )
 
+    # ---- calibrationSummary / balanceSummary (POST 입력 원본 보존) ----
+    # muscleBalance 는 명세 §API-08 요구사항이라 유지하되,
+    # 앱이 POST 로 보낸 원본 필드(reason / diffValue / balanceLabel / enabled / ch*_mvc)
+    # 를 별도 블록으로 함께 노출해서 round-trip 무손실 보장.
+    calibration_payload = None
+    if calibration is not None:
+        calibration_payload = {
+            "ch1Mvc": _decimal_to_float(calibration.ch1_mvc),
+            "ch2Mvc": _decimal_to_float(calibration.ch2_mvc),
+            "ch3Mvc": _decimal_to_float(calibration.ch3_mvc),
+        }
+
+    balance_summary_payload = None
+    if balance is not None:
+        balance_summary_payload = {
+            "enabled": balance.enabled,
+            "reason": balance.reason,
+            "leftValue": _decimal_to_float(balance.left_value),
+            "rightValue": _decimal_to_float(balance.right_value),
+            "diffValue": _decimal_to_float(balance.diff_value),
+            "balanceLabel": balance.balance_label,
+        }
+
     payload = {
         "sessionId": session.session_id,
         "exerciseType": session.exercise_type,
@@ -386,6 +421,8 @@ async def get_session_detail(
         "overallSummary": overall_summary,
         "muscleMap": muscle_map,
         "muscleBalance": muscle_balance,
+        "calibrationSummary": calibration_payload,
+        "balanceSummary": balance_summary_payload,
         "graphs": graphs,
     }
     return success_response(payload)
