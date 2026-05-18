@@ -550,6 +550,8 @@ List<_MuscleEntry> _buildMuscleEntries(Map<String, double> map) {
   add('대흉근', ['chest']);
   add('어깨', ['left_shoulder', 'right_shoulder']);
   add('삼두근', ['left_triceps', 'right_triceps']);
+  add('이두근', ['left_biceps', 'right_biceps']);
+  add('전완근', ['left_forearm', 'right_forearm']);
   return entries;
 }
 
@@ -565,6 +567,8 @@ List<_BalanceItem> _buildBalanceItems(Map<String, double> map) {
 
   add('어깨', 'left_shoulder', 'right_shoulder');
   add('삼두근', 'left_triceps', 'right_triceps');
+  add('이두근', 'left_biceps', 'right_biceps');
+  add('전완근', 'left_forearm', 'right_forearm');
   return items;
 }
 
