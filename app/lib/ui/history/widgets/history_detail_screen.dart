@@ -549,10 +549,11 @@ List<_MuscleEntry> _buildMuscleEntries(Map<String, double> map) {
     entries.add(_MuscleEntry(label: label, pct: clampMuscleMapPercent(avg)));
   }
 
-  // 이두컬 시연용 키 우선 추가. pushup/lateral_raise 의 새 키 정렬은 follow-up.
-  // 옛 키도 함께 둬서 마이그레이션 이전 세션 데이터도 일부 매칭된다.
-  add('대흉근', ['chest']);
-  add('어깨', ['left_shoulder', 'right_shoulder']);
+  // 키 명명은 app schema / Pi 송신 키와 정합 (docs/pi_muscle_map_alignment.md).
+  // 옛 단일 chest 키는 마이그레이션 이전 데이터에만 존재 — 더 이상 노출하지 않음.
+  add('대흉근', ['left_chest', 'right_chest']);
+  add('측면 삼각근', ['left_lateral_deltoid', 'right_lateral_deltoid']);
+  add('승모근', ['left_upper_trapezius', 'right_upper_trapezius']);
   add('삼두근', ['left_triceps', 'right_triceps']);
   add('이두근', ['left_biceps', 'right_biceps']);
   add('전완근', ['left_forearm', 'right_forearm']);
@@ -574,7 +575,9 @@ List<_BalanceItem> _buildBalanceItems(Map<String, double> map) {
     }
   }
 
-  add('어깨', 'left_shoulder', 'right_shoulder');
+  add('대흉근', 'left_chest', 'right_chest');
+  add('측면 삼각근', 'left_lateral_deltoid', 'right_lateral_deltoid');
+  add('승모근', 'left_upper_trapezius', 'right_upper_trapezius');
   add('삼두근', 'left_triceps', 'right_triceps');
   add('이두근', 'left_biceps', 'right_biceps');
   add('전완근', 'left_forearm', 'right_forearm');
