@@ -176,6 +176,9 @@ class ApiService {
     final summary = data['overallSummary'] as Map<String, dynamic>? ?? const {};
     final balance = data['muscleBalance'] as Map<String, dynamic>?;
     final muscleMap = data['muscleMap'] as Map<String, dynamic>?;
+    // 백엔드 B-1: GET 응답에 추가된 round-trip 무손실용 raw 블록 (camelCase).
+    final calibration = data['calibrationSummary'] as Map<String, dynamic>?;
+    final balanceSummary = data['balanceSummary'] as Map<String, dynamic>?;
     final targetReps = sets
         .map((set) => (set['targetReps'] as num?)?.toInt() ?? 0)
         .toList();
@@ -215,7 +218,24 @@ class ApiService {
         'muscle_map': muscleMap.map(
           (key, value) => MapEntry(key, (value as num?)?.toDouble() ?? 0.0),
         ),
-      if (balance != null)
+      if (calibration != null)
+        'calibration_summary': {
+          'ch1_mvc': (calibration['ch1Mvc'] as num?)?.toDouble() ?? 0.0,
+          'ch2_mvc': (calibration['ch2Mvc'] as num?)?.toDouble() ?? 0.0,
+          'ch3_mvc': (calibration['ch3Mvc'] as num?)?.toDouble() ?? 0.0,
+        },
+      // raw balanceSummary 블록이 있으면 우선 사용(무손실), 없으면 구버전
+      // 세션 호환을 위해 파생 muscleBalance에서 역산한다.
+      if (balanceSummary != null)
+        'balance_summary': {
+          'enabled': balanceSummary['enabled'] as bool? ?? true,
+          'reason': balanceSummary['reason']?.toString() ?? 'backend_detail',
+          'left_value': (balanceSummary['leftValue'] as num?)?.toDouble(),
+          'right_value': (balanceSummary['rightValue'] as num?)?.toDouble(),
+          'diff_value': (balanceSummary['diffValue'] as num?)?.toDouble(),
+          'balance_label': balanceSummary['balanceLabel']?.toString(),
+        }
+      else if (balance != null)
         'balance_summary': {
           'enabled': true,
           'reason': balance['status']?.toString() ?? 'backend_detail',
