@@ -477,28 +477,29 @@ class BridgeState:
         return self._session_accumulator.normalized_sums[index] / count
 
     def _build_muscle_map_locked(self) -> dict[str, float]:
+        # 키 명명은 app schema (exercise_muscle_map_schemas) 및
+        # docs/pi_muscle_map_alignment.md 와 정합한다.
+        # sensor_guide_screen 이 안내하는 부착 위치를 그대로 키로 반영.
         ch1 = self._channel_average_locked(0)
         ch2 = self._channel_average_locked(1)
         ch3 = self._channel_average_locked(2)
         ch4 = self._channel_average_locked(3)
         if self._exercise_type == "pushup":
             return {
-                "chest": (ch1 + ch2) / 2.0,
-                "left_shoulder": 0.0,
-                "right_shoulder": 0.0,
+                "left_chest": ch1,
+                "right_chest": ch2,
                 "left_triceps": ch3,
                 "right_triceps": ch4,
             }
         if self._exercise_type == "lateral_raise":
             return {
-                "chest": 0.0,
-                "left_shoulder": ch1,
-                "right_shoulder": ch2,
-                "left_triceps": 0.0,
-                "right_triceps": 0.0,
+                "left_lateral_deltoid": ch1,
+                "right_lateral_deltoid": ch2,
+                "left_upper_trapezius": ch3,
+                "right_upper_trapezius": ch4,
             }
+        # bicep_curl
         return {
-            "chest": 0.0,
             "left_biceps": ch1,
             "right_biceps": ch2,
             "left_forearm": ch3,
@@ -517,21 +518,29 @@ class BridgeState:
         avg_assist = 0.0
         avg_comp = 0.0
         if self._exercise_type == "pushup":
-            avg_target = (muscle_map["chest"] + muscle_map["left_triceps"] + muscle_map["right_triceps"]) / 3.0
-        elif self._exercise_type == "lateral_raise":
-            avg_target = (muscle_map["left_shoulder"] + muscle_map["right_shoulder"]) / 2.0
+            avg_target = (muscle_map["left_chest"] + muscle_map["right_chest"]) / 2.0
             avg_assist = (muscle_map["left_triceps"] + muscle_map["right_triceps"]) / 2.0
+        elif self._exercise_type == "lateral_raise":
+            avg_target = (muscle_map["left_lateral_deltoid"] + muscle_map["right_lateral_deltoid"]) / 2.0
+            avg_assist = (muscle_map["left_upper_trapezius"] + muscle_map["right_upper_trapezius"]) / 2.0
         elif self._exercise_type == "bicep_curl":
             avg_target = (muscle_map["left_biceps"] + muscle_map["right_biceps"]) / 2.0
             avg_assist = (muscle_map["left_forearm"] + muscle_map["right_forearm"]) / 2.0
 
-        balance_enabled = self._exercise_type in {"lateral_raise", "bicep_curl"}
-        if self._exercise_type == "bicep_curl":
+        # 좌/우 대흉근이 분리되면서 pushup 도 좌우 밸런스 측정 가능해짐.
+        balance_enabled = self._exercise_type in {"pushup", "lateral_raise", "bicep_curl"}
+        if self._exercise_type == "pushup":
+            left_balance = muscle_map["left_chest"] if balance_enabled else None
+            right_balance = muscle_map["right_chest"] if balance_enabled else None
+        elif self._exercise_type == "lateral_raise":
+            left_balance = muscle_map["left_lateral_deltoid"] if balance_enabled else None
+            right_balance = muscle_map["right_lateral_deltoid"] if balance_enabled else None
+        elif self._exercise_type == "bicep_curl":
             left_balance = muscle_map["left_biceps"] if balance_enabled else None
             right_balance = muscle_map["right_biceps"] if balance_enabled else None
         else:
-            left_balance = muscle_map["left_shoulder"] if balance_enabled else None
-            right_balance = muscle_map["right_shoulder"] if balance_enabled else None
+            left_balance = None
+            right_balance = None
         diff_balance = None
         balance_label = None
         if left_balance is not None and right_balance is not None:
