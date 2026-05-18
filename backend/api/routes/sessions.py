@@ -38,13 +38,12 @@ def _balance_status(ratio: float) -> str:
     return "SIGNIFICANT_IMBALANCE"
 
 
-# Pi 가 보내는 0~1 ratio 를 DB 저장용 0~100 percent 로 변환.
-# 시스템 단위 계약: POST 입력은 ratio, 저장/응답은 percent.
-# None 은 통과시킨다.
+# 스케일 계약 (2026-05-18 통일): Pi/앱 → 백엔드 → DB → 응답 모두 0~100 percent.
+# Pi 가 이미 *100 변환해서 보내므로 백엔드는 그대로 통과시킨다. None 도 통과.
 def _ratio_to_percent(value):
     if value is None:
         return None
-    return float(value) * 100.0
+    return float(value)
 
 
 # ============================================================

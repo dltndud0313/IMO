@@ -43,8 +43,12 @@ from glass_metrics import SENSOR_CONFIGS, analyze_frame, build_phase_result, bui
 
 UI_DIR = Path(__file__).with_name("glass-ui")
 EMG_DETACHED_THRESHOLD = 0.99
-CALIBRATION_REST_FRAMES = 100
-CALIBRATION_MVC_FRAMES = 100
+# ESP32 sample rate = 50Hz (kSampleIntervalMs=20). 따라서 프레임 수 / 50 = 측정 초.
+# REST 는 "힘 빼고 자세 유지" 라 짧아도 무방하나, MVC 는 사람이 "준비→최대 수축
+# →유지" 사이클을 거쳐야 해서 최소 3초는 필요. 너무 짧으면 기준값 noise 가
+# 결과 muscle_map 활성도 비율을 왜곡한다.
+CALIBRATION_REST_FRAMES = 150   # 3.0s @ 50Hz
+CALIBRATION_MVC_FRAMES = 200    # 4.0s @ 50Hz
 CALIBRATION_TIMEOUT_SEC = 12.0
 CALIBRATION_MIN_VALID_EMG_FRAMES = 10
 EXERCISE_LABELS = {
@@ -477,28 +481,31 @@ class BridgeState:
         return self._session_accumulator.normalized_sums[index] / count
 
     def _build_muscle_map_locked(self) -> dict[str, float]:
-        ch1 = self._channel_average_locked(0)
-        ch2 = self._channel_average_locked(1)
-        ch3 = self._channel_average_locked(2)
-        ch4 = self._channel_average_locked(3)
+        # 키 명명은 app schema (exercise_muscle_map_schemas) 및
+        # docs/pi_muscle_map_alignment.md 와 정합한다.
+        # sensor_guide_screen 이 안내하는 부착 위치를 그대로 키로 반영.
+        # 스케일 계약: 활성도 값은 0~100 percent. _channel_average_locked 는
+        # 0~1 ratio 를 돌려주므로 여기서 *100 변환해서 송신한다.
+        ch1 = self._channel_average_locked(0) * 100.0
+        ch2 = self._channel_average_locked(1) * 100.0
+        ch3 = self._channel_average_locked(2) * 100.0
+        ch4 = self._channel_average_locked(3) * 100.0
         if self._exercise_type == "pushup":
             return {
-                "chest": (ch1 + ch2) / 2.0,
-                "left_shoulder": 0.0,
-                "right_shoulder": 0.0,
+                "left_chest": ch1,
+                "right_chest": ch2,
                 "left_triceps": ch3,
                 "right_triceps": ch4,
             }
         if self._exercise_type == "lateral_raise":
             return {
-                "chest": 0.0,
-                "left_shoulder": ch1,
-                "right_shoulder": ch2,
-                "left_triceps": 0.0,
-                "right_triceps": 0.0,
+                "left_lateral_deltoid": ch1,
+                "right_lateral_deltoid": ch2,
+                "left_upper_trapezius": ch3,
+                "right_upper_trapezius": ch4,
             }
+        # bicep_curl
         return {
-            "chest": 0.0,
             "left_biceps": ch1,
             "right_biceps": ch2,
             "left_forearm": ch3,
@@ -517,28 +524,38 @@ class BridgeState:
         avg_assist = 0.0
         avg_comp = 0.0
         if self._exercise_type == "pushup":
-            avg_target = (muscle_map["chest"] + muscle_map["left_triceps"] + muscle_map["right_triceps"]) / 3.0
-        elif self._exercise_type == "lateral_raise":
-            avg_target = (muscle_map["left_shoulder"] + muscle_map["right_shoulder"]) / 2.0
+            avg_target = (muscle_map["left_chest"] + muscle_map["right_chest"]) / 2.0
             avg_assist = (muscle_map["left_triceps"] + muscle_map["right_triceps"]) / 2.0
+        elif self._exercise_type == "lateral_raise":
+            avg_target = (muscle_map["left_lateral_deltoid"] + muscle_map["right_lateral_deltoid"]) / 2.0
+            avg_assist = (muscle_map["left_upper_trapezius"] + muscle_map["right_upper_trapezius"]) / 2.0
         elif self._exercise_type == "bicep_curl":
             avg_target = (muscle_map["left_biceps"] + muscle_map["right_biceps"]) / 2.0
             avg_assist = (muscle_map["left_forearm"] + muscle_map["right_forearm"]) / 2.0
 
-        balance_enabled = self._exercise_type in {"lateral_raise", "bicep_curl"}
-        if self._exercise_type == "bicep_curl":
+        # 좌/우 대흉근이 분리되면서 pushup 도 좌우 밸런스 측정 가능해짐.
+        balance_enabled = self._exercise_type in {"pushup", "lateral_raise", "bicep_curl"}
+        if self._exercise_type == "pushup":
+            left_balance = muscle_map["left_chest"] if balance_enabled else None
+            right_balance = muscle_map["right_chest"] if balance_enabled else None
+        elif self._exercise_type == "lateral_raise":
+            left_balance = muscle_map["left_lateral_deltoid"] if balance_enabled else None
+            right_balance = muscle_map["right_lateral_deltoid"] if balance_enabled else None
+        elif self._exercise_type == "bicep_curl":
             left_balance = muscle_map["left_biceps"] if balance_enabled else None
             right_balance = muscle_map["right_biceps"] if balance_enabled else None
         else:
-            left_balance = muscle_map["left_shoulder"] if balance_enabled else None
-            right_balance = muscle_map["right_shoulder"] if balance_enabled else None
+            left_balance = None
+            right_balance = None
+        # 스케일 계약: left/right_balance 는 muscle_map 값이라 이미 0~100 percent.
+        # 따라서 threshold 도 percent 단위 (예: 10% 이내 → BALANCED).
         diff_balance = None
         balance_label = None
         if left_balance is not None and right_balance is not None:
             diff_balance = abs(left_balance - right_balance)
-            if diff_balance <= 0.1:
+            if diff_balance <= 10.0:
                 balance_label = "BALANCED"
-            elif diff_balance <= 0.25:
+            elif diff_balance <= 25.0:
                 balance_label = "MILD_IMBALANCE"
             else:
                 balance_label = "SIGNIFICANT_IMBALANCE"
@@ -593,6 +610,13 @@ class BridgeState:
 
     def _apply_device_rep_index_locked(self, frame: DecodedFrame) -> list[dict[str, Any]]:
         events: list[dict[str, Any]] = []
+        # ESP32 가 rep_index 를 채워 보내면 update_frame 에서 _maybe_increment_rep
+        # 대신 이 함수가 호출된다. _maybe_increment_rep 만 있던 근활성도 누적
+        # (_track_active_frame_locked) 을 여기서도 동일하게 수행해야 muscle_map
+        # 활성도가 0 으로 머무는 silent failure 를 방지한다.
+        if self._phase == "monitoring":
+            self._track_active_frame_locked(frame)
+
         if self._last_device_rep_index is None:
             self._last_device_rep_index = frame.rep_index
             if self._phase == "monitoring":

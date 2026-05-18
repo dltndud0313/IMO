@@ -59,10 +59,10 @@ class SessionCreate(BaseModel):
     comment: Optional[str] = None
 
     calibration_summary: Optional[CalibrationSummaryBase] = None
-    # 단위 계약: 입력은 0~1 ratio (Pi 의 MVC normalized 출력 그대로).
-    # 백엔드가 *100 변환 후 percent 로 저장 (sessions.py:_ratio_to_percent).
-    # 응답(GET)은 percent 0~100 으로 내려간다.
-    muscle_map: Optional[Dict[str, float]] = None  # {"chest": 0.68, ...}
+    # 단위 계약 (2026-05-18 통일): 활성도 값은 전부 0~100 percent.
+    # Pi 가 _build_muscle_map_locked 에서 *100 적용해서 송신, 백엔드는 그대로 저장/응답.
+    # calibration_summary.ch*_mvc 는 정규화 분모(MVC 기준값)라 raw EMG 값 그대로.
+    muscle_map: Optional[Dict[str, float]] = None  # {"left_chest": 68.0, ...}
     balance_summary: Optional[BalanceSummaryBase] = None
 
     set_results: List[SetResultBase]
