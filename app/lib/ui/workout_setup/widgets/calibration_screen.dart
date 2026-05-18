@@ -32,7 +32,7 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
   _CalibrationStage _stage = _CalibrationStage.ready;
   late final WorkoutSetupViewModel _viewModel;
   Timer? _calibrationTimeout;
-  static const _calibrationTimeoutDuration = Duration(seconds: 15);
+  static const _calibrationTimeoutDuration = Duration(seconds: 25);
 
   @override
   void initState() {
