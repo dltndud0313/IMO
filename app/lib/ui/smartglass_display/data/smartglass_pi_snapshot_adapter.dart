@@ -227,7 +227,7 @@ class SmartglassPiSnapshotAdapter {
       activationPercent: _toInt(payload['activation_percent']),
       activationLabel: activationLevel?.toUpperCase() ?? 'LOW',
       restSeconds: _toInt(payload['rest_remaining_sec']),
-      calibrationProgress: 0,
+      calibrationProgress: _extractGlassCalibrationProgress(payload),
       sensorPlacements: sensorPlacements,
       statusHighlights: _statusHighlights(
         phaseLabel: payload['phase_label'] as String?,
@@ -236,6 +236,7 @@ class SmartglassPiSnapshotAdapter {
         poseTitle: poseTitle,
       ),
       sourceLabel: 'Pi glass_display_data',
+      emgChannelPercents: _emgChannelPercents(payload),
       sessionMessage: usageText,
       detailMessage: poseDetail,
       warningMessage: poseTitle,
@@ -383,6 +384,36 @@ class SmartglassPiSnapshotAdapter {
     }
 
     return (payload['status'] == 'success') ? 1 : 0;
+  }
+
+  double _extractGlassCalibrationProgress(Map<String, dynamic> payload) {
+    final progress = payload['calibration_progress'];
+    if (progress is num) {
+      return progress.toDouble().clamp(0, 1);
+    }
+    return 0;
+  }
+
+  List<int> _emgChannelPercents(Map<String, dynamic> payload) {
+    final rawChannels = payload['emg_channels'];
+    if (rawChannels is! List) {
+      return const [0, 0, 0, 0];
+    }
+
+    final percents = rawChannels
+        .take(4)
+        .map((entry) {
+          if (entry is Map<String, dynamic>) {
+            return _toInt(entry['activation_percent']).clamp(0, 100);
+          }
+          return 0;
+        })
+        .toList();
+
+    while (percents.length < 4) {
+      percents.add(0);
+    }
+    return percents;
   }
 
   SmartglassSessionPhase _sessionPhaseFromBridgePhase(String phase) {

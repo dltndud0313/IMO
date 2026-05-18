@@ -63,7 +63,10 @@ class _CalibrationScreenAppVersionState
       },
     );
     if (widget.autoStart) {
-      _startCalibration(sendToPi: false);
+      _startCalibration(
+        sendToPi: true,
+        attachSensorsFirst: true,
+      );
     }
   }
 
@@ -80,11 +83,22 @@ class _CalibrationScreenAppVersionState
     setState(() => _stage = stage);
   }
 
-  void _startCalibration({bool sendToPi = true}) {
+  void _startCalibration({
+    bool sendToPi = true,
+    bool attachSensorsFirst = false,
+  }) {
     if (sendToPi) {
-      unawaited(
-        _viewModel.startCalibration(exerciseType: widget.exerciseId),
-      );
+      if (attachSensorsFirst) {
+        unawaited(
+          _viewModel.completeSensorAttachmentAndStartCalibration(
+            exerciseType: widget.exerciseId,
+          ),
+        );
+      } else {
+        unawaited(
+          _viewModel.startCalibration(exerciseType: widget.exerciseId),
+        );
+      }
     }
     // Pi가 첫 calibration_status(started)를 보내기 전까지의 낙관적 단계.
     setState(() {

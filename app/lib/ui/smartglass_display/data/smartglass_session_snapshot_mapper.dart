@@ -41,6 +41,7 @@ class SmartglassSessionSnapshotMapper {
       reconnectHint: _reconnectHint(snapshot),
       sourceLabel: snapshot.sourceLabel,
       tone: tone,
+      emgChannelPercents: snapshot.emgChannelPercents,
     );
   }
 

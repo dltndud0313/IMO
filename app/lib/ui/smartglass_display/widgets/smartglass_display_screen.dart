@@ -599,17 +599,11 @@ String _setValue(SmartglassDisplayState state) {
 }
 
 List<int> _emgValues(SmartglassDisplayState state) {
-  final base = state.activationPercent.clamp(0, 100);
-  if (base == 0) {
-    return const [0, 0, 0, 0];
+  final values = state.emgChannelPercents.take(4).toList();
+  while (values.length < 4) {
+    values.add(0);
   }
-
-  return [
-    base,
-    (base - 6).clamp(0, 100),
-    (base + 4).clamp(0, 100),
-    (base - 2).clamp(0, 100),
-  ];
+  return values;
 }
 
 String _mainStatusMessage(

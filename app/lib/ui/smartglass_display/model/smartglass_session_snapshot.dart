@@ -38,6 +38,7 @@ class SmartglassSessionSnapshot {
     required this.sensorPlacements,
     required this.statusHighlights,
     required this.sourceLabel,
+    this.emgChannelPercents = const [0, 0, 0, 0],
     this.sessionMessage,
     this.detailMessage,
     this.warningMessage,
@@ -60,6 +61,7 @@ class SmartglassSessionSnapshot {
   final List<String> sensorPlacements;
   final List<String> statusHighlights;
   final String sourceLabel;
+  final List<int> emgChannelPercents;
   final String? sessionMessage;
   final String? detailMessage;
   final String? warningMessage;

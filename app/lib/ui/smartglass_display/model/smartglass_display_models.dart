@@ -70,6 +70,7 @@ class SmartglassDisplayState {
     required this.reconnectHint,
     required this.sourceLabel,
     required this.tone,
+    this.emgChannelPercents = const [0, 0, 0, 0],
   });
 
   final SmartglassConnectionState connectionState;
@@ -98,6 +99,7 @@ class SmartglassDisplayState {
   final String reconnectHint;
   final String sourceLabel;
   final SmartglassDisplayTone tone;
+  final List<int> emgChannelPercents;
 
   bool get isWaiting =>
       sessionPhase == SmartglassSessionPhase.waitingWorkoutSelection;

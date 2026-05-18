@@ -7,7 +7,6 @@ import '../../core/layouts/app_scaffold.dart';
 import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../../stats/widgets/svg_body_heatmap_view.dart' show BodyGender;
-import '../view_model/workout_setup_viewmodel.dart';
 import 'cropped_body_svg.dart';
 import 'exercise_target_regions.dart'
     show exerciseDisplayName, findExerciseBodyCrop;
@@ -23,7 +22,6 @@ class SensorGuideScreen extends StatefulWidget {
 
 class _SensorGuideScreenState extends State<SensorGuideScreen> {
   final Set<String> _checkedSensorIds = {};
-  late final WorkoutSetupViewModel _viewModel;
 
   _SensorConfig get _config =>
       _sensorConfigs[widget.exerciseId] ?? _sensorConfigs['pushup']!;
@@ -31,19 +29,9 @@ class _SensorGuideScreenState extends State<SensorGuideScreen> {
   bool get _allChecked =>
       _config.sensors.every((sensor) => _checkedSensorIds.contains(sensor.id));
 
-  @override
-  void initState() {
-    super.initState();
-    _viewModel = WorkoutSetupViewModel.withCalibration(
-      getIt<CalibrationRepository>(),
-    );
-  }
-
   Future<void> _startCalibration() async {
     try {
-      await _viewModel.completeSensorAttachmentAndStartCalibration(
-        exerciseType: widget.exerciseId,
-      );
+      await getIt<CalibrationRepository>().connect();
       if (mounted) {
         context.push(
           '/workout-calibration?exercise=${widget.exerciseId}&autoStart=true',
