@@ -196,50 +196,66 @@ async def get_weekly_summary(
             daily_map[d].total_reps += r.total_reps or 0
     daily_breakdown = list(daily_map.values())
 
-    # ---- trends (운동 수행한 세션만 시계열) ----
-    target_act_values, target_act_dates = [], []
-    comp_rate_values, comp_rate_dates = [], []
-    fatigue_values, fatigue_dates = [], []
+    # ---- trends — 주 7일 슬롯에 일자별 평균값 매핑 ----
+    # 앱(trend_tab) 이 values[i] 를 i 번째 요일 막대에 그대로 표시하므로,
+    # 백엔드가 일자→슬롯(0=일요일권... weekStart 기준 day offset) 매핑까지 책임진다.
+    # 같은 날 여러 세션은 평균, 운동 없는 날은 0.0 (앱은 0 막대 = "데이터 없음" 톤으로 표시).
+    target_slots: list[list[float]] = [[] for _ in range(7)]
+    comp_slots: list[list[float]] = [[] for _ in range(7)]
+    fatigue_slots: list[list[float]] = [[] for _ in range(7)]
 
     for r in rows:
         if not r.started_at:
             continue
-        d = r.started_at.date().isoformat()
+        d = r.started_at.date()
+        offset = (d - week_start_d).days
+        if not (0 <= offset < 7):
+            continue
 
         if r.avg_target_muscle is not None:
-            target_act_values.append(round(float(r.avg_target_muscle), 1))
-            target_act_dates.append(d)
+            target_slots[offset].append(float(r.avg_target_muscle))
 
         if r.total_reps and r.total_reps > 0:
-            comp_rate = (r.compensation_count or 0) / r.total_reps * 100.0
-            comp_rate_values.append(round(comp_rate, 1))
-            comp_rate_dates.append(d)
+            comp_slots[offset].append(
+                (r.compensation_count or 0) / r.total_reps * 100.0
+            )
 
-        # fatigue 점수 — onset 이 빨리 올수록(낮은 set/rep) 피로 큼.
-        # 간이지표: fatigue_onset_set 이 nullable 이므로 있을 때만 시계열에 포함.
+        # fatigue — onset 이 빨리 올수록(낮은 set/rep) 피로 큼.
         if r.fatigue_onset_set is not None:
-            # set_count 대비 onset 의 늦음 비율 → 낮을수록 피로 빠름.
-            # trend 의미를 위해 "피로 빠름 = 큰 값"으로 변환.
             sc = max(r.set_count or 1, 1)
-            fatigue_score = max(0.0, (sc - r.fatigue_onset_set) / sc * 100.0)
-            fatigue_values.append(round(fatigue_score, 1))
-            fatigue_dates.append(d)
+            fatigue_slots[offset].append(
+                max(0.0, (sc - r.fatigue_onset_set) / sc * 100.0)
+            )
+
+    def _avg_or_zero(slot: list[float]) -> float:
+        return round(sum(slot) / len(slot), 1) if slot else 0.0
+
+    trend_dates = [
+        (week_start_d + timedelta(days=i)).isoformat() for i in range(7)
+    ]
+    target_values = [_avg_or_zero(s) for s in target_slots]
+    comp_values = [_avg_or_zero(s) for s in comp_slots]
+    fatigue_values = [_avg_or_zero(s) for s in fatigue_slots]
+
+    # trend label 은 0 이 아닌 슬롯만 가지고 첫/마지막 비교
+    def _nonzero_only(values: list[float]) -> list[float]:
+        return [v for v in values if v > 0]
 
     trends = WeeklyTrends(
         target_activation=TrendBlock(
-            values=target_act_values,
-            dates=target_act_dates,
-            trend=_trend_label(target_act_values),
+            values=target_values,
+            dates=trend_dates,
+            trend=_trend_label(_nonzero_only(target_values)),
         ),
         compensation_rate=TrendBlock(
-            values=comp_rate_values,
-            dates=comp_rate_dates,
-            trend=_trend_label(comp_rate_values),
+            values=comp_values,
+            dates=trend_dates,
+            trend=_trend_label(_nonzero_only(comp_values)),
         ),
         fatigue=TrendBlock(
             values=fatigue_values,
-            dates=fatigue_dates,
-            trend=_trend_label(fatigue_values),
+            dates=trend_dates,
+            trend=_trend_label(_nonzero_only(fatigue_values)),
         ),
     )
 
