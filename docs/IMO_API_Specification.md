@@ -314,15 +314,18 @@
       "ch3_mvc": 69.8
     },
     "muscle_map": {
-      "chest": 68.0,
-      "left_shoulder": 42.0,
-      "right_shoulder": 39.0,
+      "left_chest": 68.0,
+      "right_chest": 65.0,
       "left_triceps": 54.0,
       "right_triceps": 52.0
     },
     "balance_summary": {
-      "enabled": false,
-      "reason": "no_left_right_pairing"
+      "enabled": true,
+      "reason": "left_right_activation_pairing",
+      "left_value": 68.0,
+      "right_value": 65.0,
+      "diff_value": 3.0,
+      "balance_label": "BALANCED"
     },
     "set_results": [ 
       { 
@@ -663,15 +666,18 @@
     "ch3_mvc": 69.8
   },
   "muscle_map": {
-    "chest": 68.0,
-    "left_shoulder": 42.0,
-    "right_shoulder": 39.0,
+    "left_chest": 68.0,
+    "right_chest": 65.0,
     "left_triceps": 54.0,
     "right_triceps": 52.0
   },
   "balance_summary": {
-    "enabled": false,
-    "reason": "no_left_right_pairing"
+    "enabled": true,
+    "reason": "left_right_activation_pairing",
+    "left_value": 68.0,
+    "right_value": 65.0,
+    "diff_value": 3.0,
+    "balance_label": "BALANCED"
   },
   "set_results": [
     {
