@@ -79,16 +79,17 @@
 | 종류 | 값 | 상태 |
 | --- | --- | --- |
 | 공통 | `0` | `inactive` |
-| 활성도 | `0.0 < value < 0.4` | `low` |
-| 활성도 | `0.4 <= value < 0.7` | `normal` |
-| 활성도 | `0.7 <= value < 0.9` | `high` |
-| 활성도 | `0.9 <= value <= 1.0` | `danger` |
-| 자세 안정성 | `0.0 < value < 0.3` | `danger` |
-| 자세 안정성 | `0.3 <= value < 0.5` | `low` |
-| 자세 안정성 | `0.5 <= value < 0.75` | `normal` |
-| 자세 안정성 | `0.75 <= value <= 1.0` | `high` |
+| 활성도 | `0 < value < 40` | `low` |
+| 활성도 | `40 <= value < 70` | `normal` |
+| 활성도 | `70 <= value < 90` | `high` |
+| 활성도 | `90 <= value <= 100` | `danger` |
+| 자세 안정성 | `0 < value < 30` | `danger` |
+| 자세 안정성 | `30 <= value < 50` | `low` |
+| 자세 안정성 | `50 <= value < 75` | `normal` |
+| 자세 안정성 | `75 <= value <= 100` | `high` |
 
-`muscleMapRatioToPercent`는 `0.0~1.0` 값을 `0~100` percent로 변환한다.
+스케일 계약(2026-05-18 통일): 활성도 값은 전 구간 `0~100` percent 다.
+`clampMuscleMapPercent`는 표시 직전 `0~100` 범위로 clamp 만 한다(스케일 변환 없음).
 
 ### 1.4 `MuscleMapState`
 
@@ -255,7 +256,7 @@ MVP 아바타는 귀여운 캐릭터가 아니라 실제 인체 근육도 느낌
 
 ### 3.2 색상 정책
 
-실제 값은 `0.0~1.0` ratio가 기준이고, 화면에서는 percent로 변환한다.
+실제 값은 `0~100` percent 가 기준이고, 화면에서도 그대로 percent 로 표시한다.
 
 기본 색상은 현재 `AppColors`의 heatmap 색상을 우선 재사용할 수 있다.
 
@@ -359,20 +360,22 @@ MVP에서는 `muscle_map` key를 그대로 stable region ID로 사용하는 것�
 
 ### 5.1 실제 값 범위
 
-실제 문서와 코드 기준 `muscle_map` 값은 `0.0~1.0` 비율값이다.
+스케일 계약(2026-05-18 통일): `muscle_map` 값은 Pi·앱·백엔드·DB·응답 전 구간 `0~100` percent 다.
 
 근거:
 
-- `docs/App_Muscle_Map_Schema.md`는 Pi가 `0.0~1.0` 비율값으로 보낸다고 정의한다.
-- `muscleMapRatioToPercent`는 `value * 100`으로 화면 percent를 만든다.
+- `docs/App_Muscle_Map_Schema.md`는 Pi가 `0~100` percent 로 보낸다고 정의한다.
+- Pi `_build_muscle_map_locked`가 0~1 비율을 `*100`해 percent 로 송신한다.
+- 백엔드 `_ratio_to_percent`는 percent 입력을 그대로 통과시키고 percent 로 응답한다.
+- `muscleMapRatioToPercent`는 폐기됐고, `clampMuscleMapPercent`가 `0~100` clamp 만 한다.
 - `SessionResultDto._asDoubleMap`은 `muscle_map` 값을 `double`로 변환한다.
 
 ### 5.2 화면 표시
 
-화면에서는 다음 변환을 사용한다.
+화면에서는 다음 처리를 사용한다(스케일 변환 없음).
 
 ```text
-percent = clamp(value, 0.0, 1.0) * 100
+percent = clamp(value, 0, 100)
 ```
 
 통계 API의 `HeatmapTab.data['muscles'][].avgActivation`은 현재 UI에서 바로 `%`처럼 표시된다. 이 값이 API에서 이미 `0~100`으로 오는지, `0.0~1.0`으로 오는지 별도 확인이 필요하다.
@@ -491,7 +494,7 @@ MVP 구현 후:
 | adapter | 역할 |
 | --- | --- |
 | muscle key -> mesh/entity ID | `left_chest` 같은 앱 key를 3D asset 내부 mesh 이름으로 변환 |
-| value -> material/color | `0.0~1.0` 값을 material color 또는 shader parameter로 변환 |
+| value -> material/color | `0~100` percent 값을 material color 또는 shader parameter로 변환 |
 | unsupported mesh fallback | 해당 mesh가 없을 때 회색 또는 무시 처리 |
 | posture overlay | `trunk`를 근육 mesh가 아닌 안정성 지표로 표시 |
 
