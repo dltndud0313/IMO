@@ -29,7 +29,7 @@ class _SignupScreenState extends State<SignupScreen> {
   String? _confirmError;
   bool? _emailAvailable;
   bool _checkingEmail = false;
-  bool _submitting = false;
+  final bool _submitting = false;
 
   @override
   void dispose() {
