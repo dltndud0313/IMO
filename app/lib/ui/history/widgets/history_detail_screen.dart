@@ -296,10 +296,8 @@ class _BalanceRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final total = item.leftPct + item.rightPct;
-    final leftFraction = total > 0 ? item.leftPct / total : 0.5;
-    final leftFlex = (leftFraction * 1000).round().clamp(1, 999);
-    final rightFlex = 1000 - leftFlex;
+    final status = _balanceStatus(item.leftPct, item.rightPct);
+    final color = _balanceStatusColor(status);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -307,6 +305,8 @@ class _BalanceRow extends StatelessWidget {
           children: [
             Text(item.label, style: AppTextStyles.body),
             const Spacer(),
+            _BalanceStatusBadge(status: status),
+            const SizedBox(width: AppSpacing.sm),
             Text(
               '좌 ${item.leftPct.toStringAsFixed(0)}% · 우 ${item.rightPct.toStringAsFixed(0)}%',
               style: AppTextStyles.caption,
@@ -314,23 +314,105 @@ class _BalanceRow extends StatelessWidget {
           ],
         ),
         const SizedBox(height: AppSpacing.xs),
+        // 회색 트랙 위에 중앙 기준으로 좌/우 값(0~100%) 만큼 양방향으로 자라는
+        // 막대. 좌/우 길이를 직관적으로 비교할 수 있고, 가운데에 1px 흰 분리선.
         ClipRRect(
           borderRadius: BorderRadius.circular(AppSpacing.pillRadius),
           child: SizedBox(
-            height: 8,
-            child: Row(
-              children: [
-                Expanded(
-                  flex: leftFlex,
-                  child: const ColoredBox(color: AppColors.primary),
-                ),
-                Expanded(
-                  flex: rightFlex,
-                  child: const ColoredBox(color: AppColors.secondary),
-                ),
-              ],
+            height: 10,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final halfWidth = constraints.maxWidth / 2;
+                final leftFill =
+                    (item.leftPct / 100.0).clamp(0.0, 1.0) * halfWidth;
+                final rightFill =
+                    (item.rightPct / 100.0).clamp(0.0, 1.0) * halfWidth;
+                return Stack(
+                  children: [
+                    const Positioned.fill(
+                      child: ColoredBox(color: AppColors.disabledBg),
+                    ),
+                    Positioned(
+                      left: halfWidth - leftFill,
+                      top: 0,
+                      bottom: 0,
+                      width: leftFill,
+                      child: ColoredBox(color: color),
+                    ),
+                    Positioned(
+                      left: halfWidth,
+                      top: 0,
+                      bottom: 0,
+                      width: rightFill,
+                      child: ColoredBox(color: color),
+                    ),
+                    Positioned(
+                      left: halfWidth - 0.5,
+                      top: 0,
+                      bottom: 0,
+                      width: 1,
+                      child: const ColoredBox(color: AppColors.card),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
+        ),
+      ],
+    );
+  }
+}
+
+enum _BalanceStatusLevel { balanced, mild, significant }
+
+// 백엔드 _balance_status(ratio) 로직과 동일: ≥90 균형, ≥75 주의, 그 외 심각.
+_BalanceStatusLevel _balanceStatus(double leftPct, double rightPct) {
+  final maxV = leftPct > rightPct ? leftPct : rightPct;
+  if (maxV <= 0) return _BalanceStatusLevel.balanced;
+  final minV = leftPct < rightPct ? leftPct : rightPct;
+  final ratio = minV / maxV * 100.0;
+  if (ratio >= 90.0) return _BalanceStatusLevel.balanced;
+  if (ratio >= 75.0) return _BalanceStatusLevel.mild;
+  return _BalanceStatusLevel.significant;
+}
+
+Color _balanceStatusColor(_BalanceStatusLevel status) {
+  switch (status) {
+    case _BalanceStatusLevel.balanced:
+      return AppColors.success;
+    case _BalanceStatusLevel.mild:
+      return AppColors.warning;
+    case _BalanceStatusLevel.significant:
+      return AppColors.error;
+  }
+}
+
+class _BalanceStatusBadge extends StatelessWidget {
+  const _BalanceStatusBadge({required this.status});
+
+  final _BalanceStatusLevel status;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _balanceStatusColor(status);
+    final (icon, label) = switch (status) {
+      _BalanceStatusLevel.balanced =>
+        (Icons.check_circle_rounded, '균형'),
+      _BalanceStatusLevel.mild =>
+        (Icons.warning_amber_rounded, '주의'),
+      _BalanceStatusLevel.significant =>
+        (Icons.error_rounded, '심각'),
+    };
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: color),
+        const SizedBox(width: 2),
+        Text(
+          label,
+          style: AppTextStyles.caption
+              .copyWith(color: color, fontWeight: FontWeight.w700),
         ),
       ],
     );
