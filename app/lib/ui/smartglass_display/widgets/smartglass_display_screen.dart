@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../config/dependencies.dart';
 import '../../../data/services/pi_socket_service.dart';
+import '../../../domain/models/exercise_type.dart';
 import '../../core/layouts/app_scaffold.dart';
 import '../../core/themes/design_tokens.dart';
 import '../model/smartglass_display_models.dart';
@@ -129,7 +130,10 @@ class _SmartglassDisplayScreenState extends State<SmartglassDisplayScreen> {
         final paused = _viewModel.paused;
         final emergencyStopped = _viewModel.emergencyStopped;
         final awaitingSessionResult = _viewModel.awaitingSessionResult;
-        final canSendControl = _viewModel.isConnected && !_viewModel.controlsLocked;
+        final isConnected = _viewModel.isConnected;
+        // Pi 끊김 상태에서도 중지/일시정지 버튼은 활성화한다 (viewmodel 에서
+        // 끊긴 채 누른 stop 은 emergency 로 처리, pause 는 로컬 UI 토글).
+        final canSendControl = !_viewModel.controlsLocked;
 
         return AppScaffold(
           horizontalPadding: false,
@@ -154,6 +158,16 @@ class _SmartglassDisplayScreenState extends State<SmartglassDisplayScreen> {
                   ),
                 ),
               ),
+              if (!isConnected)
+                const SafeArea(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(12, 12, 12, 0),
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: _DisconnectedBanner(),
+                    ),
+                  ),
+                ),
             ],
           ),
         );
@@ -306,6 +320,45 @@ class _GlassHudLayout extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _DisconnectedBanner extends StatelessWidget {
+  const _DisconnectedBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFFFF886F).withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: const Color(0xFFFF886F).withValues(alpha: 0.6),
+          width: 1,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.wifi_off_rounded,
+              color: Color(0xFFFF886F),
+              size: 16,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Pi 연결 끊김 — 중지 버튼으로 운동을 종료할 수 있어요',
+              style: AppTextStyles.caption.copyWith(
+                color: const Color(0xFFFFD9CE),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -578,7 +631,15 @@ class _ControlButton extends StatelessWidget {
 }
 
 String _workoutName(SmartglassDisplayState state) {
-  return state.workoutLabel.trim().isEmpty ? '-' : state.workoutLabel;
+  final raw = state.workoutLabel.trim();
+  if (raw.isEmpty) return '-';
+  // workoutLabel 은 Pi 가 보낸 wire 문자열(PUSH_UP, BICEP_CURL...)인 경우가 많다.
+  // 다른 화면들과 통일된 한글명(이두컬, 푸시업 등)으로 변환해서 표시.
+  try {
+    return ExerciseType.fromWire(raw).label;
+  } catch (_) {
+    return raw;
+  }
 }
 
 String _repValue(SmartglassDisplayState state) {

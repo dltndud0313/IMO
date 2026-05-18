@@ -13,11 +13,13 @@ class TrendTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final trends = data?['trends'] as Map<String, dynamic>?;
-    final fatigue = _trendValues(trends, 'fatigue');
     final targetActivation = _trendValues(trends, 'targetActivation');
     final compensationRate = _trendValues(trends, 'compensationRate');
 
-    if (fatigue.isEmpty && targetActivation.isEmpty && compensationRate.isEmpty) {
+    // 근피로도 카드는 Pi 측 onset 측정 알고리즘이 들어오기 전까지 노출 보류.
+    // (백엔드는 0 으로 채워 보내고 있음)
+
+    if (targetActivation.isEmpty && compensationRate.isEmpty) {
       return SizedBox(
         key: const ValueKey('trend'),
         width: double.infinity,
@@ -40,14 +42,6 @@ class TrendTab extends StatelessWidget {
     return Column(
       key: const ValueKey('trend'),
       children: [
-        _TrendCard(
-          title: '근피로도 추세',
-          values: fatigue,
-          color: AppColors.warning,
-          unit: '%',
-          dayLabels: dayLabels,
-        ),
-        const SizedBox(height: AppSpacing.md),
         _TrendCard(
           title: '목표근 사용 추세',
           values: targetActivation,
@@ -126,21 +120,36 @@ class _TrendCard extends StatelessWidget {
                       children: [
                         SizedBox(
                           height: 16,
-                          child: values.isNotEmpty && i < values.length
-                              ? Text('${values[i]}$unit', style: AppTextStyles.caption, textAlign: TextAlign.center)
+                          child: values.isNotEmpty &&
+                                  i < values.length &&
+                                  values[i] > 0
+                              ? Text(
+                                  '${values[i]}$unit',
+                                  style: AppTextStyles.caption,
+                                  textAlign: TextAlign.center,
+                                )
                               : null,
                         ),
                         const SizedBox(height: AppSpacing.xs),
-                        Container(
-                          height: values.isNotEmpty && i < values.length
-                              ? (values[i] / 100.0 * _maxBarHeight).clamp(2.0, _maxBarHeight)
-                              : 2.0,
-                          decoration: BoxDecoration(
-                            color: values.isNotEmpty && i < values.length
-                                ? color
-                                : AppColors.cardSubtle,
-                            borderRadius: BorderRadius.circular(
-                              AppSpacing.pillRadius,
+                        // pillRadius(999) 를 그대로 쓰면 작은 막대가 알약/원으로
+                        // 변형되어 보이지 않는다. 가로폭을 제한하고 모서리 반경을
+                        // 작게 잡아 세로 막대 모양을 유지한다.
+                        SizedBox(
+                          width: 16,
+                          child: Container(
+                            height: values.isNotEmpty &&
+                                    i < values.length &&
+                                    values[i] > 0
+                                ? (values[i] / 100.0 * _maxBarHeight)
+                                    .clamp(4.0, _maxBarHeight)
+                                : 4.0,
+                            decoration: BoxDecoration(
+                              color: values.isNotEmpty &&
+                                      i < values.length &&
+                                      values[i] > 0
+                                  ? color
+                                  : AppColors.cardSubtle,
+                              borderRadius: BorderRadius.circular(4),
                             ),
                           ),
                         ),
