@@ -120,6 +120,7 @@ class WorkoutSetupViewModel {
   /// 시작할 때(startCalibration 등)와 success/failed 수신 시 0으로 초기화된다.
   void listenCalibrationStatus({
     required void Function(CalibrationStage stage) onStage,
+    void Function(CalibrationStatusMessage status)? onStatus,
   }) {
     final calibrationRepository = _calibrationRepository;
     if (calibrationRepository == null) {
@@ -131,6 +132,7 @@ class WorkoutSetupViewModel {
     _calibrationStatusSubscription = calibrationRepository.status.listen((
       status,
     ) {
+      onStatus?.call(status);
       if (status.isStarted) {
         _calibrationStartedCount++;
         onStage(

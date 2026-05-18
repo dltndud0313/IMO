@@ -49,8 +49,20 @@ EMG_DETACHED_THRESHOLD = 0.99
 # 결과 muscle_map 활성도 비율을 왜곡한다.
 CALIBRATION_REST_FRAMES = 150   # 3.0s @ 50Hz
 CALIBRATION_MVC_FRAMES = 200    # 4.0s @ 50Hz
-CALIBRATION_TIMEOUT_SEC = 12.0
+CALIBRATION_TIMEOUT_SEC = 20.0
 CALIBRATION_MIN_VALID_EMG_FRAMES = 10
+CALIBRATION_REST_MAX_EMG_MEAN = 0.08
+CALIBRATION_REST_MAX_EMG_STD = 0.035
+CALIBRATION_REST_MAX_GYRO_NORM = 6.0
+CALIBRATION_MVC_MIN_VALID_RATIO = 0.85
+CALIBRATION_MVC_NOISE_MULTIPLIER = 4.0
+CALIBRATION_MVC_ACTIVE_DELTA_FLOOR = 0.02
+CALIBRATION_MVC_MIN_PRIMARY_DELTA = 0.05
+CALIBRATION_MVC_MIN_SECONDARY_DELTA = 0.03
+CALIBRATION_MVC_MIN_PRIMARY_PEAK_DELTA = 0.08
+CALIBRATION_MVC_MIN_SECONDARY_PEAK_DELTA = 0.05
+CALIBRATION_MVC_MIN_PRIMARY_ACTIVE_FRAMES = 20
+CALIBRATION_MVC_MIN_SECONDARY_ACTIVE_FRAMES = 12
 EXERCISE_LABELS = {
     "pushup": "Push-up",
     "bicep_curl": "Bicep Curl",
@@ -146,6 +158,7 @@ class BridgeState:
         self._last_rep_speed_label = "분석 중"
         self._last_device_rep_index: Optional[int] = None
         self._calibration_data = CalibrationData()
+        self._calibration_rest_std = [0.0] * 4
         self._calibration_frames: list[DecodedFrame] = []
         self._calibration_collecting = False
         self._calibration_stage = "idle"
@@ -226,7 +239,7 @@ class BridgeState:
             self._current_set_rep_intervals_ms = []
             self._last_rep_speed_label = "분석 중"
             self._last_device_rep_index = None
-            self._calibration_data = CalibrationData(exercise_type=exercise_type)
+            self._reset_calibration_results_locked(exercise_type=exercise_type)
             self._calibration_frames = []
             self._calibration_collecting = False
             self._calibration_stage = "idle"
@@ -246,9 +259,9 @@ class BridgeState:
 
     def start_calibration_collection(self) -> None:
         with self._lock:
+            self._reset_calibration_results_locked()
             self._calibration_frames = []
             self._calibration_collecting = True
-            self._calibration_data.ready = False
             self._calibration_stage = "rest"
             self._phase = "calibrating"
             self._calibration_started_monotonic = time.monotonic()
@@ -356,11 +369,63 @@ class BridgeState:
         with self._lock:
             self._finalize_session_locked(status, end_reason)
 
+    def _reset_calibration_results_locked(
+        self,
+        exercise_type: Optional[str] = None,
+    ) -> None:
+        resolved_exercise = (
+            exercise_type
+            or self._exercise_type
+            or self._calibration_data.exercise_type
+        )
+        self._calibration_data = CalibrationData(exercise_type=resolved_exercise)
+        self._calibration_rest_std = [0.0] * 4
+
     def _valid_emg_values(self, frame: DecodedFrame) -> list[Optional[float]]:
         values: list[Optional[float]] = []
         for value in frame.emg:
             values.append(None if value >= EMG_DETACHED_THRESHOLD else value)
         return values
+
+    @staticmethod
+    def _detached_channels(frame: DecodedFrame) -> list[int]:
+        return [
+            index
+            for index, value in enumerate(frame.emg)
+            if value >= EMG_DETACHED_THRESHOLD
+        ]
+
+    @staticmethod
+    def _imu_gyro_norms(frame: DecodedFrame) -> list[float]:
+        norms: list[float] = []
+        for imu_gyro in frame.imu_gyros[:3]:
+            norms.append(sum(abs(axis) for axis in imu_gyro))
+        return norms
+
+    def _rest_frame_rejection_reason_locked(
+        self,
+        frame: DecodedFrame,
+    ) -> Optional[str]:
+        detached_channels = self._detached_channels(frame)
+        if detached_channels:
+            channel_labels = ",".join(str(index + 1) for index in detached_channels)
+            return f"detached_emg:{channel_labels}"
+        if not bool(frame.flags & 0x02):
+            return "imu_bias_not_ready"
+        if bool(frame.flags & 0x04):
+            return "motion_detected"
+        if max(self._imu_gyro_norms(frame), default=0.0) > CALIBRATION_REST_MAX_GYRO_NORM:
+            return "gyro_unstable"
+        return None
+
+    def _reset_rest_window_locked(self, reason: str) -> None:
+        if not self._calibration_frames:
+            return
+        print(
+            f"[calib] rest window reset accepted={len(self._calibration_frames)} "
+            f"reason={reason}"
+        )
+        self._calibration_frames = []
 
     def _normalized_emg_values_locked(self, frame: DecodedFrame) -> list[float]:
         valid_emg = self._valid_emg_values(frame)
@@ -785,8 +850,14 @@ class BridgeState:
                 )
                 return "failed"
 
-            self._calibration_frames.append(frame)
             stage = self._calibration_stage
+            if stage == "rest":
+                rejection_reason = self._rest_frame_rejection_reason_locked(frame)
+                if rejection_reason is not None:
+                    self._reset_rest_window_locked(rejection_reason)
+                    return None
+
+            self._calibration_frames.append(frame)
             count = len(self._calibration_frames)
             target = CALIBRATION_REST_FRAMES if stage == "rest" else CALIBRATION_MVC_FRAMES
             if count == 1 or count % 25 == 0 or count == target:
@@ -827,7 +898,7 @@ class BridgeState:
             print("[calib] mvc_complete — calibration success")
             return "mvc_complete"
 
-    def _finalize_rest_calibration_locked(self) -> None:
+    def _legacy_finalize_rest_calibration_locked(self) -> None:
         frames = self._calibration_frames
         if not frames:
             raise ValueError("안정 자세 프레임을 수집하지 못했습니다.")
@@ -870,7 +941,7 @@ class BridgeState:
         ]
         self._calibration_data.ready = False
 
-    def _finalize_mvc_calibration_locked(self) -> None:
+    def _legacy_finalize_mvc_calibration_locked(self) -> None:
         frames = self._calibration_frames
         if not frames:
             raise ValueError("최대 수축 프레임을 수집하지 못했습니다.")
@@ -905,13 +976,199 @@ class BridgeState:
         # 사용자가 글래스를 착용하고 start_workout 메시지를 보내야 monitoring 으로 전환.
         self._phase = "awaiting_workout_start"
 
-    def _fail_calibration_locked(self, message: str) -> None:
+    def _legacy_fail_calibration_locked(self, message: str) -> None:
         print(f"[calib] FAIL: {message}")
         self._calibration_collecting = False
         self._calibration_frames = []
         self._calibration_stage = "failed"
         self._calibration_started_monotonic = None
         self._calibration_data.ready = False
+        self._calibration_failure_message = message
+        self._phase = "sensors_ready"
+
+    def _finalize_rest_calibration_locked(self) -> None:
+        frames = self._calibration_frames
+        if not frames:
+            raise ValueError("Rest calibration failed. No stable frames were collected.")
+
+        emg_sums = [0.0, 0.0, 0.0, 0.0]
+        emg_sum_squares = [0.0, 0.0, 0.0, 0.0]
+        emg_counts = [0, 0, 0, 0]
+        imu_acc_sums = [[0.0, 0.0, 0.0] for _ in range(3)]
+        imu_gyro_sums = [[0.0, 0.0, 0.0] for _ in range(3)]
+
+        for frame in frames:
+            for channel_index in range(4):
+                emg_value = frame.emg[channel_index]
+                if emg_value >= EMG_DETACHED_THRESHOLD:
+                    continue
+                emg_sums[channel_index] += emg_value
+                emg_sum_squares[channel_index] += emg_value * emg_value
+                emg_counts[channel_index] += 1
+            for imu_index in range(3):
+                if imu_index < len(frame.imu_accels):
+                    for axis in range(3):
+                        imu_acc_sums[imu_index][axis] += frame.imu_accels[imu_index][axis]
+                if imu_index < len(frame.imu_gyros):
+                    for axis in range(3):
+                        imu_gyro_sums[imu_index][axis] += frame.imu_gyros[imu_index][axis]
+
+        frame_count = float(len(frames))
+        if any(count < CALIBRATION_MIN_VALID_EMG_FRAMES for count in emg_counts):
+            raise ValueError(
+                "Rest calibration failed. Check EMG attachment and keep still, then retry."
+            )
+
+        baselines = [
+            (emg_sums[index] / emg_counts[index]) if emg_counts[index] > 0 else 0.0
+            for index in range(4)
+        ]
+        rest_std = []
+        rest_failures: list[str] = []
+        for index, baseline in enumerate(baselines):
+            variance = max(
+                0.0,
+                (emg_sum_squares[index] / emg_counts[index]) - (baseline * baseline),
+            )
+            std = math.sqrt(variance)
+            rest_std.append(std)
+            print(
+                f"[calib] rest ch{index + 1} baseline={baseline:.4f} std={std:.4f}"
+            )
+            if baseline > CALIBRATION_REST_MAX_EMG_MEAN:
+                rest_failures.append(
+                    f"EMG {index + 1} baseline {baseline:.3f} > "
+                    f"{CALIBRATION_REST_MAX_EMG_MEAN:.3f}"
+                )
+            if std > CALIBRATION_REST_MAX_EMG_STD:
+                rest_failures.append(
+                    f"EMG {index + 1} noise {std:.3f} > "
+                    f"{CALIBRATION_REST_MAX_EMG_STD:.3f}"
+                )
+
+        if rest_failures:
+            print(f"[calib] rest quality issues: {'; '.join(rest_failures)}")
+            raise ValueError(
+                "Rest calibration failed. Relax the muscles, keep still, and retry."
+            )
+
+        self._calibration_rest_std = rest_std
+        self._calibration_data.emg_rest_baseline = baselines
+        self._calibration_data.emg_activation_threshold = [
+            baseline + 0.03 for baseline in self._calibration_data.emg_rest_baseline
+        ]
+        self._calibration_data.imu_rest_accel = [
+            [value / frame_count for value in imu_values] for imu_values in imu_acc_sums
+        ]
+        self._calibration_data.imu_rest_gyro = [
+            [value / frame_count for value in imu_values] for imu_values in imu_gyro_sums
+        ]
+        self._calibration_data.ready = False
+
+    def _finalize_mvc_calibration_locked(self) -> None:
+        frames = self._calibration_frames
+        if not frames:
+            raise ValueError("MVC calibration failed. No frames were collected.")
+
+        minimum_valid_samples = math.ceil(
+            CALIBRATION_MVC_FRAMES * CALIBRATION_MVC_MIN_VALID_RATIO
+        )
+        mvc_values = [0.0] * 4
+        mvc_failures: list[str] = []
+
+        for channel_index in range(4):
+            valid_samples = [
+                frame.emg[channel_index]
+                for frame in frames
+                if frame.emg[channel_index] < EMG_DETACHED_THRESHOLD
+            ]
+            if len(valid_samples) < minimum_valid_samples:
+                mvc_failures.append(
+                    f"EMG {channel_index + 1} valid {len(valid_samples)}/{len(frames)}"
+                )
+                continue
+
+            samples = sorted(valid_samples)
+            top_count = max(1, math.ceil(len(samples) * 0.1))
+            top_average = sum(samples[-top_count:]) / top_count
+            peak_value = samples[-1]
+            baseline = self._calibration_data.emg_rest_baseline[channel_index]
+            rest_std = self._calibration_rest_std[channel_index]
+            is_primary_channel = channel_index < 2
+            minimum_delta = max(
+                CALIBRATION_MVC_MIN_PRIMARY_DELTA
+                if is_primary_channel
+                else CALIBRATION_MVC_MIN_SECONDARY_DELTA,
+                rest_std * CALIBRATION_MVC_NOISE_MULTIPLIER,
+            )
+            minimum_peak_delta = max(
+                CALIBRATION_MVC_MIN_PRIMARY_PEAK_DELTA
+                if is_primary_channel
+                else CALIBRATION_MVC_MIN_SECONDARY_PEAK_DELTA,
+                rest_std * (CALIBRATION_MVC_NOISE_MULTIPLIER + 1.0),
+            )
+            active_threshold = baseline + max(
+                CALIBRATION_MVC_ACTIVE_DELTA_FLOOR,
+                rest_std * 3.0,
+            )
+            active_frames = sum(
+                1 for value in valid_samples if value >= active_threshold
+            )
+            minimum_active_frames = (
+                CALIBRATION_MVC_MIN_PRIMARY_ACTIVE_FRAMES
+                if is_primary_channel
+                else CALIBRATION_MVC_MIN_SECONDARY_ACTIVE_FRAMES
+            )
+            lift = top_average - baseline
+            peak_lift = peak_value - baseline
+
+            print(
+                f"[calib] mvc ch{channel_index + 1} baseline={baseline:.4f} "
+                f"top_avg={top_average:.4f} peak={peak_value:.4f} "
+                f"lift={lift:.4f} active_frames={active_frames}"
+            )
+
+            if lift < minimum_delta:
+                mvc_failures.append(
+                    f"EMG {channel_index + 1} lift {lift:.3f} < {minimum_delta:.3f}"
+                )
+                continue
+            if peak_lift < minimum_peak_delta:
+                mvc_failures.append(
+                    f"EMG {channel_index + 1} peak {peak_lift:.3f} < {minimum_peak_delta:.3f}"
+                )
+                continue
+            if active_frames < minimum_active_frames:
+                mvc_failures.append(
+                    f"EMG {channel_index + 1} active {active_frames} < "
+                    f"{minimum_active_frames}"
+                )
+                continue
+
+            mvc_values[channel_index] = max(baseline + minimum_delta, top_average)
+
+        if mvc_failures:
+            print(f"[calib] mvc quality issues: {'; '.join(mvc_failures)}")
+            raise ValueError(
+                "MVC calibration failed. Check sensor attachment, squeeze harder, and retry."
+            )
+
+        self._calibration_data.emg_mvc = mvc_values
+        self._calibration_data.ready = True
+        self._calibration_collecting = False
+        self._calibration_frames = []
+        self._calibration_stage = "done"
+        self._calibration_started_monotonic = None
+        self._calibration_failure_message = None
+        self._phase = "awaiting_workout_start"
+
+    def _fail_calibration_locked(self, message: str) -> None:
+        print(f"[calib] FAIL: {message}")
+        self._calibration_collecting = False
+        self._calibration_frames = []
+        self._calibration_stage = "failed"
+        self._calibration_started_monotonic = None
+        self._reset_calibration_results_locked()
         self._calibration_failure_message = message
         self._phase = "sensors_ready"
 

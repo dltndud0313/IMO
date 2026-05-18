@@ -32,6 +32,7 @@ class CalibrationScreenAppVersion extends StatefulWidget {
 class _CalibrationScreenAppVersionState
     extends State<CalibrationScreenAppVersion> {
   _CalibrationStage _stage = _CalibrationStage.ready;
+  String _statusMessage = '';
   late final WorkoutSetupViewModel _viewModel;
 
   @override
@@ -53,6 +54,12 @@ class _CalibrationScreenAppVersionState
           case CalibrationStage.failed:
             _setStage(_CalibrationStage.failed);
         }
+      },
+      onStatus: (status) {
+        if (!mounted) {
+          return;
+        }
+        setState(() => _statusMessage = status.message);
       },
     );
     if (widget.autoStart) {
@@ -80,7 +87,10 @@ class _CalibrationScreenAppVersionState
       );
     }
     // Pi가 첫 calibration_status(started)를 보내기 전까지의 낙관적 단계.
-    setState(() => _stage = _CalibrationStage.measuringRest);
+    setState(() {
+      _statusMessage = '';
+      _stage = _CalibrationStage.measuringRest;
+    });
   }
 
   bool get _isMeasuring =>
@@ -99,10 +109,13 @@ class _CalibrationScreenAppVersionState
           : _buildBottom(context),
       body: Column(
         children: [
-          _CalibrationStatusCard(stage: _stage),
+          _CalibrationStatusCard(
+            stage: _stage,
+            statusMessage: _statusMessage,
+          ),
           const SizedBox(height: AppSpacing.sectionGap),
           if (_stage == _CalibrationStage.failed)
-            const _CalibrationRetryGuide()
+            _CalibrationRetryGuide(statusMessage: _statusMessage)
           else
             _CalibrationChecklist(stage: _stage),
         ],
@@ -160,13 +173,20 @@ class _CalibrationScreenAppVersionState
 }
 
 class _CalibrationStatusCard extends StatelessWidget {
-  const _CalibrationStatusCard({required this.stage});
+  const _CalibrationStatusCard({
+    required this.stage,
+    this.statusMessage,
+  });
 
   final _CalibrationStage stage;
+  final String? statusMessage;
 
   @override
   Widget build(BuildContext context) {
     final palette = _CalibrationPalette.fromStage(stage);
+    final description = statusMessage != null && statusMessage!.trim().isNotEmpty
+        ? statusMessage!.trim()
+        : palette.description;
 
     return ImoCard(
       variant: ImoCardVariant.hero,
@@ -198,7 +218,7 @@ class _CalibrationStatusCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            palette.description,
+            description,
             textAlign: TextAlign.center,
             style: AppTextStyles.bodyLg,
           ),
@@ -245,7 +265,11 @@ class _CalibrationChecklist extends StatelessWidget {
 }
 
 class _CalibrationRetryGuide extends StatelessWidget {
-  const _CalibrationRetryGuide();
+  const _CalibrationRetryGuide({
+    this.statusMessage,
+  });
+
+  final String? statusMessage;
 
   @override
   Widget build(BuildContext context) {
@@ -261,6 +285,13 @@ class _CalibrationRetryGuide extends StatelessWidget {
               color: const Color(0xFFB97509),
             ),
           ),
+          if (statusMessage != null && statusMessage!.trim().isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              statusMessage!.trim(),
+              style: AppTextStyles.body.copyWith(color: AppColors.warning),
+            ),
+          ],
           const SizedBox(height: AppSpacing.md),
           const _RetryLine('센서가 떨어지거나 들뜨지 않았는지 확인'),
           const SizedBox(height: AppSpacing.xs),
