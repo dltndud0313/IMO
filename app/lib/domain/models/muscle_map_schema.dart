@@ -162,28 +162,32 @@ ExerciseMuscleMapSchema? findExerciseMuscleMapSchema(String exerciseId) {
   };
 }
 
+// 스케일 계약(2026-05-18 통일): 활성도 값은 Pi·앱·백엔드·DB·응답 전 구간
+// 0~100 percent. classify 임계값도 percent 단위다.
 MuscleMapStatus classifyMuscleMapValue(
   double value, {
   MuscleMapValueKind kind = MuscleMapValueKind.activation,
 }) {
-  final clamped = value.clamp(0.0, 1.0).toDouble();
+  final clamped = value.clamp(0.0, 100.0).toDouble();
   if (clamped == 0) {
     return MuscleMapStatus.inactive;
   }
 
   if (kind == MuscleMapValueKind.postureStability) {
-    if (clamped < 0.3) return MuscleMapStatus.danger;
-    if (clamped < 0.5) return MuscleMapStatus.low;
-    if (clamped < 0.75) return MuscleMapStatus.normal;
+    if (clamped < 30) return MuscleMapStatus.danger;
+    if (clamped < 50) return MuscleMapStatus.low;
+    if (clamped < 75) return MuscleMapStatus.normal;
     return MuscleMapStatus.high;
   }
 
-  if (clamped < 0.4) return MuscleMapStatus.low;
-  if (clamped < 0.7) return MuscleMapStatus.normal;
-  if (clamped < 0.9) return MuscleMapStatus.high;
+  if (clamped < 40) return MuscleMapStatus.low;
+  if (clamped < 70) return MuscleMapStatus.normal;
+  if (clamped < 90) return MuscleMapStatus.high;
   return MuscleMapStatus.danger;
 }
 
-double muscleMapRatioToPercent(double value) {
-  return value.clamp(0.0, 1.0).toDouble() * 100;
+/// 활성도 값을 표시용 0~100 범위로 clamp 한다.
+/// 값 자체가 이미 percent 이므로 스케일 변환(×100)은 하지 않는다.
+double clampMuscleMapPercent(double value) {
+  return value.clamp(0.0, 100.0).toDouble();
 }
