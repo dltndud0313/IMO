@@ -38,7 +38,13 @@ from esp32_serial_receiver import (
     DecodedFrame,
     decode_frame,
 )
-from glass_metrics import SENSOR_CONFIGS, analyze_frame, build_phase_result, build_waiting_result
+from glass_metrics import (
+    SENSOR_CONFIGS,
+    analyze_frame,
+    build_emg_channel_activations,
+    build_phase_result,
+    build_waiting_result,
+)
 
 
 UI_DIR = Path(__file__).with_name("glass-ui")
@@ -63,6 +69,7 @@ CALIBRATION_MVC_MIN_PRIMARY_PEAK_DELTA = 0.08
 CALIBRATION_MVC_MIN_SECONDARY_PEAK_DELTA = 0.05
 CALIBRATION_MVC_MIN_PRIMARY_ACTIVE_FRAMES = 20
 CALIBRATION_MVC_MIN_SECONDARY_ACTIVE_FRAMES = 12
+CALIBRATION_MVC_MIN_PRIMARY_SYNC_FRAMES = 12
 EXERCISE_LABELS = {
     "pushup": "Push-up",
     "bicep_curl": "Bicep Curl",
@@ -353,6 +360,10 @@ class BridgeState:
                 ready=self._calibration_data.ready,
             )
 
+    def calibration_progress_snapshot(self) -> float:
+        with self._lock:
+            return self._calibration_progress_locked()
+
     def consume_calibration_failure_message(self) -> Optional[str]:
         with self._lock:
             message = self._calibration_failure_message
@@ -380,6 +391,15 @@ class BridgeState:
         )
         self._calibration_data = CalibrationData(exercise_type=resolved_exercise)
         self._calibration_rest_std = [0.0] * 4
+
+    def _calibration_progress_locked(self) -> float:
+        if self._calibration_data.ready or self._calibration_stage == "done":
+            return 1.0
+        if self._calibration_stage == "mvc":
+            return 0.5 + min(0.5, len(self._calibration_frames) / CALIBRATION_MVC_FRAMES * 0.5)
+        if self._calibration_stage == "rest":
+            return min(0.5, len(self._calibration_frames) / CALIBRATION_REST_FRAMES * 0.5)
+        return 0.0
 
     def _valid_emg_values(self, frame: DecodedFrame) -> list[Optional[float]]:
         values: list[Optional[float]] = []
@@ -1075,6 +1095,7 @@ class BridgeState:
         )
         mvc_values = [0.0] * 4
         mvc_failures: list[str] = []
+        primary_active_thresholds = [0.0, 0.0]
 
         for channel_index in range(4):
             valid_samples = [
@@ -1111,6 +1132,8 @@ class BridgeState:
                 CALIBRATION_MVC_ACTIVE_DELTA_FLOOR,
                 rest_std * 3.0,
             )
+            if is_primary_channel:
+                primary_active_thresholds[channel_index] = active_threshold
             active_frames = sum(
                 1 for value in valid_samples if value >= active_threshold
             )
@@ -1146,6 +1169,20 @@ class BridgeState:
                 continue
 
             mvc_values[channel_index] = max(baseline + minimum_delta, top_average)
+
+        primary_sync_frames = sum(
+            1
+            for frame in frames
+            if frame.emg[0] < EMG_DETACHED_THRESHOLD
+            and frame.emg[1] < EMG_DETACHED_THRESHOLD
+            and frame.emg[0] >= primary_active_thresholds[0]
+            and frame.emg[1] >= primary_active_thresholds[1]
+        )
+        if primary_sync_frames < CALIBRATION_MVC_MIN_PRIMARY_SYNC_FRAMES:
+            mvc_failures.append(
+                f"primary sync {primary_sync_frames} < "
+                f"{CALIBRATION_MVC_MIN_PRIMARY_SYNC_FRAMES}"
+            )
 
         if mvc_failures:
             print(f"[calib] mvc quality issues: {'; '.join(mvc_failures)}")
@@ -1218,6 +1255,7 @@ def build_glass_display_data(
     session: SessionSnapshot,
     frame: Optional[DecodedFrame],
     calibration: Optional[CalibrationData] = None,
+    calibration_progress: float = 0.0,
 ) -> dict[str, Any]:
     phase_result = build_phase_result(session.phase)
     if session.exercise_type is None:
@@ -1231,6 +1269,11 @@ def build_glass_display_data(
         {"name": name, "position": position}
         for name, position in SENSOR_CONFIGS.get(session.exercise_type or "", [])
     ]
+    emg_channels = build_emg_channel_activations(
+        session.exercise_type,
+        frame,
+        calibration,
+    )
 
     return wrap_message(
         "glass_display_data",
@@ -1246,6 +1289,7 @@ def build_glass_display_data(
             "target_reps_per_set": session.target_reps_per_set,
             "rest_remaining_sec": session.rest_remaining_sec,
             "activation_percent": result.activation_percent,
+            "channel_activation_percent": result.channel_activation_percent,
             "activation_level": result.activation_level,
             "usage_text": result.usage_text,
             "usage_tone": result.usage_tone,
@@ -1253,7 +1297,9 @@ def build_glass_display_data(
             "pose_title": result.pose_title,
             "pose_detail": result.pose_detail,
             "pose_tone": result.pose_tone,
+            "calibration_progress": max(0.0, min(1.0, calibration_progress)),
             "sensors": sensors,
+            "emg_channels": emg_channels,
             "frame_seq": None if frame is None else frame.seq,
             "frame_timestamp_ms": None if frame is None else frame.timestamp_ms,
         },
@@ -1284,6 +1330,7 @@ def build_calibration_status(
     message: str,
     request_id: Optional[str] = None,
     calibration_summary: Optional[dict[str, Any]] = None,
+    progress: Optional[float] = None,
 ) -> dict[str, Any]:
     payload = {
         "status": status,
@@ -1291,6 +1338,8 @@ def build_calibration_status(
     }
     if calibration_summary is not None:
         payload["calibration_summary"] = calibration_summary
+    if progress is not None:
+        payload["progress"] = max(0.0, min(1.0, progress))
 
     return wrap_message(
         "calibration_status",
@@ -1498,6 +1547,17 @@ class SensorBridge:
             )
         )
 
+    def _build_glass_display_message(
+        self,
+        frame: Optional[DecodedFrame] = None,
+    ) -> dict[str, Any]:
+        return build_glass_display_data(
+            self._state.session_snapshot(),
+            self._last_frame if frame is None else frame,
+            self._state.calibration_snapshot(),
+            calibration_progress=self._state.calibration_progress_snapshot(),
+        )
+
 
     async def run(
         self,
@@ -1526,15 +1586,7 @@ class SensorBridge:
         self._state.set_glass_connected(True)
         await websocket.send(json.dumps(build_connection_status(self._state.connection_snapshot())))
         await websocket.send(json.dumps(build_glass_session_state(self._state.session_snapshot())))
-        await websocket.send(
-            json.dumps(
-                build_glass_display_data(
-                    self._state.session_snapshot(),
-                    self._last_frame,
-                    self._state.calibration_snapshot(),
-                )
-            )
-        )
+        await websocket.send(json.dumps(self._build_glass_display_message()))
         try:
             async for raw_message in websocket:
                 await self._handle_client_message(websocket, raw_message)
@@ -1584,13 +1636,7 @@ class SensorBridge:
                 )
                 self._workout_started_emitted = False
                 self._emit_from_thread(build_glass_session_state(self._state.session_snapshot()))
-                self._emit_from_thread(
-                    build_glass_display_data(
-                        self._state.session_snapshot(),
-                        self._last_frame,
-                        self._state.calibration_snapshot(),
-                    )
-                )
+                self._emit_from_thread(self._build_glass_display_message())
 
             await websocket.send(
                 json.dumps(
@@ -1620,13 +1666,7 @@ class SensorBridge:
                 return
             self._state.mark_sensors_attached()
             self._emit_from_thread(build_glass_session_state(self._state.session_snapshot()))
-            self._emit_from_thread(
-                build_glass_display_data(
-                    self._state.session_snapshot(),
-                    self._last_frame,
-                    self._state.calibration_snapshot(),
-                )
-            )
+            self._emit_from_thread(self._build_glass_display_message())
             return
 
         if msg_type == "start_calibration":
@@ -1644,19 +1684,14 @@ class SensorBridge:
                 self._state.mark_sensors_attached()
             self._state.start_calibration_collection()
             self._emit_from_thread(build_glass_session_state(self._state.session_snapshot()))
-            self._emit_from_thread(
-                build_glass_display_data(
-                    self._state.session_snapshot(),
-                    self._last_frame,
-                    self._state.calibration_snapshot(),
-                )
-            )
+            self._emit_from_thread(self._build_glass_display_message())
             await websocket.send(
                 json.dumps(
                     build_calibration_status(
                         status="started",
                         message="안정 자세 기준값 측정을 시작합니다. 이후 최대 수축 측정으로 자동 전환됩니다.",
                         request_id=request_id,
+                        progress=0.0,
                     )
                 )
             )
@@ -1685,13 +1720,7 @@ class SensorBridge:
                 return
             self._workout_started_emitted = False
             self._emit_from_thread(build_glass_session_state(self._state.session_snapshot()))
-            self._emit_from_thread(
-                build_glass_display_data(
-                    self._state.session_snapshot(),
-                    self._last_frame,
-                    self._state.calibration_snapshot(),
-                )
-            )
+            self._emit_from_thread(self._build_glass_display_message())
             self._emit_workout_started_if_needed()
             return
 
@@ -1708,13 +1737,7 @@ class SensorBridge:
                 return
             self._state.mark_paused()
             self._emit_from_thread(build_glass_session_state(self._state.session_snapshot()))
-            self._emit_from_thread(
-                build_glass_display_data(
-                    self._state.session_snapshot(),
-                    self._last_frame,
-                    self._state.calibration_snapshot(),
-                )
-            )
+            self._emit_from_thread(self._build_glass_display_message())
             paused_session = self._state.session_snapshot()
             self._emit_from_thread(
                 self._build_app_event_from_state(
@@ -1741,13 +1764,7 @@ class SensorBridge:
                 return
             self._state.mark_monitoring()
             self._emit_from_thread(build_glass_session_state(self._state.session_snapshot()))
-            self._emit_from_thread(
-                build_glass_display_data(
-                    self._state.session_snapshot(),
-                    self._last_frame,
-                    self._state.calibration_snapshot(),
-                )
-            )
+            self._emit_from_thread(self._build_glass_display_message())
             resumed_session = self._state.session_snapshot()
             self._emit_from_thread(
                 self._build_app_event_from_state(
@@ -1779,13 +1796,7 @@ class SensorBridge:
                 "user_request" if msg_type == "stop_workout" else "user_emergency",
             )
             self._emit_from_thread(build_glass_session_state(self._state.session_snapshot()))
-            self._emit_from_thread(
-                build_glass_display_data(
-                    self._state.session_snapshot(),
-                    self._last_frame,
-                    self._state.calibration_snapshot(),
-                )
-            )
+            self._emit_from_thread(self._build_glass_display_message())
             self._emit_from_thread(
                 build_workout_event(
                     "workout_stopped" if msg_type == "stop_workout" else "emergency_stopped",
@@ -1859,26 +1870,14 @@ class SensorBridge:
                     )
                 )
                 self._emit_from_thread(build_glass_session_state(self._state.session_snapshot()))
-                self._emit_from_thread(
-                    build_glass_display_data(
-                        self._state.session_snapshot(),
-                        self._last_frame,
-                        self._state.calibration_snapshot(),
-                    )
-                )
+                self._emit_from_thread(self._build_glass_display_message())
             workout_events = self._state.tick()
             if not workout_events:
                 continue
 
             current_session = self._state.session_snapshot()
             self._emit_from_thread(build_glass_session_state(current_session))
-            self._emit_from_thread(
-                build_glass_display_data(
-                    current_session,
-                    self._last_frame,
-                    self._state.calibration_snapshot(),
-                )
-            )
+            self._emit_from_thread(self._build_glass_display_message())
             for workout_event in workout_events:
                 event_type = str(workout_event.get("event", "unknown"))
                 details = {key: value for key, value in workout_event.items() if key != "event"}
@@ -1959,13 +1958,7 @@ class SensorBridge:
                     current_session = self._state.session_snapshot()
                     if previous_phase != current_session.phase:
                         self._emit_from_thread(build_glass_session_state(current_session))
-                    self._emit_from_thread(
-                        build_glass_display_data(
-                            current_session,
-                            decoded,
-                            self._state.calibration_snapshot(),
-                        )
-                    )
+                    self._emit_from_thread(self._build_glass_display_message(decoded))
                     self._emit_from_thread(build_sensor_frame_message(decoded))
                     for workout_event in workout_events:
                         event_type = str(workout_event.get("event", "unknown"))
@@ -1979,16 +1972,11 @@ class SensorBridge:
                             build_calibration_status(
                                 status="started",
                                 message="안정 자세 측정이 끝났습니다. 이제 최대 수축을 3초간 유지하세요.",
+                                progress=0.5,
                             )
                         )
                         self._emit_from_thread(build_glass_session_state(self._state.session_snapshot()))
-                        self._emit_from_thread(
-                            build_glass_display_data(
-                                self._state.session_snapshot(),
-                                decoded,
-                                self._state.calibration_snapshot(),
-                            )
-                        )
+                        self._emit_from_thread(self._build_glass_display_message(decoded))
                     if calibration_update == "mvc_complete":
                         calibration = self._state.calibration_snapshot()
                         self._emit_from_thread(
@@ -2000,17 +1988,12 @@ class SensorBridge:
                                     "ch2_mvc": calibration.emg_mvc[1],
                                     "ch3_mvc": calibration.emg_mvc[2],
                                 },
+                                progress=1.0,
                             )
                         )
                         self._emit_workout_started_if_needed()
                         self._emit_from_thread(build_glass_session_state(self._state.session_snapshot()))
-                        self._emit_from_thread(
-                            build_glass_display_data(
-                                self._state.session_snapshot(),
-                                decoded,
-                                calibration,
-                            )
-                        )
+                        self._emit_from_thread(self._build_glass_display_message(decoded))
                     if calibration_update == "failed":
                         failure_message = self._state.consume_calibration_failure_message()
                         self._emit_from_thread(
@@ -2020,13 +2003,7 @@ class SensorBridge:
                             )
                         )
                         self._emit_from_thread(build_glass_session_state(self._state.session_snapshot()))
-                        self._emit_from_thread(
-                            build_glass_display_data(
-                                self._state.session_snapshot(),
-                                decoded,
-                                self._state.calibration_snapshot(),
-                            )
-                        )
+                        self._emit_from_thread(self._build_glass_display_message(decoded))
         finally:
             ser.close()
             self._state.mark_esp32_disconnected()
