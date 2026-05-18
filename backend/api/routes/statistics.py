@@ -39,8 +39,11 @@ router = APIRouter()
 # ============================================================
 
 # WorkoutMuscleMap.body_part 의 raw 키 → 명세 §3-4 muscleId/name/side
-# Pi 가 보내는 muscle_map 키를 기준으로 작성. 알 수 없는 키는 응답에서 제외하지 않고 그대로 노출.
+# 현재 Pi 가 보내는 키 + docs/pi_muscle_map_alignment.md 의 schema-aligned 키 모두 등록.
+# Pi 마이그레이션 후에도 heatmap/balance 페어링이 끊기지 않도록 양쪽 키 호환.
+# 알 수 없는 키는 응답에서 제외하지 않고 그대로 노출.
 MUSCLE_LOOKUP = {
+    # ---- 현재 Pi 송신 키 (단일 chest, shoulder = lateral deltoid 부위) ----
     "chest":           {"muscleId": "pectoralis_major", "muscleName": "대흉근",   "side": "CENTER"},
     "left_shoulder":   {"muscleId": "deltoid_left",     "muscleName": "삼각근",   "side": "LEFT"},
     "right_shoulder":  {"muscleId": "deltoid_right",    "muscleName": "삼각근",   "side": "RIGHT"},
@@ -53,6 +56,13 @@ MUSCLE_LOOKUP = {
     "left_lateral":    {"muscleId": "lateral_left",     "muscleName": "측면삼각근", "side": "LEFT"},
     "right_lateral":   {"muscleId": "lateral_right",    "muscleName": "측면삼각근", "side": "RIGHT"},
     "trapezius":       {"muscleId": "trapezius",        "muscleName": "승모근",   "side": "CENTER"},
+    # ---- Pi 마이그레이션 후 키 (app schema 와 정합, docs/pi_muscle_map_alignment.md) ----
+    "left_chest":             {"muscleId": "pectoralis_major_left",  "muscleName": "대흉근",     "side": "LEFT"},
+    "right_chest":            {"muscleId": "pectoralis_major_right", "muscleName": "대흉근",     "side": "RIGHT"},
+    "left_lateral_deltoid":   {"muscleId": "lateral_deltoid_left",   "muscleName": "측면삼각근", "side": "LEFT"},
+    "right_lateral_deltoid":  {"muscleId": "lateral_deltoid_right",  "muscleName": "측면삼각근", "side": "RIGHT"},
+    "left_upper_trapezius":   {"muscleId": "upper_trapezius_left",   "muscleName": "상부승모근", "side": "LEFT"},
+    "right_upper_trapezius":  {"muscleId": "upper_trapezius_right",  "muscleName": "상부승모근", "side": "RIGHT"},
 }
 
 
@@ -133,7 +143,9 @@ async def get_weekly_summary(
         total_sessions = len(rows)
         total_reps = sum(r.total_reps or 0 for r in rows)
         total_sets = sum(r.set_count or 0 for r in rows)
-        total_minutes = sum(int((r.duration_sec or 0) / 60) for r in rows)
+        # 세션별로 잘라서 더하면 (예: 90s + 90s = 1+1=2분) 누적 절삭 오차가 커진다.
+        # 초 단위 총합 후 분 변환으로 단일 절삭만 발생하도록 한다.
+        total_minutes = int(sum(r.duration_sec or 0 for r in rows) / 60)
 
         completion_rates = []
         for r in rows:
