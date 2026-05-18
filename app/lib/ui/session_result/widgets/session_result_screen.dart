@@ -425,12 +425,8 @@ class _MuscleActivityCard extends StatelessWidget {
     );
   }
 
-  // NOTE: 현재 Pi가 실제 송신하는 키(`chest`, `left_shoulder` 등)를 직접 사용.
-  // Pi 코드에 데이터 손실 버그가 있어 일부 채널이 muscle_map에 안 들어옴
-  // (예: lateral_raise의 상부 승모근). 자세한 내용 및 수정 명세:
-  // docs/pi_muscle_map_alignment.md
-  // Pi 수정 완료 후 매핑 키를 schema 기준(left_chest, left_lateral_deltoid 등)으로
-  // update하는 follow-up 커밋 필요.
+  // Pi 가 송신하는 키는 app schema (exercise_muscle_map_schemas) 와 정합한다.
+  // 자세한 키 매핑은 docs/pi_muscle_map_alignment.md 참조.
   static List<_MuscleEntry> _buildEntries(
     Map<String, double> map,
     ExerciseType exerciseType,
@@ -447,11 +443,10 @@ class _MuscleActivityCard extends StatelessWidget {
 
     switch (exerciseType) {
       case ExerciseType.pushUp:
-        addAvg('대흉근', ['chest']);
-        addAvg('어깨', ['left_shoulder', 'right_shoulder']);
+        addAvg('대흉근', ['left_chest', 'right_chest']);
         addAvg('삼두근', ['left_triceps', 'right_triceps']);
       case ExerciseType.lateralRaise:
-        addAvg('측면 삼각근', ['left_shoulder', 'right_shoulder']);
+        addAvg('측면 삼각근', ['left_lateral_deltoid', 'right_lateral_deltoid']);
         addAvg('승모근', ['left_upper_trapezius', 'right_upper_trapezius']);
       case ExerciseType.bicepCurl:
         addAvg('이두근', ['left_biceps', 'right_biceps']);
