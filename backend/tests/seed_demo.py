@@ -117,10 +117,10 @@ def make_session(exercise, days_ago, set_count):
         "rest_sec": 60,
         "total_reps": sum(actuals),
         "valid_reps": sum(actuals) - random.randint(0, 4),
-        # API 계약: POST 입력은 0~1 ratio (Pi 가 보내는 단위). 백엔드가 *100 후 저장.
-        "avg_target_muscle": round(random.uniform(0.55, 0.75), 3),
-        "avg_assist_muscle": round(random.uniform(0.15, 0.30), 3),
-        "avg_compensator": round(random.uniform(0.10, 0.25), 3),
+        # API 계약 (2026-05-18 통일): 활성도 값은 전부 0~100 percent.
+        "avg_target_muscle": round(random.uniform(55, 75), 1),
+        "avg_assist_muscle": round(random.uniform(15, 30), 1),
+        "avg_compensator": round(random.uniform(10, 25), 1),
         "compensation_count": sum(r["compensation_count"] for r in set_results),
         "fatigue_onset_set": set_count if random.random() > 0.3 else None,
         "fatigue_onset_rep": random.randint(5, 10) if random.random() > 0.3 else None,
@@ -130,20 +130,21 @@ def make_session(exercise, days_ago, set_count):
             "ch2_mvc": round(random.uniform(70, 90), 1),
             "ch3_mvc": round(random.uniform(70, 90), 1),
         },
+        # 키 명명은 app schema / Pi 송신 키와 정합 (docs/pi_muscle_map_alignment.md).
+        # pushup 키 기준 시드 — 다른 운동 시드 추가 시 운동별 분기 필요.
         "muscle_map": {
-            "chest": round(random.uniform(0.50, 0.80), 3),
-            "left_shoulder": round(random.uniform(0.30, 0.50), 3),
-            "right_shoulder": round(random.uniform(0.30, 0.50), 3),
-            "left_triceps": round(random.uniform(0.40, 0.60), 3),
-            "right_triceps": round(random.uniform(0.40, 0.60), 3),
+            "left_chest": round(random.uniform(50, 80), 1),
+            "right_chest": round(random.uniform(50, 80), 1),
+            "left_triceps": round(random.uniform(40, 60), 1),
+            "right_triceps": round(random.uniform(40, 60), 1),
         },
         "balance_summary": {
             "enabled": True,
             "reason": "left_right_pairing_ok",
-            "left_value": round(random.uniform(0.35, 0.50), 3),
-            "right_value": round(random.uniform(0.35, 0.50), 3),
-            "diff_value": round(random.uniform(0, 0.10), 3),
-            "balance_label": random.choice(["BALANCED", "MILD_IMBALANCE", "IMBALANCED"]),
+            "left_value": round(random.uniform(35, 50), 1),
+            "right_value": round(random.uniform(35, 50), 1),
+            "diff_value": round(random.uniform(0, 10), 1),
+            "balance_label": random.choice(["BALANCED", "MILD_IMBALANCE", "SIGNIFICANT_IMBALANCE"]),
         },
         "set_results": set_results,
     }
