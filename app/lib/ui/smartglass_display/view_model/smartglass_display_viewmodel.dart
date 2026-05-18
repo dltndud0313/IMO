@@ -87,16 +87,16 @@ class SmartglassDisplayViewModel extends ChangeNotifier {
   }
 
   Future<bool> togglePause() async {
+    if (controlsLocked) return false;
     final socket = _piSocketService;
-    if (socket == null || !socket.isConnected || controlsLocked) {
-      return false;
-    }
+    final connected = socket?.isConnected ?? false;
 
+    // Pi 연결이 살아있으면 명령 송신, 끊겼으면 로컬 UI 상태만 토글 (시각용).
     if (_paused) {
-      socket.resumeWorkout();
+      if (connected) socket!.resumeWorkout();
       _paused = false;
     } else {
-      socket.pauseWorkout();
+      if (connected) socket!.pauseWorkout();
       _paused = true;
     }
     notifyListeners();
@@ -104,15 +104,16 @@ class SmartglassDisplayViewModel extends ChangeNotifier {
   }
 
   Future<bool> stopWorkout() async {
+    if (controlsLocked) return false;
     final socket = _piSocketService;
-    if (socket == null || !socket.isConnected || controlsLocked) {
-      return false;
-    }
+    final connected = socket?.isConnected ?? false;
 
-    socket.stopWorkout();
+    // Pi 끊긴 상태에서 누른 중지는 emergency stop 으로 처리해서 강제로
+    // 결과 화면으로 빠질 수 있게 한다 (화면 측 timeout 이 statusFallback 으로 라우팅).
+    if (connected) socket!.stopWorkout();
     _paused = false;
     _awaitingSessionResult = true;
-    _emergencyStopped = false;
+    _emergencyStopped = !connected;
     notifyListeners();
     return true;
   }
