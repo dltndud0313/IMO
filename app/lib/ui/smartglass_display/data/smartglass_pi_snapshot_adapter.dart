@@ -394,26 +394,24 @@ class SmartglassPiSnapshotAdapter {
     return 0;
   }
 
-  List<int> _emgChannelPercents(Map<String, dynamic> payload) {
+  /// Pi glass_display_data.emg_channels(EMG 1~4) 파싱.
+  /// 각 원소는 {attached, activation_percent} 객체. attached=false 인 채널은
+  /// 분리된 것으로 보고 null 로 돌려준다(0% 와 구분). 키가 없으면 빈 리스트.
+  List<int?> _emgChannelPercents(Map<String, dynamic> payload) {
     final rawChannels = payload['emg_channels'];
     if (rawChannels is! List) {
-      return const [0, 0, 0, 0];
+      return const [];
     }
 
-    final percents = rawChannels
-        .take(4)
-        .map((entry) {
-          if (entry is Map<String, dynamic>) {
-            return _toInt(entry['activation_percent']).clamp(0, 100);
-          }
-          return 0;
-        })
-        .toList();
-
-    while (percents.length < 4) {
-      percents.add(0);
-    }
-    return percents;
+    return rawChannels.take(4).map<int?>((entry) {
+      if (entry is! Map) {
+        return null;
+      }
+      if (entry['attached'] == false) {
+        return null;
+      }
+      return _toInt(entry['activation_percent']).clamp(0, 100);
+    }).toList(growable: false);
   }
 
   SmartglassSessionPhase _sessionPhaseFromBridgePhase(String phase) {

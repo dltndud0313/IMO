@@ -199,7 +199,8 @@ class _GlassHudLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final emgValues = _emgValues(state);
+    final emgChannels = _emgChannels(state);
+    final hasEmgStream = state.emgChannelPercents.isNotEmpty;
 
     return Column(
       children: [
@@ -263,40 +264,40 @@ class _GlassHudLayout extends StatelessWidget {
                   children: [
                     Expanded(
                       flex: 10,
-                      child: _TopCard(
-                        title: 'EMG 1',
-                        value: '${emgValues[0]}%',
-                        color: const Color(0xFF70E8CD),
+                      child: _EmgCard(
+                        label: 'EMG 1',
+                        value: emgChannels[0],
+                        hasStream: hasEmgStream,
                         compact: true,
                       ),
                     ),
                     SizedBox(height: compact ? 8 : 12),
                     Expanded(
                       flex: 10,
-                      child: _TopCard(
-                        title: 'EMG 2',
-                        value: '${emgValues[1]}%',
-                        color: const Color(0xFF70E8CD),
+                      child: _EmgCard(
+                        label: 'EMG 2',
+                        value: emgChannels[1],
+                        hasStream: hasEmgStream,
                         compact: true,
                       ),
                     ),
                     SizedBox(height: compact ? 8 : 12),
                     Expanded(
                       flex: 10,
-                      child: _TopCard(
-                        title: 'EMG 3',
-                        value: '${emgValues[2]}%',
-                        color: const Color(0xFF70E8CD),
+                      child: _EmgCard(
+                        label: 'EMG 3',
+                        value: emgChannels[2],
+                        hasStream: hasEmgStream,
                         compact: true,
                       ),
                     ),
                     SizedBox(height: compact ? 8 : 12),
                     Expanded(
                       flex: 10,
-                      child: _TopCard(
-                        title: 'EMG 4',
-                        value: '${emgValues[3]}%',
-                        color: const Color(0xFF70E8CD),
+                      child: _EmgCard(
+                        label: 'EMG 4',
+                        value: emgChannels[3],
+                        hasStream: hasEmgStream,
                         compact: true,
                       ),
                     ),
@@ -451,6 +452,91 @@ class _TopCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// EMG 채널 1개를 표시하는 카드. 숫자(%) + 게이지 바.
+/// value 가 null 이면 측정 불가 — 스트림이 있으면 "센서 확인"(분리), 없으면 "—".
+class _EmgCard extends StatelessWidget {
+  const _EmgCard({
+    required this.label,
+    required this.value,
+    required this.hasStream,
+    required this.compact,
+  });
+
+  final String label;
+  final int? value;
+  final bool hasStream;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasValue = value != null;
+    final clamped = (value ?? 0).clamp(0, 100).toInt();
+    final gaugeColor =
+        hasValue ? _emgGaugeColor(clamped) : const Color(0xFF243430);
+    final valueText = hasValue ? '$clamped%' : (hasStream ? '센서 확인' : '—');
+
+    return _GlassPanel(
+      padding: EdgeInsets.all(compact ? 10 : 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.caption.copyWith(
+              color: const Color(0xFF9FC7BD),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  valueText,
+                  maxLines: 1,
+                  style: AppTextStyles.metric.copyWith(
+                    fontSize: compact ? 22 : 30,
+                    color: hasValue
+                        ? const Color(0xFFE6FFF8)
+                        : const Color(0xFF6B8A84),
+                    height: 1,
+                  ),
+                ),
+              ),
+              SizedBox(height: compact ? 5 : 7),
+              SizedBox(
+                width: double.infinity,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(99),
+                  child: LinearProgressIndicator(
+                    value: clamped / 100,
+                    minHeight: compact ? 5 : 7,
+                    backgroundColor: const Color(0xFF13201E),
+                    valueColor: AlwaysStoppedAnimation<Color>(gaugeColor),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 활성도 구간별 게이지 색 — 높을수록 또렷하게 (운동 강도 피드백).
+Color _emgGaugeColor(int value) {
+  if (value >= 70) return const Color(0xFF4ADE80);
+  if (value >= 40) return const Color(0xFF70E8CD);
+  return const Color(0xFF3E6F66);
 }
 
 class _CenterStatusCard extends StatelessWidget {
@@ -659,12 +745,14 @@ String _setValue(SmartglassDisplayState state) {
   return '-';
 }
 
-List<int> _emgValues(SmartglassDisplayState state) {
-  final values = state.emgChannelPercents.take(4).toList();
-  while (values.length < 4) {
-    values.add(0);
-  }
-  return values;
+/// EMG 1~4 채널별 근활성도(0~100, 분리된 채널은 null).
+/// Pi 데이터가 아직 없으면 빈 리스트 → 4칸 모두 null.
+List<int?> _emgChannels(SmartglassDisplayState state) {
+  final channels = state.emgChannelPercents;
+  return List<int?>.generate(
+    4,
+    (index) => index < channels.length ? channels[index] : null,
+  );
 }
 
 String _mainStatusMessage(

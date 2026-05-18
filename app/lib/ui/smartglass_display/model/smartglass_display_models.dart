@@ -70,7 +70,7 @@ class SmartglassDisplayState {
     required this.reconnectHint,
     required this.sourceLabel,
     required this.tone,
-    this.emgChannelPercents = const [0, 0, 0, 0],
+    this.emgChannelPercents = const [],
   });
 
   final SmartglassConnectionState connectionState;
@@ -99,7 +99,10 @@ class SmartglassDisplayState {
   final String reconnectHint;
   final String sourceLabel;
   final SmartglassDisplayTone tone;
-  final List<int> emgChannelPercents;
+
+  /// EMG 1~4 채널별 근활성도(0~100 percent). 분리된 채널은 null.
+  /// 데이터가 아직 없으면 빈 리스트.
+  final List<int?> emgChannelPercents;
 
   bool get isWaiting =>
       sessionPhase == SmartglassSessionPhase.waitingWorkoutSelection;
