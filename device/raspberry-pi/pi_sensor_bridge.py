@@ -610,6 +610,13 @@ class BridgeState:
 
     def _apply_device_rep_index_locked(self, frame: DecodedFrame) -> list[dict[str, Any]]:
         events: list[dict[str, Any]] = []
+        # ESP32 가 rep_index 를 채워 보내면 update_frame 에서 _maybe_increment_rep
+        # 대신 이 함수가 호출된다. _maybe_increment_rep 만 있던 근활성도 누적
+        # (_track_active_frame_locked) 을 여기서도 동일하게 수행해야 muscle_map
+        # 활성도가 0 으로 머무는 silent failure 를 방지한다.
+        if self._phase == "monitoring":
+            self._track_active_frame_locked(frame)
+
         if self._last_device_rep_index is None:
             self._last_device_rep_index = frame.rep_index
             if self._phase == "monitoring":
