@@ -239,6 +239,7 @@ class SmartglassPiSnapshotAdapter {
       sessionMessage: usageText,
       detailMessage: poseDetail,
       warningMessage: poseTitle,
+      channelActivation: _channelActivation(payload['channel_activation_percent']),
     );
   }
 
@@ -583,5 +584,17 @@ class SmartglassPiSnapshotAdapter {
     if (value is int) return value;
     if (value is double) return value.round();
     return int.tryParse('$value') ?? 0;
+  }
+
+  /// Pi가 보내는 channel_activation_percent(EMG 1~4) 파싱.
+  /// 각 원소는 0~100 정수이며, 분리된 채널은 null 로 온다.
+  /// 키가 없으면 빈 리스트를 돌려준다(= 이번 메시지엔 채널 데이터 없음).
+  List<int?> _channelActivation(Object? value) {
+    if (value is! List) {
+      return const [];
+    }
+    return value
+        .map((entry) => entry is num ? entry.round() : null)
+        .toList(growable: false);
   }
 }

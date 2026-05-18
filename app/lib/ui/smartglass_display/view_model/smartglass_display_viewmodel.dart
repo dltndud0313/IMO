@@ -40,6 +40,13 @@ class SmartglassDisplayViewModel extends ChangeNotifier {
   WorkoutSession? _completedSession;
   Timer? _mockPlaybackTimer;
   int _mockPlaybackIndex = 0;
+  // EMG 1~4 채널값은 glass_display_data 에만 실리므로, 그 외 메시지에서
+  // 화면이 비지 않도록 마지막으로 받은 채널값을 유지한다.
+  List<int?> _lastChannelActivation = const [];
+  // glass_display_data 는 ~50Hz 로 들어오므로 알림을 ~12.5Hz 로 제한한다.
+  static const _liveNotifyInterval = Duration(milliseconds: 80);
+  Timer? _liveNotifyTimer;
+  bool _liveNotifyPending = false;
 
   SmartglassPreviewScenario get scenario => _scenario;
   SmartglassDisplayState get state => _state;
@@ -61,6 +68,7 @@ class SmartglassDisplayViewModel extends ChangeNotifier {
     stopMockPlayback();
     _scenario = scenario;
     _usingLiveSnapshot = false;
+    _lastChannelActivation = const [];
     _state = SmartglassPreviewScenarios.build(scenario);
     notifyListeners();
   }
@@ -142,10 +150,17 @@ class SmartglassDisplayViewModel extends ChangeNotifier {
     Map<String, dynamic> message, {
     bool notify = true,
   }) {
-    final snapshot = _snapshotAdapter.tryParse(message);
-    if (snapshot == null) {
+    final parsed = _snapshotAdapter.tryParse(message);
+    if (parsed == null) {
       return false;
     }
+
+    // 채널 활성도(EMG 1~4)는 glass_display_data 메시지에만 실린다.
+    // 그 외 메시지(rest_started 등)는 직전 채널값을 그대로 유지한다.
+    final snapshot = parsed.channelActivation.isEmpty
+        ? parsed.copyWith(channelActivation: _lastChannelActivation)
+        : parsed;
+    _lastChannelActivation = snapshot.channelActivation;
 
     _usingLiveSnapshot = true;
     _state = _snapshotMapper.map(snapshot);
@@ -248,8 +263,32 @@ class SmartglassDisplayViewModel extends ChangeNotifier {
     }
 
     if (shouldNotify) {
-      notifyListeners();
+      // glass_display_data(~50Hz)는 throttle, 그 외 상태 변화는 즉시 반영.
+      if (message is UnknownPiMessage &&
+          message.type == SmartglassSnapshotMessageType.glassDisplayData) {
+        _throttledNotify();
+      } else {
+        notifyListeners();
+      }
     }
+  }
+
+  /// leading + trailing throttle: 첫 알림은 즉시, 쿨다운(_liveNotifyInterval)
+  /// 동안 들어온 갱신은 마지막 1건만 모아서 반영한다. 최신 _state 는 항상
+  /// 동기 갱신되므로 알림이 늦어도 표시 값이 손실되지 않는다.
+  void _throttledNotify() {
+    if (_liveNotifyTimer != null) {
+      _liveNotifyPending = true;
+      return;
+    }
+    notifyListeners();
+    _liveNotifyTimer = Timer(_liveNotifyInterval, () {
+      _liveNotifyTimer = null;
+      if (_liveNotifyPending) {
+        _liveNotifyPending = false;
+        _throttledNotify();
+      }
+    });
   }
 
   bool _setPauseState(bool value) {
@@ -267,6 +306,8 @@ class SmartglassDisplayViewModel extends ChangeNotifier {
     _awaitingSessionResult = false;
     _emergencyStopped = false;
     _completedSession = null;
+    // 새 운동 시작 시 직전 세션의 EMG 채널값이 남지 않도록 초기화.
+    _lastChannelActivation = const [];
     return changed;
   }
 
@@ -277,6 +318,7 @@ class SmartglassDisplayViewModel extends ChangeNotifier {
     _connectionSubscription?.cancel();
     _connectionSubscription = null;
     _mockPlaybackTimer?.cancel();
+    _liveNotifyTimer?.cancel();
     super.dispose();
   }
 }
