@@ -10,8 +10,13 @@ enum ExerciseType {
   const ExerciseType(this.wire, this.label);
 
   static ExerciseType fromWire(String s) {
-    final normalized = s.trim().toUpperCase().replaceAll('-', '_');
-    final compact = normalized.replaceAll('_', '');
+    // Pi 가 보내는 형태가 다양함: wire("PUSH_UP"), 사람용 라벨("Push-up",
+    // "Bicep Curl"), snake_case("bicep_curl") 등. 공백/하이픈/언더스코어
+    // 다 제거하고 대문자로 통일해서 비교.
+    final compact = s
+        .trim()
+        .toUpperCase()
+        .replaceAll(RegExp(r'[\s\-_]+'), '');
 
     return switch (compact) {
       'PUSHUP' => pushUp,
