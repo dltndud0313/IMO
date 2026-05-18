@@ -439,8 +439,8 @@ class _MuscleActivityCard extends StatelessWidget {
       final avg =
           present.fold<double>(0, (sum, k) => sum + (map[k] ?? 0)) /
               present.length;
-      // Pi/백엔드는 활성도를 0.0~1.0 비율로 보낸다. 화면 표시는 0~100 퍼센트.
-      entries.add(_MuscleEntry(label: label, pct: muscleMapRatioToPercent(avg)));
+      // 스케일 계약: 활성도는 전 구간 0~100 percent. clamp 만 하고 그대로 표시.
+      entries.add(_MuscleEntry(label: label, pct: clampMuscleMapPercent(avg)));
     }
 
     switch (exerciseType) {

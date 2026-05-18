@@ -21,7 +21,8 @@ class MuscleMapEntry {
   final MuscleMapValueKind kind;
   final bool isKnownKey;
 
-  double get percentValue => muscleMapRatioToPercent(value);
+  /// value 는 이미 0~100 percent 라 표시값으로 그대로 쓴다.
+  double get percentValue => value;
 }
 
 class MuscleMapState {
@@ -71,7 +72,7 @@ class MuscleMapState {
           MuscleMapEntry(
             key: key,
             displayName: definition?.displayName ?? key,
-            value: _clampRatio(value),
+            value: _clampPercent(value),
             level: _toActivationLevel(
               classifyMuscleMapValue(value, kind: kind),
             ),
@@ -90,7 +91,7 @@ class MuscleMapState {
         MuscleMapEntry(
           key: entry.key,
           displayName: entry.key,
-          value: _clampRatio(entry.value),
+          value: _clampPercent(entry.value),
           level: _toActivationLevel(classifyMuscleMapValue(entry.value)),
           kind: MuscleMapValueKind.activation,
           isKnownKey: false,
@@ -112,7 +113,8 @@ MuscleActivationLevel resolveMuscleActivationLevel(
   return _toActivationLevel(classifyMuscleMapValue(value, kind: kind));
 }
 
-double _clampRatio(double value) => value.clamp(0.0, 1.0).toDouble();
+// 스케일 계약(2026-05-18 통일): 활성도 값은 0~100 percent.
+double _clampPercent(double value) => value.clamp(0.0, 100.0).toDouble();
 
 MuscleActivationLevel _toActivationLevel(MuscleMapStatus status) {
   return switch (status) {

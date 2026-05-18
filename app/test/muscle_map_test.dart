@@ -2,18 +2,19 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:imo/domain/models/muscle_map.dart';
 
 void main() {
-  test('resolves activation ratio into display level', () {
+  test('resolves activation percent into display level', () {
+    // 스케일 계약(2026-05-18 통일): 활성도 값은 0~100 percent.
     expect(resolveMuscleActivationLevel(0), MuscleActivationLevel.inactive);
-    expect(resolveMuscleActivationLevel(0.2), MuscleActivationLevel.low);
-    expect(resolveMuscleActivationLevel(0.5), MuscleActivationLevel.normal);
-    expect(resolveMuscleActivationLevel(0.8), MuscleActivationLevel.high);
-    expect(resolveMuscleActivationLevel(0.95), MuscleActivationLevel.danger);
+    expect(resolveMuscleActivationLevel(20), MuscleActivationLevel.low);
+    expect(resolveMuscleActivationLevel(50), MuscleActivationLevel.normal);
+    expect(resolveMuscleActivationLevel(80), MuscleActivationLevel.high);
+    expect(resolveMuscleActivationLevel(95), MuscleActivationLevel.danger);
   });
 
   test('maps pushup muscle key to Korean display name', () {
     final state = MuscleMapState.fromValues(
       exerciseId: 'pushup',
-      values: const {'left_chest': 0.68},
+      values: const {'left_chest': 68.0},
       includeMissingKeys: false,
     );
 
@@ -26,7 +27,7 @@ void main() {
   test('keeps unknown key without throwing', () {
     final state = MuscleMapState.fromValues(
       exerciseId: 'pushup',
-      values: const {'unknown_muscle': 0.42},
+      values: const {'unknown_muscle': 42.0},
       includeMissingKeys: false,
     );
 

@@ -545,8 +545,8 @@ List<_MuscleEntry> _buildMuscleEntries(Map<String, double> map) {
     if (present.isEmpty) return;
     final avg = present.fold<double>(0, (sum, k) => sum + map[k]!) /
         present.length;
-    // Pi/백엔드는 활성도를 0.0~1.0 비율로 보낸다. 화면 표시는 0~100 퍼센트.
-    entries.add(_MuscleEntry(label: label, pct: muscleMapRatioToPercent(avg)));
+    // 스케일 계약: 활성도는 전 구간 0~100 percent. clamp 만 하고 그대로 표시.
+    entries.add(_MuscleEntry(label: label, pct: clampMuscleMapPercent(avg)));
   }
 
   add('대흉근', ['chest']);
@@ -563,11 +563,11 @@ List<_BalanceItem> _buildBalanceItems(Map<String, double> map) {
     final left = map[leftKey];
     final right = map[rightKey];
     if (left != null && right != null) {
-      // 0.0~1.0 비율 → 0~100 퍼센트.
+      // 스케일 계약: 좌우 값 모두 0~100 percent. clamp 만 하고 그대로 표시.
       items.add(_BalanceItem(
         label: label,
-        leftPct: muscleMapRatioToPercent(left),
-        rightPct: muscleMapRatioToPercent(right),
+        leftPct: clampMuscleMapPercent(left),
+        rightPct: clampMuscleMapPercent(right),
       ));
     }
   }
