@@ -42,7 +42,7 @@ class SmartglassSessionSnapshot {
     this.detailMessage,
     this.warningMessage,
     this.isMirroredDisplay = true,
-    this.channelActivation = const [],
+    this.emgChannelPercents = const [],
   });
 
   final SmartglassConnectionState connectionState;
@@ -68,7 +68,7 @@ class SmartglassSessionSnapshot {
 
   /// EMG 1~4 채널별 근활성도(0~100 percent). 분리된 채널은 null.
   /// glass_display_data 메시지에만 실리며, 그 외 메시지에서는 비어 있다(`const []`).
-  final List<int?> channelActivation;
+  final List<int?> emgChannelPercents;
 
   SmartglassSessionSnapshot copyWith({
     SmartglassConnectionState? connectionState,
@@ -91,7 +91,7 @@ class SmartglassSessionSnapshot {
     String? detailMessage,
     String? warningMessage,
     bool? isMirroredDisplay,
-    List<int?>? channelActivation,
+    List<int?>? emgChannelPercents,
   }) {
     return SmartglassSessionSnapshot(
       connectionState: connectionState ?? this.connectionState,
@@ -114,7 +114,7 @@ class SmartglassSessionSnapshot {
       detailMessage: detailMessage ?? this.detailMessage,
       warningMessage: warningMessage ?? this.warningMessage,
       isMirroredDisplay: isMirroredDisplay ?? this.isMirroredDisplay,
-      channelActivation: channelActivation ?? this.channelActivation,
+      emgChannelPercents: emgChannelPercents ?? this.emgChannelPercents,
     );
   }
 }

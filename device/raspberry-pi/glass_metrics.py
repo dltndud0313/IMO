@@ -53,6 +53,7 @@ SENSOR_CONFIGS = {
 @dataclass(frozen=True)
 class HeuristicResult:
     activation_percent: int
+    channel_activation_percent: list[Optional[int]]
     activation_level: str
     usage_text: str
     usage_tone: str
@@ -65,9 +66,13 @@ class HeuristicResult:
 @dataclass(frozen=True)
 class FrameFeatures:
     left_primary: float
+    left_primary_detached: bool
     right_primary: float
+    right_primary_detached: bool
     left_secondary: float
+    left_secondary_detached: bool
     right_secondary: float
+    right_secondary_detached: bool
     primary_avg: float
     secondary_avg: float
     primary_gap: float
@@ -178,9 +183,13 @@ def _extract_features(frame: DecodedFrame, calibration: Optional[Any]) -> FrameF
 
     return FrameFeatures(
         left_primary=left_primary,
+        left_primary_detached=left_primary_detached,
         right_primary=right_primary,
+        right_primary_detached=right_primary_detached,
         left_secondary=left_secondary,
+        left_secondary_detached=left_secondary_detached,
         right_secondary=right_secondary,
+        right_secondary_detached=right_secondary_detached,
         primary_avg=primary_avg,
         secondary_avg=secondary_avg,
         primary_gap=abs(left_primary - right_primary),
@@ -205,9 +214,23 @@ def _extract_features(frame: DecodedFrame, calibration: Optional[Any]) -> FrameF
     )
 
 
+def _channel_activation_percent(features: FrameFeatures) -> list[Optional[int]]:
+    channels = [
+        (features.left_primary, features.left_primary_detached),
+        (features.right_primary, features.right_primary_detached),
+        (features.left_secondary, features.left_secondary_detached),
+        (features.right_secondary, features.right_secondary_detached),
+    ]
+    return [
+        None if detached else int(round(_clamp01(value) * 100.0))
+        for value, detached in channels
+    ]
+
+
 def build_waiting_result() -> HeuristicResult:
     return HeuristicResult(
         activation_percent=0,
+        channel_activation_percent=[None, None, None, None],
         activation_level="LOW",
         usage_text="운동 선택 후 근활성 판단이 시작됩니다.",
         usage_tone="neutral",
@@ -222,6 +245,7 @@ def build_phase_result(phase: str) -> Optional[HeuristicResult]:
     if phase == "ready_for_calibration":
         return HeuristicResult(
             activation_percent=0,
+            channel_activation_percent=[None, None, None, None],
             activation_level="LOW",
             usage_text="센서 부착 완료를 기다리는 중입니다.",
             usage_tone="warn",
@@ -233,6 +257,7 @@ def build_phase_result(phase: str) -> Optional[HeuristicResult]:
     if phase == "sensors_ready":
         return HeuristicResult(
             activation_percent=0,
+            channel_activation_percent=[None, None, None, None],
             activation_level="LOW",
             usage_text="센서 위치 확인 완료. 기준값 측정 준비가 됐습니다.",
             usage_tone="good",
@@ -244,6 +269,7 @@ def build_phase_result(phase: str) -> Optional[HeuristicResult]:
     if phase == "calibrating":
         return HeuristicResult(
             activation_percent=0,
+            channel_activation_percent=[None, None, None, None],
             activation_level="LOW",
             usage_text="캘리브레이션 중에는 최대한 같은 자세를 유지하세요.",
             usage_tone="warn",
@@ -255,6 +281,7 @@ def build_phase_result(phase: str) -> Optional[HeuristicResult]:
     if phase == "calibrating_mvc":
         return HeuristicResult(
             activation_percent=0,
+            channel_activation_percent=[None, None, None, None],
             activation_level="LOW",
             usage_text="최대 수축 기준값을 측정 중입니다. 안내된 자세로 강하게 힘을 주세요.",
             usage_tone="warn",
@@ -266,6 +293,7 @@ def build_phase_result(phase: str) -> Optional[HeuristicResult]:
     if phase == "resting":
         return HeuristicResult(
             activation_percent=0,
+            channel_activation_percent=[None, None, None, None],
             activation_level="LOW",
             usage_text="세트가 끝났습니다. 다음 세트를 위해 호흡을 정리하세요.",
             usage_tone="good",
@@ -277,6 +305,7 @@ def build_phase_result(phase: str) -> Optional[HeuristicResult]:
     if phase == "paused":
         return HeuristicResult(
             activation_percent=0,
+            channel_activation_percent=[None, None, None, None],
             activation_level="LOW",
             usage_text="운동이 일시정지되었습니다.",
             usage_tone="neutral",
@@ -288,6 +317,7 @@ def build_phase_result(phase: str) -> Optional[HeuristicResult]:
     if phase == "completed":
         return HeuristicResult(
             activation_percent=0,
+            channel_activation_percent=[None, None, None, None],
             activation_level="LOW",
             usage_text="운동이 종료되었습니다.",
             usage_tone="neutral",
@@ -331,6 +361,7 @@ def _analyze_pushup(features: FrameFeatures) -> HeuristicResult:
 
     return HeuristicResult(
         activation_percent=int(round(_clamp01(level) * 100.0)),
+        channel_activation_percent=_channel_activation_percent(features),
         activation_level=_activation_level(level),
         usage_text=usage_text,
         usage_tone=usage_tone,
@@ -373,6 +404,7 @@ def _analyze_bicep_curl(features: FrameFeatures) -> HeuristicResult:
 
     return HeuristicResult(
         activation_percent=int(round(_clamp01(level) * 100.0)),
+        channel_activation_percent=_channel_activation_percent(features),
         activation_level=_activation_level(level),
         usage_text=usage_text,
         usage_tone=usage_tone,
@@ -415,6 +447,7 @@ def _analyze_lateral_raise(features: FrameFeatures) -> HeuristicResult:
 
     return HeuristicResult(
         activation_percent=int(round(_clamp01(level) * 100.0)),
+        channel_activation_percent=_channel_activation_percent(features),
         activation_level=_activation_level(level),
         usage_text=usage_text,
         usage_tone=usage_tone,
@@ -438,6 +471,7 @@ def analyze_frame(
     if features.detached_emg_channels > 0:
         return HeuristicResult(
             activation_percent=0,
+            channel_activation_percent=_channel_activation_percent(features),
             activation_level="LOW",
             usage_text="EMG 센서 일부가 분리되어 근활성 값을 신뢰할 수 없습니다.",
             usage_tone="danger",
@@ -452,3 +486,55 @@ def analyze_frame(
     if exercise_type == "lateral_raise":
         return _analyze_lateral_raise(features)
     return _analyze_bicep_curl(features)
+
+
+def build_emg_channel_activations(
+    exercise_type: Optional[str],
+    frame: Optional[DecodedFrame],
+    calibration: Optional[Any] = None,
+) -> list[dict[str, Any]]:
+    if frame is None:
+        return [
+            {
+                "index": index + 1,
+                "name": f"EMG {index + 1}",
+                "muscle": "",
+                "attached": False,
+                "activation_percent": 0,
+                "activation_level": "LOW",
+                "raw_value": 0.0,
+            }
+            for index in range(4)
+        ]
+
+    features = _extract_features(frame, calibration)
+    labels = SENSOR_CONFIGS.get(exercise_type or "", [])
+    values = [
+        features.left_primary,
+        features.right_primary,
+        features.left_secondary,
+        features.right_secondary,
+    ]
+
+    channels: list[dict[str, Any]] = []
+    for index, value in enumerate(values):
+        default_name = f"EMG {index + 1}"
+        label_name, label_muscle = (
+            labels[index] if index < len(labels) else (default_name, "")
+        )
+        raw_value = frame.emg[index] if index < len(frame.emg) else 0.0
+        attached = raw_value < EMG_DETACHED_THRESHOLD
+        channels.append(
+            {
+                "index": index + 1,
+                "name": label_name,
+                "muscle": label_muscle,
+                "attached": attached,
+                "activation_percent": int(round(_clamp01(value) * 100.0))
+                if attached
+                else 0,
+                "activation_level": _activation_level(value) if attached else "LOW",
+                "raw_value": round(raw_value, 4),
+            }
+        )
+    return channels

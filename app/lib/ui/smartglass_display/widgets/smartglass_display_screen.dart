@@ -200,7 +200,7 @@ class _GlassHudLayout extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final emgChannels = _emgChannels(state);
-    final hasEmgStream = state.channelActivation.isNotEmpty;
+    final hasEmgStream = state.emgChannelPercents.isNotEmpty;
 
     return Column(
       children: [
@@ -746,9 +746,9 @@ String _setValue(SmartglassDisplayState state) {
 }
 
 /// EMG 1~4 채널별 근활성도(0~100, 분리된 채널은 null).
-/// Pi가 channel_activation_percent를 보내기 전이면 빈 리스트 → 4칸 모두 null.
+/// Pi 데이터가 아직 없으면 빈 리스트 → 4칸 모두 null.
 List<int?> _emgChannels(SmartglassDisplayState state) {
-  final channels = state.channelActivation;
+  final channels = state.emgChannelPercents;
   return List<int?>.generate(
     4,
     (index) => index < channels.length ? channels[index] : null,

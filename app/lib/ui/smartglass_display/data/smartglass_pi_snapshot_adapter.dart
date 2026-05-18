@@ -227,7 +227,7 @@ class SmartglassPiSnapshotAdapter {
       activationPercent: _toInt(payload['activation_percent']),
       activationLabel: activationLevel?.toUpperCase() ?? 'LOW',
       restSeconds: _toInt(payload['rest_remaining_sec']),
-      calibrationProgress: 0,
+      calibrationProgress: _extractGlassCalibrationProgress(payload),
       sensorPlacements: sensorPlacements,
       statusHighlights: _statusHighlights(
         phaseLabel: payload['phase_label'] as String?,
@@ -236,10 +236,10 @@ class SmartglassPiSnapshotAdapter {
         poseTitle: poseTitle,
       ),
       sourceLabel: 'Pi glass_display_data',
+      emgChannelPercents: _emgChannelPercents(payload),
       sessionMessage: usageText,
       detailMessage: poseDetail,
       warningMessage: poseTitle,
-      channelActivation: _channelActivation(payload['channel_activation_percent']),
     );
   }
 
@@ -384,6 +384,34 @@ class SmartglassPiSnapshotAdapter {
     }
 
     return (payload['status'] == 'success') ? 1 : 0;
+  }
+
+  double _extractGlassCalibrationProgress(Map<String, dynamic> payload) {
+    final progress = payload['calibration_progress'];
+    if (progress is num) {
+      return progress.toDouble().clamp(0, 1);
+    }
+    return 0;
+  }
+
+  /// Pi glass_display_data.emg_channels(EMG 1~4) 파싱.
+  /// 각 원소는 {attached, activation_percent} 객체. attached=false 인 채널은
+  /// 분리된 것으로 보고 null 로 돌려준다(0% 와 구분). 키가 없으면 빈 리스트.
+  List<int?> _emgChannelPercents(Map<String, dynamic> payload) {
+    final rawChannels = payload['emg_channels'];
+    if (rawChannels is! List) {
+      return const [];
+    }
+
+    return rawChannels.take(4).map<int?>((entry) {
+      if (entry is! Map) {
+        return null;
+      }
+      if (entry['attached'] == false) {
+        return null;
+      }
+      return _toInt(entry['activation_percent']).clamp(0, 100);
+    }).toList(growable: false);
   }
 
   SmartglassSessionPhase _sessionPhaseFromBridgePhase(String phase) {
@@ -584,17 +612,5 @@ class SmartglassPiSnapshotAdapter {
     if (value is int) return value;
     if (value is double) return value.round();
     return int.tryParse('$value') ?? 0;
-  }
-
-  /// Pi가 보내는 channel_activation_percent(EMG 1~4) 파싱.
-  /// 각 원소는 0~100 정수이며, 분리된 채널은 null 로 온다.
-  /// 키가 없으면 빈 리스트를 돌려준다(= 이번 메시지엔 채널 데이터 없음).
-  List<int?> _channelActivation(Object? value) {
-    if (value is! List) {
-      return const [];
-    }
-    return value
-        .map((entry) => entry is num ? entry.round() : null)
-        .toList(growable: false);
   }
 }

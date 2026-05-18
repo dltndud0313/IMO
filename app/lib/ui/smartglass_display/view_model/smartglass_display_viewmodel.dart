@@ -42,7 +42,7 @@ class SmartglassDisplayViewModel extends ChangeNotifier {
   int _mockPlaybackIndex = 0;
   // EMG 1~4 채널값은 glass_display_data 에만 실리므로, 그 외 메시지에서
   // 화면이 비지 않도록 마지막으로 받은 채널값을 유지한다.
-  List<int?> _lastChannelActivation = const [];
+  List<int?> _lastEmgChannelPercents = const [];
   // glass_display_data 는 ~50Hz 로 들어오므로 알림을 ~12.5Hz 로 제한한다.
   static const _liveNotifyInterval = Duration(milliseconds: 80);
   Timer? _liveNotifyTimer;
@@ -68,7 +68,7 @@ class SmartglassDisplayViewModel extends ChangeNotifier {
     stopMockPlayback();
     _scenario = scenario;
     _usingLiveSnapshot = false;
-    _lastChannelActivation = const [];
+    _lastEmgChannelPercents = const [];
     _state = SmartglassPreviewScenarios.build(scenario);
     notifyListeners();
   }
@@ -157,10 +157,10 @@ class SmartglassDisplayViewModel extends ChangeNotifier {
 
     // 채널 활성도(EMG 1~4)는 glass_display_data 메시지에만 실린다.
     // 그 외 메시지(rest_started 등)는 직전 채널값을 그대로 유지한다.
-    final snapshot = parsed.channelActivation.isEmpty
-        ? parsed.copyWith(channelActivation: _lastChannelActivation)
+    final snapshot = parsed.emgChannelPercents.isEmpty
+        ? parsed.copyWith(emgChannelPercents: _lastEmgChannelPercents)
         : parsed;
-    _lastChannelActivation = snapshot.channelActivation;
+    _lastEmgChannelPercents = snapshot.emgChannelPercents;
 
     _usingLiveSnapshot = true;
     _state = _snapshotMapper.map(snapshot);
@@ -307,7 +307,7 @@ class SmartglassDisplayViewModel extends ChangeNotifier {
     _emergencyStopped = false;
     _completedSession = null;
     // 새 운동 시작 시 직전 세션의 EMG 채널값이 남지 않도록 초기화.
-    _lastChannelActivation = const [];
+    _lastEmgChannelPercents = const [];
     return changed;
   }
 
