@@ -16,11 +16,11 @@
   "payload": {
     "exercise_type": "pushup",
     "muscle_map": {
-      "left_chest": 0.68,
-      "right_chest": 0.64,
-      "left_triceps": 0.52,
-      "right_triceps": 0.55,
-      "trunk": 0.72
+      "left_chest": 68,
+      "right_chest": 64,
+      "left_triceps": 52,
+      "right_triceps": 55,
+      "trunk": 72
     }
   }
 }
@@ -28,9 +28,10 @@
 
 ## 2. 공통 원칙
 
-- `muscle_map` 값은 Pi가 `0.0~1.0` 비율값으로 보낸다.
-- 앱은 전달받은 값을 표시할 때 `value * 100`으로 변환해 퍼센트처럼 보여준다.
-- Pi는 원본 EMG/IMU 값을 캘리브레이션 기준으로 보정한 뒤 `0.0~1.0` 요약값으로 변환해 보낸다.
+- 스케일 계약(2026-05-18 통일): `muscle_map` 값은 Pi·앱·백엔드·DB·응답 전 구간 `0~100` percent 다.
+- Pi가 `_build_muscle_map_locked`에서 0~1 비율을 `*100`해 percent 로 보내고, 백엔드는 그대로 통과시킨다.
+- 앱은 받은 값을 추가 스케일 변환 없이 그대로 표시한다(표시 직전 `0~100` clamp 만 한다).
+- Pi는 원본 EMG/IMU 값을 캘리브레이션 기준으로 보정한 뒤 `0~100` percent 요약값으로 변환해 보낸다.
 - 단, 이 값이 세션 평균 활성도인지, 최대 활성도인지, 캘리브레이션/MVC 대비 비율인지는 아직 미확정이다.
 - 앱은 원본 센서 데이터를 계산하지 않고, 전달받은 값을 표시명/상태/색상으로 변환한다.
 - 앱은 알 수 없는 key가 와도 실패하지 않고, 해당 key를 원문 그대로 보존하거나 기타 항목으로 표시한다.
@@ -62,10 +63,10 @@
 | 값 범위 | 상태 | 의미 |
 | --- | --- | --- |
 | 0 | inactive | 측정값 없음 또는 비활성 |
-| 0.01~0.39 | low | 낮음 |
-| 0.40~0.69 | normal | 보통 |
-| 0.70~0.89 | high | 높음 |
-| 0.90~1.00 | danger | 과활성 또는 보상 위험 |
+| 1~39 | low | 낮음 |
+| 40~69 | normal | 보통 |
+| 70~89 | high | 높음 |
+| 90~100 | danger | 과활성 또는 보상 위험 |
 
 ### 4-2. 자세/몸통 안정성 key
 
@@ -74,10 +75,10 @@
 | 값 범위 | 상태 | 의미 |
 | --- | --- | --- |
 | 0 | inactive | 측정값 없음 |
-| 0.01~0.29 | danger | 몸통 흔들림/반동 위험 |
-| 0.30~0.49 | low | 안정성 낮음 |
-| 0.50~0.74 | normal | 보통 |
-| 0.75~1.00 | high | 안정적 |
+| 1~29 | danger | 몸통 흔들림/반동 위험 |
+| 30~49 | low | 안정성 낮음 |
+| 50~74 | normal | 보통 |
+| 75~100 | high | 안정적 |
 
 ## 5. 운동별 허용 key
 
@@ -137,9 +138,9 @@
 {
   "balance_summary": {
     "enabled": true,
-    "left_avg": 0.71,
-    "right_avg": 0.76,
-    "difference": 0.05
+    "left_avg": 71,
+    "right_avg": 76,
+    "difference": 5
   }
 }
 ```
@@ -180,11 +181,11 @@ Pi는 운동 종료 시 `session_result` 메시지를 전송해야 한다.
   "payload": {
     "exercise_type": "pushup",
     "muscle_map": {
-      "left_chest": 0.68,
-      "right_chest": 0.64,
-      "left_triceps": 0.52,
-      "right_triceps": 0.55,
-      "trunk": 0.72
+      "left_chest": 68,
+      "right_chest": 64,
+      "left_triceps": 52,
+      "right_triceps": 55,
+      "trunk": 72
     }
   }
 }
@@ -193,7 +194,7 @@ Pi는 운동 종료 시 `session_result` 메시지를 전송해야 한다.
 ## 8. 앱 적용 범위
 
 - `muscle_map` key를 한국어 표시명으로 변환한다.
-- 값은 `0.0~1.0`으로 clamp하고, 화면에는 `value * 100` 기준으로 표시한다.
+- 값은 `0~100` percent 로 clamp 하고, 화면에는 추가 변환 없이 그대로 표시한다.
 - 근육 활성도와 몸통 안정성은 다른 상태 기준을 사용한다.
 - 중간 이벤트는 Pi의 `workout_event.payload.event` 구조를 수신한다.
 - 센서부착완료 버튼에서는 Pi 현재 흐름에 맞춰 `sensors_attached` 후 `start_calibration`을 전송한다.

@@ -12,7 +12,7 @@ import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../view_model/workout_setup_viewmodel.dart';
 
-enum _CalibrationStage { ready, measuring, wearGlasses, failed }
+enum _CalibrationStage { ready, measuringRest, measuringMvc, wearGlasses, failed }
 
 class CalibrationScreenAppVersion extends StatefulWidget {
   const CalibrationScreenAppVersion({
@@ -42,9 +42,18 @@ class _CalibrationScreenAppVersionState
       workoutRepository: getIt<WorkoutRepository>(),
     );
     _viewModel.listenCalibrationStatus(
-      onStarted: () => _setStage(_CalibrationStage.measuring),
-      onSuccess: () => _setStage(_CalibrationStage.wearGlasses),
-      onFailed: () => _setStage(_CalibrationStage.failed),
+      onStage: (stage) {
+        switch (stage) {
+          case CalibrationStage.measuringRest:
+            _setStage(_CalibrationStage.measuringRest);
+          case CalibrationStage.measuringMvc:
+            _setStage(_CalibrationStage.measuringMvc);
+          case CalibrationStage.success:
+            _setStage(_CalibrationStage.wearGlasses);
+          case CalibrationStage.failed:
+            _setStage(_CalibrationStage.failed);
+        }
+      },
     );
     if (widget.autoStart) {
       _startCalibration(sendToPi: false);
@@ -70,14 +79,19 @@ class _CalibrationScreenAppVersionState
         _viewModel.startCalibration(exerciseType: widget.exerciseId),
       );
     }
-    setState(() => _stage = _CalibrationStage.measuring);
+    // Pi가 첫 calibration_status(started)를 보내기 전까지의 낙관적 단계.
+    setState(() => _stage = _CalibrationStage.measuringRest);
   }
+
+  bool get _isMeasuring =>
+      _stage == _CalibrationStage.measuringRest ||
+      _stage == _CalibrationStage.measuringMvc;
 
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
       title: '캘리브레이션',
-      showBackButton: _stage != _CalibrationStage.measuring,
+      showBackButton: !_isMeasuring,
       onBack: () => context.go('/sensor-guide?exercise=${widget.exerciseId}'),
       scrollable: true,
       bottom: AppRuntimeFlags.uiPreviewMode
@@ -100,9 +114,15 @@ class _CalibrationScreenAppVersionState
     switch (_stage) {
       case _CalibrationStage.ready:
         return ImoButton(label: '캘리브레이션 시작', onPressed: _startCalibration);
-      case _CalibrationStage.measuring:
+      case _CalibrationStage.measuringRest:
         return const ImoButton(
-          label: '기준값 측정 중...',
+          label: '안정 자세 측정 중...',
+          loading: true,
+          disabled: true,
+        );
+      case _CalibrationStage.measuringMvc:
+        return const ImoButton(
+          label: '최대 힘 측정 중...',
           loading: true,
           disabled: true,
         );
@@ -313,12 +333,19 @@ class _CalibrationPalette {
           icon: Icons.play_arrow_rounded,
           color: AppColors.primary,
         );
-      case _CalibrationStage.measuring:
+      case _CalibrationStage.measuringRest:
         return const _CalibrationPalette(
-          title: '기준값 측정 중',
-          description: '센서를 부착한 상태로 가만히 있어주세요.',
-          icon: Icons.autorenew_rounded,
+          title: '힘을 빼주세요',
+          description: '지금은 몸에 힘을 완전히 빼고\n편하게 자세를 유지해 주세요.',
+          icon: Icons.self_improvement_rounded,
           color: Color(0xFFA9CCF5),
+        );
+      case _CalibrationStage.measuringMvc:
+        return const _CalibrationPalette(
+          title: '최대한 힘을 주세요',
+          description: '이제 측정하는 근육에 최대한 힘을 주고\n3초간 버텨 주세요!',
+          icon: Icons.bolt_rounded,
+          color: AppColors.primary,
         );
       case _CalibrationStage.wearGlasses:
         return const _CalibrationPalette(

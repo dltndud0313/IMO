@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../config/dependencies.dart';
 import '../../../data/repositories/session_history_repository.dart';
 import '../../../domain/models/exercise_type.dart';
+import '../../../domain/models/muscle_map_schema.dart';
 import '../../../domain/models/set_result.dart';
 import '../../../domain/models/workout_session.dart';
 import '../../core/layouts/app_scaffold.dart';
@@ -438,7 +439,8 @@ class _MuscleActivityCard extends StatelessWidget {
       final avg =
           present.fold<double>(0, (sum, k) => sum + (map[k] ?? 0)) /
               present.length;
-      entries.add(_MuscleEntry(label: label, pct: avg));
+      // 스케일 계약: 활성도는 전 구간 0~100 percent. clamp 만 하고 그대로 표시.
+      entries.add(_MuscleEntry(label: label, pct: clampMuscleMapPercent(avg)));
     }
 
     switch (exerciseType) {

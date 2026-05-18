@@ -22,7 +22,7 @@ class PlanSettingScreen extends StatefulWidget {
 
 class _PlanSettingScreenState extends State<PlanSettingScreen> {
   int _setCount = 3;
-  List<int> _targetRepsPerSet = [12, 12, 10];
+  List<int> _targetRepsPerSet = [12, 12, 12];
   int _restSeconds = 60;
   bool _perSetMode = false;
   late final WorkoutSetupViewModel _viewModel;
@@ -39,9 +39,14 @@ class _PlanSettingScreenState extends State<PlanSettingScreen> {
     setState(() {
       _setCount = nextCount;
       if (_targetRepsPerSet.length < nextCount) {
+        // 새 세트는 마지막 세트와 같은 목표 횟수로 채운다.
+        // (전체 동일 모드에서는 기존 값과 일관, 세트별 모드에서도 합리적 기본값)
         _targetRepsPerSet = [
           ..._targetRepsPerSet,
-          ...List<int>.filled(nextCount - _targetRepsPerSet.length, 10),
+          ...List<int>.filled(
+            nextCount - _targetRepsPerSet.length,
+            _targetRepsPerSet.last,
+          ),
         ];
       } else {
         _targetRepsPerSet = _targetRepsPerSet.take(nextCount).toList();

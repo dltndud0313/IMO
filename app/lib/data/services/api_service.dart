@@ -176,6 +176,9 @@ class ApiService {
     final summary = data['overallSummary'] as Map<String, dynamic>? ?? const {};
     final balance = data['muscleBalance'] as Map<String, dynamic>?;
     final muscleMap = data['muscleMap'] as Map<String, dynamic>?;
+    // 백엔드 B-1: GET 응답에 추가된 round-trip 무손실용 raw 블록 (camelCase).
+    final calibration = data['calibrationSummary'] as Map<String, dynamic>?;
+    final balanceSummary = data['balanceSummary'] as Map<String, dynamic>?;
     final targetReps = sets
         .map((set) => (set['targetReps'] as num?)?.toInt() ?? 0)
         .toList();
@@ -203,8 +206,7 @@ class ApiService {
           : 0,
       'total_reps': totalReps,
       'valid_reps': totalReps,
-      'avg_target_muscle':
-          (summary['avgTargetActivation'] as num?)?.toDouble() ?? 0,
+      'avg_target_muscle': _numToDouble(summary['avgTargetActivation']),
       'avg_assist_muscle': 0,
       'avg_compensator': 0,
       'compensation_count':
@@ -212,16 +214,33 @@ class ApiService {
       'fatigue_onset_set': (summary['fatigueOnsetSet'] as num?)?.toInt(),
       'fatigue_onset_rep': (summary['fatigueOnsetRep'] as num?)?.toInt(),
       if (muscleMap != null && muscleMap.isNotEmpty)
-        'muscle_map': muscleMap.map(
-          (key, value) => MapEntry(key, (value as num?)?.toDouble() ?? 0.0),
-        ),
-      if (balance != null)
+        // 스케일 계약: 백엔드 응답은 이미 0~100 percent → 변환 없이 그대로.
+        'muscle_map': muscleMap,
+      if (calibration != null)
+        'calibration_summary': {
+          'ch1_mvc': (calibration['ch1Mvc'] as num?)?.toDouble() ?? 0.0,
+          'ch2_mvc': (calibration['ch2Mvc'] as num?)?.toDouble() ?? 0.0,
+          'ch3_mvc': (calibration['ch3Mvc'] as num?)?.toDouble() ?? 0.0,
+        },
+      // raw balanceSummary 블록이 있으면 우선 사용(무손실), 없으면 구버전
+      // 세션 호환을 위해 파생 muscleBalance에서 역산한다.
+      if (balanceSummary != null)
+        // 스케일 계약: 백엔드 응답은 이미 0~100 percent → 변환 없이 그대로.
+        'balance_summary': {
+          'enabled': balanceSummary['enabled'] as bool? ?? true,
+          'reason': balanceSummary['reason']?.toString() ?? 'backend_detail',
+          'left_value': _numToDoubleOrNull(balanceSummary['leftValue']),
+          'right_value': _numToDoubleOrNull(balanceSummary['rightValue']),
+          'diff_value': _numToDoubleOrNull(balanceSummary['diffValue']),
+          'balance_label': balanceSummary['balanceLabel']?.toString(),
+        }
+      else if (balance != null)
         'balance_summary': {
           'enabled': true,
           'reason': balance['status']?.toString() ?? 'backend_detail',
-          'left_value': (balance['leftAvg'] as num?)?.toDouble(),
-          'right_value': (balance['rightAvg'] as num?)?.toDouble(),
-          'diff_value': (balance['balanceRatio'] as num?)?.toDouble(),
+          'left_value': _numToDoubleOrNull(balance['leftAvg']),
+          'right_value': _numToDoubleOrNull(balance['rightAvg']),
+          'diff_value': _numToDoubleOrNull(balance['balanceRatio']),
           'balance_label': balance['status']?.toString(),
         },
       'set_results': sets.map((set) {
@@ -362,3 +381,11 @@ class ApiService {
     }
   }
 }
+
+/// 스케일 계약(2026-05-18 통일): 활성도 값은 Pi·앱·백엔드·DB·GET 응답 전 구간
+/// 0~100 percent. GET 응답 값은 이미 percent 이므로 변환 없이 모델에 싣는다.
+double _numToDouble(Object? value) =>
+    value is num ? value.toDouble() : 0.0;
+
+double? _numToDoubleOrNull(Object? value) =>
+    value is num ? value.toDouble() : null;

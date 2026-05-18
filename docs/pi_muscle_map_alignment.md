@@ -63,12 +63,16 @@ ch3/ch4 데이터가 muscle_map 어디에도 포함되지 않음. 사용자가 �
 
 [pi_sensor_bridge.py:424 근방](../device/raspberry-pi/pi_sensor_bridge.py#L424) — 운동별로 sensor_guide_screen 안내와 schema 키에 맞게:
 
+스케일 계약(2026-05-18 통일): muscle_map 값은 Pi·앱·백엔드·DB·응답 전 구간
+`0~100` percent. `_channel_average_locked`는 `0~1` 비율을 돌려주므로 여기서 `*100` 한다.
+
 ```python
 def _build_muscle_map_locked(self) -> dict[str, float]:
-    ch1 = self._channel_average_locked(0)
-    ch2 = self._channel_average_locked(1)
-    ch3 = self._channel_average_locked(2)
-    ch4 = self._channel_average_locked(3)
+    # 0~1 ratio → 0~100 percent 변환 (스케일 계약).
+    ch1 = self._channel_average_locked(0) * 100.0
+    ch2 = self._channel_average_locked(1) * 100.0
+    ch3 = self._channel_average_locked(2) * 100.0
+    ch4 = self._channel_average_locked(3) * 100.0
 
     if self._exercise_type == "pushup":
         return {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../config/dependencies.dart';
 import '../../../data/repositories/session_history_repository.dart';
+import '../../../domain/models/muscle_map_schema.dart';
 import '../../../domain/models/workout_session.dart';
 import '../../core/layouts/app_scaffold.dart';
 import '../../core/themes/design_tokens.dart';
@@ -544,7 +545,8 @@ List<_MuscleEntry> _buildMuscleEntries(Map<String, double> map) {
     if (present.isEmpty) return;
     final avg = present.fold<double>(0, (sum, k) => sum + map[k]!) /
         present.length;
-    entries.add(_MuscleEntry(label: label, pct: avg));
+    // 스케일 계약: 활성도는 전 구간 0~100 percent. clamp 만 하고 그대로 표시.
+    entries.add(_MuscleEntry(label: label, pct: clampMuscleMapPercent(avg)));
   }
 
   // 이두컬 시연용 키 우선 추가. pushup/lateral_raise 의 새 키 정렬은 follow-up.
@@ -563,7 +565,12 @@ List<_BalanceItem> _buildBalanceItems(Map<String, double> map) {
     final left = map[leftKey];
     final right = map[rightKey];
     if (left != null && right != null) {
-      items.add(_BalanceItem(label: label, leftPct: left, rightPct: right));
+      // 스케일 계약: 좌우 값 모두 0~100 percent. clamp 만 하고 그대로 표시.
+      items.add(_BalanceItem(
+        label: label,
+        leftPct: clampMuscleMapPercent(left),
+        rightPct: clampMuscleMapPercent(right),
+      ));
     }
   }
 
