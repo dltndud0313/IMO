@@ -478,10 +478,9 @@ class _EmgCard extends StatelessWidget {
     final valueText = hasValue ? '$clamped%' : (hasStream ? '센서 확인' : '—');
 
     return _GlassPanel(
-      padding: EdgeInsets.all(compact ? 10 : 16),
+      padding: EdgeInsets.all(compact ? 8 : 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
             label,
@@ -492,18 +491,19 @@ class _EmgCard extends StatelessWidget {
               fontWeight: FontWeight.w700,
             ),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              FittedBox(
+          // 값 영역은 Expanded 로 남는 공간만 차지하고, FittedBox 가 그 안에서
+          // 글자를 축소해 채운다 → 카드가 작아도 오버플로우 없음.
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: FittedBox(
                 fit: BoxFit.scaleDown,
                 alignment: Alignment.centerLeft,
                 child: Text(
                   valueText,
                   maxLines: 1,
                   style: AppTextStyles.metric.copyWith(
-                    fontSize: compact ? 22 : 30,
+                    fontSize: compact ? 20 : 28,
                     color: hasValue
                         ? const Color(0xFFE6FFF8)
                         : const Color(0xFF6B8A84),
@@ -511,20 +511,20 @@ class _EmgCard extends StatelessWidget {
                   ),
                 ),
               ),
-              SizedBox(height: compact ? 5 : 7),
-              SizedBox(
-                width: double.infinity,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(99),
-                  child: LinearProgressIndicator(
-                    value: clamped / 100,
-                    minHeight: compact ? 5 : 7,
-                    backgroundColor: const Color(0xFF13201E),
-                    valueColor: AlwaysStoppedAnimation<Color>(gaugeColor),
-                  ),
-                ),
+            ),
+          ),
+          SizedBox(height: compact ? 4 : 6),
+          SizedBox(
+            width: double.infinity,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(99),
+              child: LinearProgressIndicator(
+                value: clamped / 100,
+                minHeight: compact ? 4 : 6,
+                backgroundColor: const Color(0xFF13201E),
+                valueColor: AlwaysStoppedAnimation<Color>(gaugeColor),
               ),
-            ],
+            ),
           ),
         ],
       ),
