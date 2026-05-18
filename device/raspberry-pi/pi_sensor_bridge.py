@@ -480,10 +480,12 @@ class BridgeState:
         # 키 명명은 app schema (exercise_muscle_map_schemas) 및
         # docs/pi_muscle_map_alignment.md 와 정합한다.
         # sensor_guide_screen 이 안내하는 부착 위치를 그대로 키로 반영.
-        ch1 = self._channel_average_locked(0)
-        ch2 = self._channel_average_locked(1)
-        ch3 = self._channel_average_locked(2)
-        ch4 = self._channel_average_locked(3)
+        # 스케일 계약: 활성도 값은 0~100 percent. _channel_average_locked 는
+        # 0~1 ratio 를 돌려주므로 여기서 *100 변환해서 송신한다.
+        ch1 = self._channel_average_locked(0) * 100.0
+        ch2 = self._channel_average_locked(1) * 100.0
+        ch3 = self._channel_average_locked(2) * 100.0
+        ch4 = self._channel_average_locked(3) * 100.0
         if self._exercise_type == "pushup":
             return {
                 "left_chest": ch1,
@@ -541,13 +543,15 @@ class BridgeState:
         else:
             left_balance = None
             right_balance = None
+        # 스케일 계약: left/right_balance 는 muscle_map 값이라 이미 0~100 percent.
+        # 따라서 threshold 도 percent 단위 (예: 10% 이내 → BALANCED).
         diff_balance = None
         balance_label = None
         if left_balance is not None and right_balance is not None:
             diff_balance = abs(left_balance - right_balance)
-            if diff_balance <= 0.1:
+            if diff_balance <= 10.0:
                 balance_label = "BALANCED"
-            elif diff_balance <= 0.25:
+            elif diff_balance <= 25.0:
                 balance_label = "MILD_IMBALANCE"
             else:
                 balance_label = "SIGNIFICANT_IMBALANCE"
