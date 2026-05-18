@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../config/dependencies.dart';
 import '../../../data/repositories/session_history_repository.dart';
+import '../../../domain/models/muscle_map_schema.dart';
 import '../../../domain/models/workout_session.dart';
 import '../../core/layouts/app_scaffold.dart';
 import '../../core/themes/design_tokens.dart';
@@ -544,12 +545,15 @@ List<_MuscleEntry> _buildMuscleEntries(Map<String, double> map) {
     if (present.isEmpty) return;
     final avg = present.fold<double>(0, (sum, k) => sum + map[k]!) /
         present.length;
-    entries.add(_MuscleEntry(label: label, pct: avg));
+    // Pi/백엔드는 활성도를 0.0~1.0 비율로 보낸다. 화면 표시는 0~100 퍼센트.
+    entries.add(_MuscleEntry(label: label, pct: muscleMapRatioToPercent(avg)));
   }
 
   add('대흉근', ['chest']);
   add('어깨', ['left_shoulder', 'right_shoulder']);
   add('삼두근', ['left_triceps', 'right_triceps']);
+  add('이두근', ['left_biceps', 'right_biceps']);
+  add('전완근', ['left_forearm', 'right_forearm']);
   return entries;
 }
 
@@ -559,12 +563,19 @@ List<_BalanceItem> _buildBalanceItems(Map<String, double> map) {
     final left = map[leftKey];
     final right = map[rightKey];
     if (left != null && right != null) {
-      items.add(_BalanceItem(label: label, leftPct: left, rightPct: right));
+      // 0.0~1.0 비율 → 0~100 퍼센트.
+      items.add(_BalanceItem(
+        label: label,
+        leftPct: muscleMapRatioToPercent(left),
+        rightPct: muscleMapRatioToPercent(right),
+      ));
     }
   }
 
   add('어깨', 'left_shoulder', 'right_shoulder');
   add('삼두근', 'left_triceps', 'right_triceps');
+  add('이두근', 'left_biceps', 'right_biceps');
+  add('전완근', 'left_forearm', 'right_forearm');
   return items;
 }
 
