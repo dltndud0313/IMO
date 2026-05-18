@@ -42,17 +42,17 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
       workoutRepository: getIt<WorkoutRepository>(),
     );
     _viewModel.listenCalibrationStatus(
-      onStarted: () {
-        debugPrint('[Calibration] onStarted');
-        _setStage(_CalibrationStage.measuring);
-      },
-      onSuccess: () {
-        debugPrint('[Calibration] onSuccess');
-        _handleCalibrationSuccess();
-      },
-      onFailed: () {
-        debugPrint('[Calibration] onFailed');
-        _setStage(_CalibrationStage.failed);
+      onStage: (stage) {
+        debugPrint('[Calibration] onStage($stage)');
+        switch (stage) {
+          case CalibrationStage.measuringRest:
+          case CalibrationStage.measuringMvc:
+            _setStage(_CalibrationStage.measuring);
+          case CalibrationStage.success:
+            _handleCalibrationSuccess();
+          case CalibrationStage.failed:
+            _setStage(_CalibrationStage.failed);
+        }
       },
     );
     debugPrint('[Calibration] initState autoStart=${widget.autoStart}');

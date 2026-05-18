@@ -4,6 +4,12 @@ import '../../../data/repositories/calibration_repository.dart';
 import '../../../data/repositories/workout_repository.dart';
 import '../../../data/services/pi_message.dart';
 
+/// 캘리브레이션 진행 단계.
+///
+/// Pi는 REST 측정 시작과 MVC 측정 시작을 모두 `status="started"`로 보내기 때문에
+/// 앱에서 한 번의 캘리브레이션 동안 들어온 `started` 횟수로 두 단계를 구분한다.
+enum CalibrationStage { measuringRest, measuringMvc, success, failed }
+
 class WorkoutPlanSubmitResult {
   const WorkoutPlanSubmitResult._({
     required this.accepted,
@@ -34,6 +40,7 @@ class WorkoutSetupViewModel {
   final WorkoutRepository? _workoutRepository;
   final CalibrationRepository? _calibrationRepository;
   StreamSubscription? _calibrationStatusSubscription;
+  int _calibrationStartedCount = 0;
 
   Future<WorkoutPlanSubmitResult> submitWorkoutPlan({
     required String exerciseType,
@@ -73,6 +80,7 @@ class WorkoutSetupViewModel {
       throw StateError('CalibrationRepository is required.');
     }
 
+    _calibrationStartedCount = 0;
     await calibrationRepository.connect();
     calibrationRepository.markSensorsAttached();
     // Pi 상태머신이 sensors_attached 처리(phase 전환)를 끝낼 시간을 준다.
@@ -89,6 +97,7 @@ class WorkoutSetupViewModel {
       throw StateError('CalibrationRepository is required.');
     }
 
+    _calibrationStartedCount = 0;
     await calibrationRepository.connect();
     calibrationRepository.startCalibration(exerciseType: exerciseType);
   }
@@ -103,10 +112,14 @@ class WorkoutSetupViewModel {
     workoutRepository.startWorkout();
   }
 
+  /// 캘리브레이션 단계 변화를 구독한다.
+  ///
+  /// Pi는 REST/MVC 측정 시작을 모두 `status="started"`로 보내므로, 한 번의
+  /// 캘리브레이션 동안 첫 번째 `started`는 [CalibrationStage.measuringRest],
+  /// 두 번째는 [CalibrationStage.measuringMvc]로 해석한다. 카운터는 새 캘리브레이션을
+  /// 시작할 때(startCalibration 등)와 success/failed 수신 시 0으로 초기화된다.
   void listenCalibrationStatus({
-    required void Function() onStarted,
-    required void Function() onSuccess,
-    required void Function() onFailed,
+    required void Function(CalibrationStage stage) onStage,
   }) {
     final calibrationRepository = _calibrationRepository;
     if (calibrationRepository == null) {
@@ -114,15 +127,23 @@ class WorkoutSetupViewModel {
     }
 
     _calibrationStatusSubscription?.cancel();
+    _calibrationStartedCount = 0;
     _calibrationStatusSubscription = calibrationRepository.status.listen((
       status,
     ) {
       if (status.isStarted) {
-        onStarted();
+        _calibrationStartedCount++;
+        onStage(
+          _calibrationStartedCount <= 1
+              ? CalibrationStage.measuringRest
+              : CalibrationStage.measuringMvc,
+        );
       } else if (status.isSuccess) {
-        onSuccess();
+        _calibrationStartedCount = 0;
+        onStage(CalibrationStage.success);
       } else if (status.isFailed) {
-        onFailed();
+        _calibrationStartedCount = 0;
+        onStage(CalibrationStage.failed);
       }
     });
   }
