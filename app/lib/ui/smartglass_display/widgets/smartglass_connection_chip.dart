@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/status_badge.dart';
 import '../model/smartglass_display_models.dart';
 
