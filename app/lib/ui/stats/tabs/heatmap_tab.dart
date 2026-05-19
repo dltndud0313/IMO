@@ -56,18 +56,7 @@ class _HeatmapTabState extends State<HeatmapTab> {
           const SizedBox(height: AppSpacing.md),
           TrunkPostureIndicator(stability: stability),
           const SizedBox(height: AppSpacing.md),
-          const Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _LegendDot(color: AppColors.heatmapLow, label: '낮음'),
-              SizedBox(width: AppSpacing.md),
-              _LegendDot(color: AppColors.heatmapNormal, label: '보통'),
-              SizedBox(width: AppSpacing.md),
-              _LegendDot(color: AppColors.heatmapHigh, label: '높음'),
-              SizedBox(width: AppSpacing.md),
-              _LegendDot(color: AppColors.heatmapDanger, label: '위험'),
-            ],
-          ),
+          const _ActivityGradientBar(),
           if (!hasAnyData) ...[
             const SizedBox(height: AppSpacing.sm),
             Text(
@@ -169,23 +158,41 @@ class _MiniSegment extends StatelessWidget {
 }
 
 
-class _LegendDot extends StatelessWidget {
-  const _LegendDot({required this.color, required this.label});
-
-  final Color color;
-  final String label;
+class _ActivityGradientBar extends StatelessWidget {
+  const _ActivityGradientBar();
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: 10,
-          height: 10,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        Text('근활성도 범위', style: AppTextStyles.label),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: Container(
+            height: 8,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  AppColors.heatmapLow,
+                  AppColors.heatmapNormal,
+                  AppColors.heatmapHigh,
+                  AppColors.heatmapDanger,
+                ],
+                stops: [0.0, 0.33, 0.66, 1.0],
+              ),
+            ),
+          ),
         ),
-        const SizedBox(width: AppSpacing.xxs),
-        Text(label, style: AppTextStyles.caption),
+        const SizedBox(height: 4),
+        const Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('낮음', style: AppTextStyles.caption),
+            Text('높음', style: AppTextStyles.caption),
+          ],
+        ),
       ],
     );
   }

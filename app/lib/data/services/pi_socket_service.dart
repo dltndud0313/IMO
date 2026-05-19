@@ -15,7 +15,8 @@ enum PiSocketConnectionState {
 class PiSocketService {
   PiSocketService({
     // String url = 'ws://192.168.100.253:8765',
-    String url = 'ws://172.20.10.10:8765',
+    // String url = 'ws://172.20.10.10:8765',
+    String url = 'ws://172.20.10.4:8765',
     // String url = 'ws://0.0.0.0:8765',
     bool verboseLogging = false,
   }) 
