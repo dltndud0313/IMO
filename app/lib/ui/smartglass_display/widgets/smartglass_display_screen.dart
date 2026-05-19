@@ -478,52 +478,52 @@ class _EmgCard extends StatelessWidget {
     final valueText = hasValue ? '$clamped%' : (hasStream ? '센서 확인' : '—');
 
     return _GlassPanel(
-      padding: EdgeInsets.all(compact ? 8 : 14),
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 10 : 14,
+        vertical: compact ? 5 : 9,
+      ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppTextStyles.caption.copyWith(
-              color: const Color(0xFF9FC7BD),
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          // 값 영역은 Expanded 로 남는 공간만 차지하고, FittedBox 가 그 안에서
-          // 글자를 축소해 채운다 → 카드가 작아도 오버플로우 없음.
-          Expanded(
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
+          // 라벨 + 퍼센트를 한 줄에 → 카드 칸이 낮아도(~25px) 들어간다.
+          Row(
+            children: [
+              Expanded(
                 child: Text(
-                  valueText,
+                  label,
                   maxLines: 1,
-                  style: AppTextStyles.metric.copyWith(
-                    fontSize: compact ? 20 : 28,
-                    color: hasValue
-                        ? const Color(0xFFE6FFF8)
-                        : const Color(0xFF6B8A84),
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.caption.copyWith(
+                    color: const Color(0xFF9FC7BD),
+                    fontWeight: FontWeight.w700,
+                    fontSize: compact ? 11 : 13,
                     height: 1,
                   ),
                 ),
               ),
-            ),
+              const SizedBox(width: 6),
+              Text(
+                valueText,
+                maxLines: 1,
+                style: AppTextStyles.metric.copyWith(
+                  fontSize: compact ? 15 : 20,
+                  height: 1,
+                  color: hasValue
+                      ? const Color(0xFFE6FFF8)
+                      : const Color(0xFF6B8A84),
+                ),
+              ),
+            ],
           ),
           SizedBox(height: compact ? 4 : 6),
-          SizedBox(
-            width: double.infinity,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(99),
-              child: LinearProgressIndicator(
-                value: clamped / 100,
-                minHeight: compact ? 4 : 6,
-                backgroundColor: const Color(0xFF13201E),
-                valueColor: AlwaysStoppedAnimation<Color>(gaugeColor),
-              ),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(99),
+            child: LinearProgressIndicator(
+              value: clamped / 100,
+              minHeight: compact ? 4 : 6,
+              backgroundColor: const Color(0xFF13201E),
+              valueColor: AlwaysStoppedAnimation<Color>(gaugeColor),
             ),
           ),
         ],
