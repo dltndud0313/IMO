@@ -68,7 +68,15 @@ async def create_session(
         end_reason=payload.end_reason,
         started_at=payload.started_at,
         ended_at=payload.ended_at,
-        duration_sec=payload.duration_sec,
+        # Pi 가 session_result 에 duration_sec 를 누락/0으로 보내는 경우 대비:
+        # started_at·ended_at 차이로 자동 계산해 DB 에 양수로 저장.
+        # 통계 라우터(/statistics/weekly)가 DB raw 값을 그대로 합산하기 때문에
+        # 여기서 채워두지 않으면 운동 시간 통계가 0분으로 누적된다.
+        duration_sec=(
+            payload.duration_sec
+            if payload.duration_sec and payload.duration_sec > 0
+            else int((payload.ended_at - payload.started_at).total_seconds())
+        ),
         set_count=payload.set_count,
         target_reps_per_set=payload.target_reps_per_set,
         actual_reps_per_set=payload.actual_reps_per_set,
