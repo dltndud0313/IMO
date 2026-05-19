@@ -25,10 +25,10 @@ abstract final class AppColors {
 
   static const heatmapBg = Color(0xFF0F172A);
   static const heatmapInactive = Color(0xFF334155);
-  static const heatmapLow = Color(0xFF2563EB);
-  static const heatmapNormal = Color(0xFF22C55E);
-  static const heatmapHigh = Color(0xFFF59E0B);
-  static const heatmapDanger = Color(0xFFEF4444);
+  static const heatmapLow = primary;
+  static const heatmapNormal = secondary;
+  static const heatmapHigh = warning;
+  static const heatmapDanger = error;
 
   // Temporary compatibility aliases for existing foundation code.
   static const surface = card;
