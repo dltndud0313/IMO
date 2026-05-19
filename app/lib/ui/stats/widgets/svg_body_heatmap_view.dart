@@ -82,11 +82,16 @@ class _MuscleColorMapper extends ColorMapper {
   }
 
   static Color _colorForPercent(double percent) {
-    final v = percent.clamp(0.0, 100.0);
-    if (v < 20) return AppColors.heatmapLow.withValues(alpha: 0.55);
-    if (v < 40) return AppColors.heatmapLow;
-    if (v < 60) return AppColors.heatmapNormal;
-    if (v < 80) return AppColors.heatmapHigh;
-    return AppColors.heatmapDanger;
+    final normalized = percent.clamp(0.0, 100.0) / 100.0;
+
+    if (normalized < 0.25) {
+      return Color.lerp(AppColors.heatmapLow, AppColors.heatmapNormal, normalized / 0.25)!;
+    } else if (normalized < 0.5) {
+      return Color.lerp(AppColors.heatmapNormal, AppColors.heatmapHigh, (normalized - 0.25) / 0.25)!;
+    } else if (normalized < 0.75) {
+      return Color.lerp(AppColors.heatmapHigh, AppColors.heatmapDanger, (normalized - 0.5) / 0.25)!;
+    } else {
+      return AppColors.heatmapDanger;
+    }
   }
 }
