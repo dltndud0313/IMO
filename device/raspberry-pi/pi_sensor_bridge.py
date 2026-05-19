@@ -57,19 +57,19 @@ CALIBRATION_REST_FRAMES = 150   # 3.0s @ 50Hz
 CALIBRATION_MVC_FRAMES = 200    # 4.0s @ 50Hz
 CALIBRATION_TIMEOUT_SEC = 20.0
 CALIBRATION_MIN_VALID_EMG_FRAMES = 10
-CALIBRATION_REST_MAX_EMG_MEAN = 0.08
-CALIBRATION_REST_MAX_EMG_STD = 0.035
-CALIBRATION_REST_MAX_GYRO_NORM = 6.0
-CALIBRATION_MVC_MIN_VALID_RATIO = 0.85
-CALIBRATION_MVC_NOISE_MULTIPLIER = 4.0
-CALIBRATION_MVC_ACTIVE_DELTA_FLOOR = 0.02
-CALIBRATION_MVC_MIN_PRIMARY_DELTA = 0.05
-CALIBRATION_MVC_MIN_SECONDARY_DELTA = 0.03
-CALIBRATION_MVC_MIN_PRIMARY_PEAK_DELTA = 0.08
-CALIBRATION_MVC_MIN_SECONDARY_PEAK_DELTA = 0.05
-CALIBRATION_MVC_MIN_PRIMARY_ACTIVE_FRAMES = 20
-CALIBRATION_MVC_MIN_SECONDARY_ACTIVE_FRAMES = 12
-CALIBRATION_MVC_MIN_PRIMARY_SYNC_FRAMES = 12
+CALIBRATION_REST_MAX_EMG_MEAN = 0.12
+CALIBRATION_REST_MAX_EMG_STD = 0.05
+CALIBRATION_REST_MAX_GYRO_NORM = 8.0
+CALIBRATION_MVC_MIN_VALID_RATIO = 0.70
+CALIBRATION_MVC_NOISE_MULTIPLIER = 3.0
+CALIBRATION_MVC_ACTIVE_DELTA_FLOOR = 0.015
+CALIBRATION_MVC_MIN_PRIMARY_DELTA = 0.03
+CALIBRATION_MVC_MIN_SECONDARY_DELTA = 0.02
+CALIBRATION_MVC_MIN_PRIMARY_PEAK_DELTA = 0.05
+CALIBRATION_MVC_MIN_SECONDARY_PEAK_DELTA = 0.03
+CALIBRATION_MVC_MIN_PRIMARY_ACTIVE_FRAMES = 10
+CALIBRATION_MVC_MIN_SECONDARY_ACTIVE_FRAMES = 6
+CALIBRATION_MVC_MIN_PRIMARY_SYNC_FRAMES = 6
 EXERCISE_LABELS = {
     "pushup": "Push-up",
     "bicep_curl": "Bicep Curl",
@@ -171,6 +171,8 @@ class BridgeState:
         self._calibration_stage = "idle"
         self._calibration_started_monotonic: Optional[float] = None
         self._calibration_failure_message: Optional[str] = None
+        self._calibration_last_rejection_reason: Optional[str] = None
+        self._calibration_rejection_streak = 0
         self._session_accumulator = SessionAccumulator()
         self._pending_session_result: Optional[dict[str, Any]] = None
 
@@ -209,9 +211,12 @@ class BridgeState:
                 return False
             stage = self._calibration_stage
             frame_count = len(self._calibration_frames)
+            reason_suffix = ""
+            if frame_count == 0 and self._calibration_last_rejection_reason:
+                reason_suffix = f" (last rejection: {self._calibration_last_rejection_reason})"
             print(
                 f"[calib] timeout fired stage={stage} collected={frame_count} "
-                f"(no frames advancing for >{CALIBRATION_TIMEOUT_SEC:.0f}s)"
+                f"(no frames advancing for >{CALIBRATION_TIMEOUT_SEC:.0f}s){reason_suffix}"
             )
             self._fail_calibration_locked(
                 "캘리브레이션 제한 시간을 초과했습니다. 센서를 다시 확인하고 재시도하세요."
@@ -273,6 +278,8 @@ class BridgeState:
             self._phase = "calibrating"
             self._calibration_started_monotonic = time.monotonic()
             self._calibration_failure_message = None
+            self._calibration_last_rejection_reason = None
+            self._calibration_rejection_streak = 0
             print(
                 f"[calib] start stage=rest need_frames={CALIBRATION_REST_FRAMES} "
                 f"timeout={CALIBRATION_TIMEOUT_SEC:.0f}s"
@@ -307,6 +314,15 @@ class BridgeState:
         with self._lock:
             if self._phase != "awaiting_workout_start":
                 return False
+            # calibration/대기 화면에서도 sensor frame 은 계속 들어오므로 rep_index,
+            # motion state, 속도 측정 시점이 남아 있을 수 있다. 이를 비우지 않으면
+            # 실제 운동 첫 반복이 누락되거나 이전 상태를 이어받아 오검출된다.
+            self._current_rep = None
+            self._motion_active = False
+            self._last_rep_timestamp_ms = None
+            self._current_set_rep_intervals_ms = []
+            self._last_rep_speed_label = "분석 중"
+            self._last_device_rep_index = None
             self._phase = "monitoring"
             self._ensure_session_started_locked()
             return True
@@ -426,19 +442,22 @@ class BridgeState:
         self,
         frame: DecodedFrame,
     ) -> Optional[str]:
-        detached_channels = self._detached_channels(frame)
-        if detached_channels:
-            channel_labels = ",".join(str(index + 1) for index in detached_channels)
-            return f"detached_emg:{channel_labels}"
-        if not bool(frame.flags & 0x02):
-            return "imu_bias_not_ready"
-        if bool(frame.flags & 0x04):
-            return "motion_detected"
-        if max(self._imu_gyro_norms(frame), default=0.0) > CALIBRATION_REST_MAX_GYRO_NORM:
-            return "gyro_unstable"
+        # REST 단계에서는 프레임 수집 자체를 막지 않고, 수집 후 baseline/noise/
+        # 유효 샘플 수를 한 번에 검증한다. 프레임 단계에서 탈락시키면 collected=0
+        # 타임아웃만 남아서 실제 실패 사유가 가려질 수 있다.
         return None
 
     def _reset_rest_window_locked(self, reason: str) -> None:
+        if reason == self._calibration_last_rejection_reason:
+            self._calibration_rejection_streak += 1
+        else:
+            self._calibration_last_rejection_reason = reason
+            self._calibration_rejection_streak = 1
+        if self._calibration_rejection_streak == 1 or self._calibration_rejection_streak % 50 == 0:
+            print(
+                f"[calib] rest frame rejected reason={reason} "
+                f"streak={self._calibration_rejection_streak}"
+            )
         if not self._calibration_frames:
             return
         print(
@@ -704,20 +723,12 @@ class BridgeState:
 
         if self._last_device_rep_index is None:
             self._last_device_rep_index = frame.rep_index
-            if self._phase == "monitoring":
-                self._update_last_rep_speed_locked(frame.timestamp_ms)
-                self._current_rep = frame.rep_index + 1
-                self._last_rep_timestamp_ms = frame.timestamp_ms
-                return self._maybe_advance_workout_locked(frame.timestamp_ms)
             return events
 
         if frame.rep_index < self._last_device_rep_index:
+            # 디바이스 쪽 rep counter 가 리셋/재시작된 경우에는 기준값만 다시 잡고
+            # 현재 세트 카운트를 바로 증가시키지 않는다.
             self._last_device_rep_index = frame.rep_index
-            if self._phase == "monitoring":
-                self._update_last_rep_speed_locked(frame.timestamp_ms)
-                self._current_rep = frame.rep_index + 1
-                self._last_rep_timestamp_ms = frame.timestamp_ms
-                return self._maybe_advance_workout_locked(frame.timestamp_ms)
             return events
 
         if self._phase != "monitoring":
@@ -729,9 +740,10 @@ class BridgeState:
         if delta <= 0:
             return events
 
-        next_rep = 0 if self._current_rep is None else self._current_rep
         self._update_last_rep_speed_locked(frame.timestamp_ms)
-        self._current_rep = next_rep + delta
+        # rep_index 는 mock/문서 기준으로 0-based 누적 카운터이므로, Pi 쪽 state 와
+        # 어긋났더라도 절대값에 다시 맞춰준다.
+        self._current_rep = frame.rep_index + 1
         self._last_rep_timestamp_ms = frame.timestamp_ms
         return self._maybe_advance_workout_locked(frame.timestamp_ms)
 
@@ -747,19 +759,33 @@ class BridgeState:
 
         motion_detected = bool(frame.flags & 0x04)
         primary_emg = max(valid_emg)
-        emg_threshold = 0.12
         accel_delta = self._max_accel_delta_locked(frame)
         gyro_norm = self._gyro_delta_locked(frame)
-        active_now = primary_emg >= emg_threshold and (
-            motion_detected or accel_delta >= 0.18 or gyro_norm >= 2.2
+
+        # 실제 장비에서는 rep_index 가 비어 있는 경우가 많아 Pi 추정 경로가 주력이다.
+        # calibration 결과에 따라 normalized EMG 가 낮게 나와도, 팔 IMU 움직임이
+        # 충분히 크면 카운트가 되도록 조건을 완화한다.
+        moderate_motion = motion_detected or accel_delta >= 0.12 or gyro_norm >= 1.4
+        strong_motion = accel_delta >= 0.42 or gyro_norm >= 3.4
+        active_now = (
+            (primary_emg >= 0.08 and moderate_motion)
+            or (primary_emg >= 0.04 and strong_motion)
+            or strong_motion
         )
+        release_now = (
+            primary_emg < 0.03
+            and not motion_detected
+            and accel_delta < 0.08
+            and gyro_norm < 0.9
+        )
+
         if active_now:
             self._track_active_frame_locked(frame)
 
         if active_now and not self._motion_active:
             enough_gap = (
                 self._last_rep_timestamp_ms is None
-                or frame.timestamp_ms - self._last_rep_timestamp_ms >= 700
+                or frame.timestamp_ms - self._last_rep_timestamp_ms >= 600
             )
             if enough_gap:
                 self._update_last_rep_speed_locked(frame.timestamp_ms)
@@ -767,6 +793,10 @@ class BridgeState:
                 self._last_rep_timestamp_ms = frame.timestamp_ms
                 self._motion_active = active_now
                 return self._maybe_advance_workout_locked(frame.timestamp_ms)
+
+        if self._motion_active and not release_now:
+            return []
+
         self._motion_active = active_now
         return []
 
@@ -861,9 +891,15 @@ class BridgeState:
                 and time.monotonic() - self._calibration_started_monotonic
                 > CALIBRATION_TIMEOUT_SEC
             ):
+                frame_count = len(self._calibration_frames)
+                reason_suffix = ""
+                if frame_count == 0 and self._calibration_last_rejection_reason:
+                    reason_suffix = (
+                        f" last_rejection={self._calibration_last_rejection_reason}"
+                    )
                 print(
                     f"[calib] timeout via frame path stage={self._calibration_stage} "
-                    f"collected={len(self._calibration_frames)}"
+                    f"collected={frame_count}{reason_suffix}"
                 )
                 self._fail_calibration_locked(
                     "캘리브레이션 제한 시간을 초과했습니다. 센서를 다시 확인하고 재시도하세요."
@@ -876,6 +912,8 @@ class BridgeState:
                 if rejection_reason is not None:
                     self._reset_rest_window_locked(rejection_reason)
                     return None
+                self._calibration_last_rejection_reason = None
+                self._calibration_rejection_streak = 0
 
             self._calibration_frames.append(frame)
             count = len(self._calibration_frames)
@@ -886,9 +924,13 @@ class BridgeState:
                     for index in range(4)
                 ]
                 emg_preview = [f"{frame.emg[index]:.3f}" for index in range(4)]
+                gyro_preview = [
+                    f"{value:.2f}" for value in self._imu_gyro_norms(frame)
+                ]
                 print(
                     f"[calib] progress stage={stage} {count}/{target} "
-                    f"emg=[{', '.join(emg_preview)}] detach=[{','.join(detached_mask)}]"
+                    f"emg=[{', '.join(emg_preview)}] detach=[{','.join(detached_mask)}] "
+                    f"gyro=[{', '.join(gyro_preview)}] flags=0x{frame.flags:02X}"
                 )
 
             if stage == "rest":
@@ -1035,8 +1077,15 @@ class BridgeState:
 
         frame_count = float(len(frames))
         if any(count < CALIBRATION_MIN_VALID_EMG_FRAMES for count in emg_counts):
+            insufficient_channels = ", ".join(
+                f"EMG {index + 1} valid {count}/{len(frames)}"
+                for index, count in enumerate(emg_counts)
+                if count < CALIBRATION_MIN_VALID_EMG_FRAMES
+            )
             raise ValueError(
-                "Rest calibration failed. Check EMG attachment and keep still, then retry."
+                "Rest calibration failed: "
+                f"{insufficient_channels}. "
+                "Check EMG attachment and keep still, then retry."
             )
 
         baselines = [
@@ -1069,7 +1118,9 @@ class BridgeState:
         if rest_failures:
             print(f"[calib] rest quality issues: {'; '.join(rest_failures)}")
             raise ValueError(
-                "Rest calibration failed. Relax the muscles, keep still, and retry."
+                "Rest calibration failed: "
+                f"{'; '.join(rest_failures)}. "
+                "Relax the muscles, keep still, and retry."
             )
 
         self._calibration_rest_std = rest_std
@@ -1187,7 +1238,9 @@ class BridgeState:
         if mvc_failures:
             print(f"[calib] mvc quality issues: {'; '.join(mvc_failures)}")
             raise ValueError(
-                "MVC calibration failed. Check sensor attachment, squeeze harder, and retry."
+                "MVC calibration failed: "
+                f"{'; '.join(mvc_failures)}. "
+                "Check sensor attachment, squeeze harder, and retry."
             )
 
         self._calibration_data.emg_mvc = mvc_values
@@ -1448,7 +1501,14 @@ def summarize_message_for_log(message: dict[str, Any]) -> str:
             f"activation_percent={payload.get('activation_percent')} current_rep={payload.get('current_rep')}"
         )
     if msg_type == "sensor_frame":
-        return f"type={msg_type} seq={payload.get('seq')} ts={payload.get('timestamp_ms')}"
+        flag_detail = payload.get("flag_detail") or {}
+        return (
+            f"type={msg_type} seq={payload.get('seq')} "
+            f"ts={payload.get('timestamp_ms')} rep_index={payload.get('rep_index')} "
+            f"flags=0x{int(payload.get('flags', 0)):02X} "
+            f"motion={flag_detail.get('motion_detected')} "
+            f"imu_ready={flag_detail.get('imu_bias_ready')}"
+        )
     if msg_type == "error":
         return f"type={msg_type} code={payload.get('code')} message={payload.get('message')}"
     return f"type={msg_type} payload={payload}"
