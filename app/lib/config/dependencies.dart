@@ -86,7 +86,12 @@ Future<void> setupDependencies() async {
       getIt<LocalSessionRepository>(),
     ),
   );
-  getIt.registerFactory(() => HomeViewModel(getIt<UserProfileRepository>()));
+  getIt.registerFactory(
+    () => HomeViewModel(
+      getIt<UserProfileRepository>(),
+      getIt<SessionHistoryRepository>(),
+    ),
+  );
   getIt.registerFactory(() => ChatViewModel(getIt<ChatRepository>()));
   getIt.registerLazySingleton(
     () => StatsViewModel(

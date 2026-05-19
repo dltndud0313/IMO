@@ -83,6 +83,7 @@ class _TodaySummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final vm = context.watch<HomeViewModel>();
     return ImoCard(
       variant: ImoCardVariant.hero,
       paddingSize: ImoCardPadding.lg,
@@ -101,16 +102,28 @@ class _TodaySummaryCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.lg),
-          const Row(
+          Row(
             children: [
               Expanded(
-                child: _SummaryMetric(label: '세션', value: '0', unit: '회'),
+                child: _SummaryMetric(
+                  label: '세션',
+                  value: '${vm.todaySessionCount}',
+                  unit: '회',
+                ),
               ),
               Expanded(
-                child: _SummaryMetric(label: '총 횟수', value: '0', unit: '회'),
+                child: _SummaryMetric(
+                  label: '총 횟수',
+                  value: '${vm.todayTotalReps}',
+                  unit: '회',
+                ),
               ),
               Expanded(
-                child: _SummaryMetric(label: '시간', value: '0', unit: '분'),
+                child: _SummaryMetric(
+                  label: '시간',
+                  value: '${vm.todayDurationMin}',
+                  unit: '분',
+                ),
               ),
             ],
           ),
