@@ -112,12 +112,7 @@ EmgProcessingResult EmgFilter::process(
             display_base = 0.0F;
         }
 
-        const float instant_display = std::clamp(
-            raw[channel] * kEmgDisplayGain,
-            0.0F,
-            kEmgDisplaySignalMax
-        );
-        if (instant_display >= kActivationThresholdOn) {
+        if (raw[channel] >= kEmgDisplayHoldRawThreshold) {
             display_hold_count_[channel] = kEmgDisplayHoldFrames;
         } else if (display_hold_count_[channel] > 0U) {
             --display_hold_count_[channel];
@@ -126,7 +121,7 @@ EmgProcessingResult EmgFilter::process(
         if (
             display_hold_count_[channel] > 0U &&
             display_base < display_history_[channel] &&
-            display_history_[channel] >= kActivationThresholdOn
+            display_history_[channel] >= kEmgDisplayHoldDisplayThreshold
         ) {
             // EMG는 유지 수축 중에도 짧게 꺼지는 구간이 있어 게이지가 바로 꺼지지 않게 한다.
             display_base = display_history_[channel];
