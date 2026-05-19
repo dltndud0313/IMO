@@ -103,7 +103,7 @@ class _PlanSettingScreenState extends State<PlanSettingScreen> {
         exerciseType: widget.exerciseId,
         setCount: _setCount,
         targetRepsPerSet: _targetRepsPerSet,
-        restSec: _restSeconds,
+        restSec: _setCount > 1 ? _restSeconds : 0,
       ),
     );
     context.push('/sensor-guide?exercise=${widget.exerciseId}');
@@ -164,25 +164,28 @@ class _PlanSettingScreenState extends State<PlanSettingScreen> {
               onSet: _setSetReps,
             ),
           ],
-          const SizedBox(height: AppSpacing.md),
-          _SettingCard(
-            title: '세트 간 휴식',
-            description: '30 ~ 300초',
-            value: _restSeconds,
-            suffix: '초',
-            min: 30,
-            max: 300,
-            inputTitle: '휴식 시간 입력',
-            onDecrease: () => setState(
-              () => _restSeconds = (_restSeconds - 15).clamp(30, 300),
+          if (_setCount > 1) ...[
+            const SizedBox(height: AppSpacing.md),
+            _SettingCard(
+              title: '세트 간 휴식',
+              description: '30 ~ 300초',
+              value: _restSeconds,
+              suffix: '초',
+              min: 30,
+              max: 300,
+              inputTitle: '휴식 시간 입력',
+              onDecrease: () => setState(
+                () => _restSeconds = (_restSeconds - 15).clamp(30, 300),
+              ),
+              onIncrease: () => setState(
+                () => _restSeconds = (_restSeconds + 15).clamp(30, 300),
+              ),
+              onValueChanged: (v) =>
+                  setState(() => _restSeconds = v.clamp(30, 300)),
             ),
-            onIncrease: () => setState(
-              () => _restSeconds = (_restSeconds + 15).clamp(30, 300),
-            ),
-            onValueChanged: (v) =>
-                setState(() => _restSeconds = v.clamp(30, 300)),
-          ),
-          const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.md),
+          ] else
+            const SizedBox(height: AppSpacing.md),
           _PlanTotalCard(
             setCount: _setCount,
             totalReps: _totalReps,
