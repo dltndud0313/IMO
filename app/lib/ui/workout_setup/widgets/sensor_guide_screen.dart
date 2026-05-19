@@ -79,6 +79,23 @@ class _SensorGuideScreenState extends State<SensorGuideScreen> {
             children: [
               Text('부착 확인', style: AppTextStyles.sectionTitle),
               const Spacer(),
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    _checkedSensorIds.addAll(
+                      _config.sensors.map((s) => s.id),
+                    );
+                  });
+                },
+                child: Text(
+                  '모두 확인',
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.xs),
               Text(
                 '${_checkedSensorIds.length} / ${_config.sensors.length}',
                 style: AppTextStyles.caption.copyWith(
