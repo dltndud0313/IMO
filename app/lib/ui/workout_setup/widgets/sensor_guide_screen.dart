@@ -56,6 +56,16 @@ class _SensorGuideScreenState extends State<SensorGuideScreen> {
     });
   }
 
+  void _toggleAllSensors() {
+    setState(() {
+      if (_allChecked) {
+        _checkedSensorIds.clear();
+      } else {
+        _checkedSensorIds.addAll(_config.sensors.map((s) => s.id));
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
@@ -80,15 +90,9 @@ class _SensorGuideScreenState extends State<SensorGuideScreen> {
               Text('부착 확인', style: AppTextStyles.sectionTitle),
               const Spacer(),
               TextButton(
-                onPressed: () {
-                  setState(() {
-                    _checkedSensorIds.addAll(
-                      _config.sensors.map((s) => s.id),
-                    );
-                  });
-                },
+                onPressed: _toggleAllSensors,
                 child: Text(
-                  '모두 확인',
+                  _allChecked ? '모두 선택해제' : '모두 선택',
                   style: AppTextStyles.caption.copyWith(
                     color: AppColors.primary,
                     fontWeight: FontWeight.w700,
