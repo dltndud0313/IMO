@@ -76,7 +76,9 @@ GoRouter buildRouter() {
           GoRoute(
             path: '/home',
             builder: (context, state) => ChangeNotifierProvider(
-              create: (_) => getIt<HomeViewModel>()..loadProfile(),
+              create: (_) => getIt<HomeViewModel>()
+                ..loadProfile()
+                ..loadTodaySummary(),
               child: const HomeScreen(),
             ),
           ),
