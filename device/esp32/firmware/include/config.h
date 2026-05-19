@@ -19,9 +19,11 @@ inline constexpr std::size_t kEmgMovingAverageWindow = 16;
 inline constexpr std::size_t kEmgRmsWindow = 16;
 inline constexpr std::size_t kEmgHistoryWindow = 40;
 inline constexpr float kEmgDisplayAttackAlpha = 0.12F;
-inline constexpr float kEmgDisplayReleaseAlpha = 0.84F;
-inline constexpr float kEmgDisplayZeroReleaseAlpha = 0.08F;
-inline constexpr std::size_t kEmgDisplayHoldFrames = 12;
+inline constexpr float kEmgDisplayReleaseAlpha = 0.78F;
+inline constexpr float kEmgDisplayZeroReleaseAlpha = 0.10F;
+inline constexpr std::size_t kEmgDisplayHoldFrames = 6;
+inline constexpr float kEmgDisplayHoldRawThreshold = 0.020F;
+inline constexpr float kEmgDisplayHoldDisplayThreshold = 0.200F;
 inline constexpr float kEmgDisplayNoiseFloor = 0.000F;
 // 최종 표시값이 이 값 이하면 휴식으로 보고 0.000으로 붙인다.
 inline constexpr float kEmgRestDisplayThreshold = 0.010F;
