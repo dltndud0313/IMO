@@ -11,12 +11,13 @@ class SplashScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AuthFrame(
-      backgroundImage: const AssetImage('assets/images/login.png'),
-      showCharacter: true,
-      characterImage: 'assets/images/mascot_default.png',
-      characterSize: 400,
+      backgroundImage: const AssetImage('assets/images/app_bg.png'),
+      showCharacter: false,
       showBrandText: false,
-      showDecorations: true,
+      logoImage: 'assets/images/app_imo3.png',
+      logoSize: 180,
+      showDecorations: false,
+      topContentAlignment: const Alignment(0, 0.2),
       sheet: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

@@ -176,6 +176,9 @@ class _SignupScreenState extends State<SignupScreen> {
   Widget build(BuildContext context) {
     return AuthFrame(
       topFlex: 5,
+      backgroundImage: const AssetImage('assets/images/app_bg.png'),
+      showBrandText: false,
+      showDecorations: false,
       sheetPadding: const EdgeInsets.fromLTRB(24, 28, 24, 28),
       sheet: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

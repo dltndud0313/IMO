@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/themes/design_tokens.dart';
 
-const _brandBlue = Color(0xFF82BCF3);
+const _brandBlue = Color(0xFF8EC5FF);
 
 class AuthFrame extends StatelessWidget {
   const AuthFrame({
@@ -12,6 +12,8 @@ class AuthFrame extends StatelessWidget {
     this.characterImage,
     this.characterSize = 108,
     this.showBrandText = true,
+    this.logoImage,
+    this.logoSize = 120,
     this.backgroundColor = _brandBlue,
     this.backgroundGradient,
     this.backgroundImage,
@@ -26,6 +28,8 @@ class AuthFrame extends StatelessWidget {
   final String? characterImage;
   final double characterSize;
   final bool showBrandText;
+  final String? logoImage;
+  final double logoSize;
   final Color backgroundColor;
   final Gradient? backgroundGradient;
   final ImageProvider? backgroundImage;
@@ -100,7 +104,14 @@ class AuthFrame extends StatelessWidget {
                                           const SizedBox(
                                               height: AppSpacing.xl),
                                       ],
-                                      if (showBrandText)
+                                      if (logoImage != null)
+                                        Image.asset(
+                                          logoImage!,
+                                          width: logoSize,
+                                          height: logoSize,
+                                          fit: BoxFit.contain,
+                                        )
+                                      else if (showBrandText)
                                         Text(
                                           'IMO',
                                           style: AppTextStyles.display.copyWith(
