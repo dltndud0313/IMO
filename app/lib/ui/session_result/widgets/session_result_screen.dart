@@ -128,8 +128,6 @@ class _ResultContent extends StatelessWidget {
             exerciseType: session.exerciseType,
           ),
         ],
-        const SizedBox(height: AppSpacing.md),
-        _SessionCommentCard(comment: session.comment),
       ],
     );
   }
@@ -568,45 +566,4 @@ _ActivityClassification _classifyActivity(double pct) {
     label: '낮음',
     color: AppColors.primary,
   );
-}
-
-class _SessionCommentCard extends StatelessWidget {
-  const _SessionCommentCard({required this.comment});
-
-  final String? comment;
-
-  @override
-  Widget build(BuildContext context) {
-    final trimmed = comment?.trim();
-    final hasComment = trimmed != null && trimmed.isNotEmpty;
-    final message = hasComment
-        ? trimmed
-        : '오늘 운동 데이터가 잘 저장되었어요. 기록 탭에서 더 자세히 확인해보세요.';
-
-    return ImoCard(
-      variant: ImoCardVariant.subtle,
-      paddingSize: ImoCardPadding.lg,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(
-            Icons.insights_rounded,
-            color: AppColors.primaryStrong,
-            size: 22,
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('세션 코멘트', style: AppTextStyles.label),
-                const SizedBox(height: AppSpacing.xs),
-                Text(message, style: AppTextStyles.bodySmall),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }

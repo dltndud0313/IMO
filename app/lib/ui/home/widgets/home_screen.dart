@@ -39,6 +39,14 @@ class HomeScreen extends StatelessWidget {
             gradient: const [AppColors.secondary, Color(0xFF5DC447)],
             onTap: () => _showRehabComingSoon(context),
           ),
+          const SizedBox(height: AppSpacing.md),
+          _HomeActionCard(
+            title: '게임하기',
+            description: '센서 기반 게임 · 재미있는 운동',
+            icon: Icons.sports_esports_rounded,
+            gradient: const [Color(0xFFFF6B6B), Color(0xFFFF8E72)],
+            onTap: () => context.push('/game'),
+          ),
         ],
       ),
     );

@@ -18,6 +18,7 @@ import '../data/repositories/user_profile_repository.dart';
 import '../data/repositories/workout_repository.dart';
 import '../domain/use_cases/end_workout_session_usecase.dart';
 import '../ui/chat/view_model/chat_viewmodel.dart';
+import '../ui/game/view_model/game_viewmodel.dart';
 import '../ui/home/view_model/home_viewmodel.dart';
 import '../ui/stats/view_model/stats_viewmodel.dart';
 
@@ -98,6 +99,9 @@ Future<void> setupDependencies() async {
       getIt<StatsRepository>(),
       getIt<UserProfileRepository>(),
     ),
+  );
+  getIt.registerFactory(
+    () => GameViewModel(getIt<PiSocketService>()),
   );
 
   await getIt<AuthRepository>().init();
