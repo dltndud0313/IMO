@@ -121,6 +121,11 @@ Dio _buildBaseDio() {
 Dio _buildApiDio() {
   final dio = _buildBaseDio();
 
+  // single-flight refresh: 동시에 여러 요청이 401 을 맞아도 refresh API 는
+  // 한 번만 호출된다. refresh token rotation 백엔드에서 둘째 요청이
+  // invalid 로 떨어져 세션이 날아가는 사고를 막는다.
+  Future<String?>? pendingRefresh;
+
   dio.interceptors.add(
     InterceptorsWrapper(
       onRequest: (options, handler) {
@@ -133,7 +138,10 @@ Dio _buildApiDio() {
       onError: (error, handler) async {
         final alreadyRetried = error.requestOptions.extra['authRetried'] == true;
         if (error.response?.statusCode == 401 && !alreadyRetried) {
-          final newToken = await getIt<AuthRepository>().refreshToken();
+          pendingRefresh ??= getIt<AuthRepository>().refreshToken().whenComplete(() {
+            pendingRefresh = null;
+          });
+          final newToken = await pendingRefresh;
           if (newToken != null && newToken.isNotEmpty) {
             final requestOptions = error.requestOptions;
             requestOptions.extra['authRetried'] = true;
