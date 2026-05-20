@@ -96,6 +96,7 @@ class _PreparationStage extends StatelessWidget {
               Expanded(
                 child: wide
                     ? Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Expanded(child: _PreparationHero(viewModel: viewModel)),
                           const SizedBox(width: 18),
@@ -106,6 +107,7 @@ class _PreparationStage extends StatelessWidget {
                         ],
                       )
                     : Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Expanded(child: _PreparationHero(viewModel: viewModel)),
                           const SizedBox(height: 14),

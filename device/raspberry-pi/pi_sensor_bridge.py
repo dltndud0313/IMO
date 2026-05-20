@@ -654,16 +654,21 @@ class BridgeState:
                 and min(profile.left_primary, profile.right_primary) >= 0.025
                 and has_motion
             )
+        # bicep curl 은 실기에서 좌/우가 완전히 대칭으로 들어오지 않는 경우가 많다.
+        # 특히 한쪽 팔 IMU/EMG 가 더 강하게 반응해도 유효한 컬 동작일 수 있으므로
+        # 좌/우 평균/최소값 대신 "더 강하게 반응한 팔" 기준으로 시작을 판정한다.
+        dominant_primary = max(profile.left_primary, profile.right_primary)
+        dominant_accel = max(profile.left_accel, profile.right_accel)
+        dominant_gyro = max(profile.left_gyro, profile.right_gyro)
         has_motion = (
-            profile.motion_detected
-            or profile.arm_gyro_avg >= 1.0
-            or profile.arm_accel_avg >= 0.12
+            (profile.motion_detected and dominant_accel >= 0.08)
+            or dominant_gyro >= 2.5
+            or dominant_accel >= 0.12
         )
         return (
-            profile.score >= 0.22
-            and profile.primary_activation >= 0.05
-            and profile.arm_accel_avg >= 0.10
-            and min(profile.left_primary, profile.right_primary) >= 0.015
+            dominant_primary >= 0.06
+            and dominant_accel >= 0.10
+            and (profile.score >= 0.14 or dominant_gyro >= 3.0)
             and has_motion
         )
 
@@ -680,10 +685,13 @@ class BridgeState:
                 and profile.arm_accel_min >= 0.26
                 and profile.primary_activation >= 0.13
             )
+        dominant_primary = max(profile.left_primary, profile.right_primary)
+        dominant_accel = max(profile.left_accel, profile.right_accel)
+        dominant_gyro = max(profile.left_gyro, profile.right_gyro)
         return (
-            profile.score >= 0.48
-            and profile.arm_accel_avg >= 0.18
-            and profile.primary_activation >= 0.13
+            dominant_primary >= 0.12
+            and dominant_accel >= 0.18
+            and (profile.score >= 0.22 or dominant_gyro >= 4.0)
         )
 
     def _return_rep_condition_locked(self, profile: RepMotionProfile) -> bool:
@@ -699,10 +707,13 @@ class BridgeState:
                 and profile.primary_activation <= 0.07
                 and profile.arm_gyro_avg <= 1.2
             )
+        dominant_primary = max(profile.left_primary, profile.right_primary)
+        dominant_accel = max(profile.left_accel, profile.right_accel)
+        dominant_gyro = max(profile.left_gyro, profile.right_gyro)
         return (
-            profile.arm_accel_avg <= 0.13
-            and profile.primary_activation <= 0.06
-            and profile.arm_gyro_avg <= 1.2
+            dominant_accel <= 0.10
+            and dominant_primary <= 0.05
+            and dominant_gyro <= 1.5
         )
 
     def _near_rest_rep_condition_locked(self, profile: RepMotionProfile) -> bool:
@@ -710,7 +721,9 @@ class BridgeState:
             return profile.arm_accel_avg < 0.18 and profile.primary_activation < 0.05
         if self._exercise_type == "lateral_raise":
             return profile.arm_accel_avg < 0.16 and profile.primary_activation < 0.05
-        return profile.arm_accel_avg < 0.14 and profile.primary_activation < 0.04
+        dominant_primary = max(profile.left_primary, profile.right_primary)
+        dominant_accel = max(profile.left_accel, profile.right_accel)
+        return dominant_accel < 0.12 and dominant_primary < 0.04
 
     def _reset_rep_counter_locked(self) -> None:
         self._rep_counter = RepCounterState()
@@ -743,6 +756,9 @@ class BridgeState:
             f"arm_accel_avg={profile.arm_accel_avg:.3f} "
             f"arm_accel_min={profile.arm_accel_min:.3f} "
             f"arm_gyro_avg={profile.arm_gyro_avg:.3f} "
+            f"dominant_primary={max(profile.left_primary, profile.right_primary):.3f} "
+            f"dominant_accel={max(profile.left_accel, profile.right_accel):.3f} "
+            f"dominant_gyro={max(profile.left_gyro, profile.right_gyro):.3f} "
             f"motion={profile.motion_detected}"
         )
 
@@ -1118,7 +1134,7 @@ class BridgeState:
             counter.return_frames += 1
             if counter.return_frames >= 2:
                 self._update_last_rep_speed_locked(frame.timestamp_ms)
-                self._current_rep = 0 if self._current_rep is None else self._current_rep + 1
+                self._current_rep = 1 if self._current_rep is None else self._current_rep + 1
                 self._last_rep_timestamp_ms = frame.timestamp_ms
                 self._log_rep_debug_locked(
                     "rep counted "
