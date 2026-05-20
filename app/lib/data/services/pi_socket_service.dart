@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -296,6 +297,19 @@ class PiSocketService {
       if (rawSummary != null) {
         details.add('emg_raw=$rawSummary');
       }
+      // Pi rep counter 가 IMU accel/gyro magnitude 를 같이 보기 때문에
+      // rep 미카운트 디버깅 시 IMU 값과 motion 플래그가 필수.
+      final imuSummary = _imuSummary(payloadMap['imus']);
+      if (imuSummary != null) {
+        details.add('imu=$imuSummary');
+      }
+      final flagDetail = payloadMap['flag_detail'];
+      if (flagDetail is Map) {
+        final motion = flagDetail['motion_detected'];
+        if (motion is bool) {
+          details.add('motion=${motion ? "Y" : "N"}');
+        }
+      }
     }
 
     return details.isEmpty ? 'type=$type' : 'type=$type ${details.join(' ')}';
@@ -342,6 +356,40 @@ class PiSocketService {
       parts.add(value is num ? value.toStringAsFixed(3) : '?');
     }
     return '[${parts.join(',')}]';
+  }
+
+  /// `imus: [{index, accel:[x,y,z], gyro:[x,y,z]}, ...]` → `[1:a0.98/g1.30 2:a0.05/g0.20]`
+  /// accel/gyro 는 3축 벡터 크기(magnitude). 단위는 Pi 가 보내는 그대로(가속도 g, 자이로 rad/s 또는 deg/s).
+  String? _imuSummary(Object? rawImus) {
+    if (rawImus is! List || rawImus.isEmpty) {
+      return null;
+    }
+    final parts = <String>[];
+    for (final entry in rawImus) {
+      if (entry is! Map) continue;
+      final indexValue = entry['index'];
+      final indexLabel =
+          indexValue is num ? indexValue.round().toString() : '?';
+      final accelMag = _vec3Magnitude(entry['accel']);
+      final gyroMag = _vec3Magnitude(entry['gyro']);
+      parts.add(
+        '$indexLabel:a${accelMag.toStringAsFixed(2)}/g${gyroMag.toStringAsFixed(2)}',
+      );
+    }
+    return parts.isEmpty ? null : '[${parts.join(' ')}]';
+  }
+
+  double _vec3Magnitude(Object? raw) {
+    if (raw is! List) return 0;
+    double sumSq = 0;
+    for (var i = 0; i < raw.length && i < 3; i += 1) {
+      final v = raw[i];
+      if (v is num) {
+        final d = v.toDouble();
+        sumSq += d * d;
+      }
+    }
+    return math.sqrt(sumSq);
   }
 
   void _handleSocketError(Object error, StackTrace stackTrace) {
