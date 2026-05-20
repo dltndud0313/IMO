@@ -273,7 +273,7 @@ class BridgeState:
         if self._last_device_rep_index is None:
             self._last_device_rep_index = frame.rep_index
             if self._phase == "monitoring":
-                self._current_rep = frame.rep_index + 1
+                self._current_rep = frame.rep_index
                 self._update_speed_label_locked(frame.timestamp_ms)
                 self._last_rep_timestamp_ms = frame.timestamp_ms
                 return self._maybe_advance_workout_locked(frame.timestamp_ms)
@@ -282,7 +282,7 @@ class BridgeState:
         if frame.rep_index < self._last_device_rep_index:
             self._last_device_rep_index = frame.rep_index
             if self._phase == "monitoring":
-                self._current_rep = frame.rep_index + 1
+                self._current_rep = frame.rep_index
                 self._update_speed_label_locked(frame.timestamp_ms)
                 self._last_rep_timestamp_ms = frame.timestamp_ms
                 return self._maybe_advance_workout_locked(frame.timestamp_ms)
@@ -320,7 +320,7 @@ class BridgeState:
                 or frame.timestamp_ms - self._last_rep_timestamp_ms >= 700
             )
             if enough_gap:
-                self._current_rep = 1 if self._current_rep is None else self._current_rep + 1
+                self._current_rep = 0 if self._current_rep is None else self._current_rep + 1
                 self._update_speed_label_locked(frame.timestamp_ms)
                 self._last_rep_timestamp_ms = frame.timestamp_ms
                 self._motion_active = active_now
@@ -472,7 +472,7 @@ class BridgeState:
         if self._return_rep_condition_locked(profile):
             counter.return_frames += 1
             if counter.return_frames >= 2:
-                self._current_rep = 1 if self._current_rep is None else self._current_rep + 1
+                self._current_rep = 0 if self._current_rep is None else self._current_rep + 1
                 self._update_speed_label_locked(frame.timestamp_ms)
                 self._last_rep_timestamp_ms = frame.timestamp_ms
                 self._reset_rep_counter_locked()

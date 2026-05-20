@@ -991,7 +991,7 @@ class BridgeState:
         self._update_last_rep_speed_locked(frame.timestamp_ms)
         # rep_index 는 mock/문서 기준으로 0-based 누적 카운터이므로, Pi 쪽 state 와
         # 어긋났더라도 절대값에 다시 맞춰준다.
-        self._current_rep = frame.rep_index + 1
+        self._current_rep = frame.rep_index
         self._last_rep_timestamp_ms = frame.timestamp_ms
         return self._maybe_advance_workout_locked(frame.timestamp_ms)
 
@@ -1038,7 +1038,7 @@ class BridgeState:
             )
             if enough_gap:
                 self._update_last_rep_speed_locked(frame.timestamp_ms)
-                self._current_rep = 1 if self._current_rep is None else self._current_rep + 1
+                self._current_rep = 0 if self._current_rep is None else self._current_rep + 1
                 self._last_rep_timestamp_ms = frame.timestamp_ms
                 self._motion_active = active_now
                 return self._maybe_advance_workout_locked(frame.timestamp_ms)
@@ -1118,7 +1118,7 @@ class BridgeState:
             counter.return_frames += 1
             if counter.return_frames >= 2:
                 self._update_last_rep_speed_locked(frame.timestamp_ms)
-                self._current_rep = 1 if self._current_rep is None else self._current_rep + 1
+                self._current_rep = 0 if self._current_rep is None else self._current_rep + 1
                 self._last_rep_timestamp_ms = frame.timestamp_ms
                 self._log_rep_debug_locked(
                     "rep counted "
