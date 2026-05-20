@@ -285,7 +285,63 @@ class PiSocketService {
     add('status', payloadMap['status']);
     add('requestId', decoded['requestId']);
 
+    // ch4=0 디버깅용. glass_display_data: 채널별 정규화 결과, sensor_frame: ESP raw.
+    if (type == 'glass_display_data') {
+      final channelsSummary = _emgChannelsSummary(payloadMap['emg_channels']);
+      if (channelsSummary != null) {
+        details.add('emg=$channelsSummary');
+      }
+    } else if (type == 'sensor_frame') {
+      final rawSummary = _emgRawSummary(payloadMap['emg']);
+      if (rawSummary != null) {
+        details.add('emg_raw=$rawSummary');
+      }
+    }
+
     return details.isEmpty ? 'type=$type' : 'type=$type ${details.join(' ')}';
+  }
+
+  /// `[ch1 attached%, ch2 ..., ch3 ..., ch4 ...]` 형태로 4채널 표시.
+  /// attached=false 인 채널은 `-` 로 표시해 0% 와 구분한다.
+  String? _emgChannelsSummary(Object? rawChannels) {
+    if (rawChannels is! List || rawChannels.isEmpty) {
+      return null;
+    }
+    final parts = <String>[];
+    for (var index = 0; index < 4; index += 1) {
+      if (index >= rawChannels.length) {
+        parts.add('-');
+        continue;
+      }
+      final entry = rawChannels[index];
+      if (entry is! Map) {
+        parts.add('-');
+        continue;
+      }
+      if (entry['attached'] == false) {
+        parts.add('-');
+        continue;
+      }
+      final percent = entry['activation_percent'];
+      parts.add(percent is num ? '${percent.round()}%' : '?');
+    }
+    return '[${parts.join(',')}]';
+  }
+
+  String? _emgRawSummary(Object? rawEmg) {
+    if (rawEmg is! List || rawEmg.isEmpty) {
+      return null;
+    }
+    final parts = <String>[];
+    for (var index = 0; index < 4; index += 1) {
+      if (index >= rawEmg.length) {
+        parts.add('-');
+        continue;
+      }
+      final value = rawEmg[index];
+      parts.add(value is num ? value.toStringAsFixed(3) : '?');
+    }
+    return '[${parts.join(',')}]';
   }
 
   void _handleSocketError(Object error, StackTrace stackTrace) {
