@@ -9,6 +9,7 @@ WS_HOST="${3:-0.0.0.0}"
 WS_PORT="${4:-8765}"
 UI_HOST="${5:-0.0.0.0}"
 UI_PORT="${6:-8080}"
+EXTRA_ARGS=("${@:7}")
 
 cd "${ROOT_DIR}"
 
@@ -18,4 +19,5 @@ python3 device/raspberry-pi/pi_sensor_bridge.py \
   --ws-host "${WS_HOST}" \
   --ws-port "${WS_PORT}" \
   --ui-host "${UI_HOST}" \
-  --ui-port "${UI_PORT}"
+  --ui-port "${UI_PORT}" \
+  "${EXTRA_ARGS[@]}"
