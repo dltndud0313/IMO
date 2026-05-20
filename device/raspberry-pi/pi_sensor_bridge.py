@@ -2470,8 +2470,8 @@ class SensorBridge:
             errors.append("target_reps_per_set values must be positive integers")
         elif isinstance(set_count, int) and len(target_reps_per_set) != set_count:
             errors.append("target_reps_per_set length must match set_count")
-        if not isinstance(rest_sec, int) or rest_sec <= 0:
-            errors.append("rest_sec must be greater than 0")
+        if not isinstance(rest_sec, int) or rest_sec < 0:
+            errors.append("rest_sec must be greater than or equal to 0")
         return errors
 
     async def _broadcast_loop(self) -> None:
