@@ -1,9 +1,11 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../config/dependencies.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../../data/repositories/user_profile_repository.dart';
+import '../../../data/services/api_service.dart';
 import '../../core/themes/design_tokens.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../widgets/auth_frame.dart';
@@ -20,6 +22,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   final _emailFocusNode = FocusNode();
   final _passwordFocusNode = FocusNode();
+
   String? _emailError;
   String? _passwordError;
   bool _submitting = false;
@@ -83,10 +86,10 @@ class _LoginScreenState extends State<LoginScreen> {
       return '비밀번호를 입력해주세요.';
     }
     if (value.length < 8) {
-      return '비밀번호는 8자 이상 입력해주세요.';
+      return '비밀번호는 8자 이상이어야 합니다.';
     }
     if (!RegExp(r'^(?=.*[A-Za-z])(?=.*\d).+$').hasMatch(value)) {
-      return '비밀번호는 영문과 숫자를 함께 입력해주세요.';
+      return '비밀번호는 영문과 숫자를 모두 포함해야 합니다.';
     }
     return null;
   }
@@ -94,10 +97,14 @@ class _LoginScreenState extends State<LoginScreen> {
   String _authErrorMessage(Object error) {
     final message = error.toString();
     if (message.contains('Network unavailable')) {
-      return '인터넷 연결을 확인해주세요.';
+      return '네트워크 연결을 확인해주세요.';
     }
     if (message.contains('Incorrect email or password')) {
       return '이메일 또는 비밀번호가 올바르지 않습니다.';
+    }
+    if (message.contains('not authenticated') ||
+        message.contains('Unauthorized')) {
+      return '현재 연결된 로컬 서버에서 인증되지 않았습니다.';
     }
     return '로그인에 실패했습니다.';
   }
@@ -135,7 +142,7 @@ class _LoginScreenState extends State<LoginScreen> {
           const SizedBox(height: AppSpacing.md),
           ImoTextField(
             label: '비밀번호',
-            hint: '비밀번호를 입력하세요',
+            hint: '비밀번호를 입력해주세요.',
             controller: _passwordController,
             focusNode: _passwordFocusNode,
             textInputAction: TextInputAction.done,
@@ -160,6 +167,23 @@ class _LoginScreenState extends State<LoginScreen> {
             pill: true,
             onPressed: _submitting ? null : _submit,
           ),
+          if (kDebugMode && isUsingCustomBackendApi) ...[
+            const SizedBox(height: AppSpacing.sm),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: () => context.go('/chat'),
+                child: const Text('로컬 챗 테스트로 바로 들어가기'),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              'debug backend: $backendApiBaseUrl',
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.textTertiary,
+              ),
+            ),
+          ],
           const SizedBox(height: AppSpacing.md),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -167,7 +191,7 @@ class _LoginScreenState extends State<LoginScreen> {
               TextButton(
                 onPressed: () => context.push('/signup'),
                 child: Text(
-                  '가입하기',
+                  '회원가입',
                   style: AppTextStyles.bodyLg.copyWith(
                     color: AppColors.textSecondary,
                   ),
@@ -180,7 +204,7 @@ class _LoginScreenState extends State<LoginScreen> {
               TextButton(
                 onPressed: () => context.go('/splash'),
                 child: Text(
-                  '뒤로',
+                  '이전',
                   style: AppTextStyles.bodyLg.copyWith(
                     color: AppColors.textSecondary,
                   ),

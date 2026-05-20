@@ -1,8 +1,8 @@
+import 'package:flutter/foundation.dart';
+
 import '../../domain/models/chat_message.dart';
 import '../services/api_service.dart';
 
-/// 챗봇 대화 Repository
-/// 데이터 출처: 서버 API (`POST/GET/DELETE /chat`)
 class ChatRepository {
   final ApiService _api;
 
@@ -10,9 +10,14 @@ class ChatRepository {
 
   Future<List<ChatMessage>> loadHistory() => _api.getChatHistory();
 
-  /// 메시지 전송 후 어시스턴트 응답을 ChatMessage로 변환해 반환
   Future<ChatMessage> send(String message) async {
     final result = await _api.sendChatMessage(message);
+    if (kDebugMode) {
+      debugPrint(
+        '[ChatRepository] model=${result.model} '
+        'sources=${result.sources.map((source) => '${source.file}:${source.page}').join(', ')}',
+      );
+    }
     return ChatMessage(
       role: ChatRole.assistant,
       content: result.reply,

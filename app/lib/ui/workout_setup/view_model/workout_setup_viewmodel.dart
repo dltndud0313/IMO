@@ -65,6 +65,11 @@ class WorkoutSetupViewModel {
         .map<Object?>((message) => message)
         .first
         .timeout(const Duration(seconds: 5), onTimeout: () => null);
+    if (ack == null) {
+      return WorkoutPlanSubmitResult.rejected(
+        ['Pi가 응답하지 않습니다. 연결 상태를 확인하세요.'],
+      );
+    }
     if (ack is PlanAckMessage && !ack.accepted) {
       return WorkoutPlanSubmitResult.rejected(ack.validationErrors);
     }

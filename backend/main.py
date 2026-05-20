@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -10,6 +11,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from api.routes import auth, chat, exercises, sessions, statistics, users
 from core.config import settings
 from core.exceptions import APIException
+from core.rag import warm_rag_index
 from core.responses import error_response
 
 # 기본 로깅 (uvicorn 이 자체 로거를 따로 가지므로 root 만 INFO 로 둠)
@@ -25,6 +27,8 @@ async def lifespan(app: FastAPI):
     # 운영 환경은 Alembic (`alembic upgrade head`) 으로 스키마 관리.
     # 컨테이너 entrypoint 에서 마이그레이션을 먼저 실행한 뒤 uvicorn 을 띄운다.
     logger.info("IMO Backend API starting up")
+    rag_status = await asyncio.to_thread(warm_rag_index)
+    logger.info("RAG startup status: %s", rag_status)
     yield
     logger.info("IMO Backend API shutting down")
 

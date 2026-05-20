@@ -1,0 +1,2063 @@
+{
+  "version": 2,
+  "signature": [
+    [
+      "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      655554,
+      1779293654771473000
+    ],
+    [
+      "seniam_commentary.en.pdf",
+      386853,
+      1779293638313758100
+    ],
+    [
+      "seniam_recommendations.en.pdf",
+      39592660,
+      1779293660492775200
+    ],
+    [
+      "Your-Home-Exercise-Plan-ML3403.pdf",
+      1805666,
+      1779293648250001900
+    ]
+  ],
+  "chunks": [
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:1:1",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 1,
+      "page_end": 1,
+      "text": "Fundamental Concepts\nin\nEMG Signal Acquisition\nGianluca De Luca\n© Copyright DelSys Inc, 2001\nRev.2.1, March 2003\nThe information contained in this document is presented free of charge, and can\nonly be used for private study,scholarship or research. Distribution without the\nwritten permission from Delsys Inc. is strictly prohibited. DelSys Inc. makes no\nwarranties, express or implied, as to the quality and accuracy of the information\npresented in this document.",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:2:2",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 2,
+      "page_end": 2,
+      "text": "© Delsys Inc., 2003\nTable of Contents\n1. Introduction: What is “Digital Sampling”? .............................................................2\n1.1 The Sampling Frequency .............................................................................2\n1.2 How High Should the Sampling Frequency Be? .........................................3\n1.3 Undersampling- When the Sampling Frequency is Too Low......................4\n1.4 The Nyquist Frequency................................................................................5\n1.5 Delsys Applicat ion Note..............................................................................5\n2.",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:2:3",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 2,
+      "page_end": 2,
+      "text": "................................................5\n1.5 Delsys Applicat ion Note..............................................................................5\n2.\n\nSinusoids and the Fourier Transform.......................................................................6\n2.1 Decomposing Signals into Sinusoids...........................................................6\n2.2 The Frequency Domain ...............................................................................7\n2.3 Aliasing- How to Avoid It............................................................................8\n2.4 The AntiAliasi ng Filter..............................................................................10\n2.5 Delsys Practical Note.................................................................................10\n3.",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:2:4",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 2,
+      "page_end": 2,
+      "text": "..............................................10\n2.5 Delsys Practical Note.................................................................................10\n3.\n\nFilters .....................................................................................................................1 2\n3.1 The Ideal Filter Types ................................................................................12\n3.2 Ideal Phase Response.................................................................................13\n3.3 The Practical Filter.....................................................................................13\n3.3.1 Non-linear Phase Response ...........................................................14\n3.4 Measuring Amplitude- V oltag e, Power and Decibels................................15\n3.5 The 3-dB Fre quency ..................................................................................16\n3.6 Filter Order ................................................................................................17\n3.7 Filter Types ................................................................................................18\nThe Butterworth Filter ......................................................18\nThe Chebyshev Filter ........................................................19\nThe Elliptic Filter ..............................................................19\nThe Thompson or Bessel Filter .........................................19\n3.8 Analog vs.",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:2:5",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 2,
+      "page_end": 2,
+      "text": "Filter ..............................................................19\nThe Thompson or Bessel Filter .........................................19\n3.8 Analog vs.\n\nDigital Filters...........................................................................21\nAnalog Filters ...................................................................21\nDigital Filters ....................................................................22\n3.9 Delsys Practical Note.................................................................................24\n4. Considerations for Analog- to-Digital Converters..................................................25\n4.1 Quantization...............................................................................................25\n4.2 Dynamic Range..........................................................................................26\n4.3 EMG Signal Quantization..........................................................................28\nSystem Gain ......................................................................29",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:3:6",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 3,
+      "page_end": 3,
+      "text": "© Delsys Inc., 2003\nSystem Noise ....................................................................29\nSignal Range .....................................................................29\n4.4 Determining the ADC Specifications ........................................................30\nADC Range Setting ..........................................................30\nGain Setting ......................................................................30\nMinimum Resolution: .......................................................31\n4.5 Delsys Practical Note.................................................................................31",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:4:7",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 4,
+      "page_end": 4,
+      "text": "Fundamental Concepts in EMG Signal Acquisition\n© Delsys Inc., 2003 1/31\nFundamental Concepts\nin\nEMG Signal Acquisition\nPreface\nThe field of electromyography research has enjoyed a rapid increase in popularity in the past num-\nber of years. The progressive understanding of the human body, a heightened awareness for\nexploring the benefits of interdisciplinary studies, the advancement of sensor technology, and the\nexponential increase in comput ational abilities of computers are all factors contributing to the\nexpansion of EMG research. With so much information and so many different research goals, it is\noften easy to overlook the intr icacy, the exactitude and the fi nesse involved in recording quality\nEMG signals. This paper presents fundamental concepts pertaining to analog-to-digital data acquisition, with the\nspecific goal of recording quality EMG signals. The concepts are presented in an intuitive fashion,\nwith illustrative examples. Mathematical and theore tical derivations are kept to a minimum; it is\npresumed that the reader has limited exposure to signal processing notions and concepts.",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:4:8",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 4,
+      "page_end": 4,
+      "text": "Mathematical and theore tical derivations are kept to a minimum; it is\npresumed that the reader has limited exposure to signal processing notions and concepts.\n\nFor more\naggressive descriptions and derivations of these ideas, the reader is directed to the suggested Read-\ning List and References found at the end of the document. Copyright DelSys Inc., 2003\nRevision 2.1, 3/03",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:5:9",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 5,
+      "page_end": 5,
+      "text": "Fundamental Concepts in EMG Signal Acquisition Introduction: What is “Digital Sampling”? © Delsys Inc., 2003 2/31\n1. Introduction:\nWhat is “Digital Sampling”? Virtually all contemporary analyses and appli cations of the surface electromyographic signal\n(SEMG) are accomplished with algorithms implemen ted on computers. The nature of these algo-\nrithms and of computers necessitates that the si gnals be expressed as numerical sequences. The\nprocess by which the detected signals are conv erted into these numerical sequences “understood”\nby computers is called analog-to-digital conversion. Analog signals are voltage signals that are\nanalogous to the physical signal they represent. Th e amplitude of these signals typically varies\ncontinuously throughout their range. The analog-to-digital conversion process generates a\nsequence of numbers, each number representing th e amplitude of the analog signal at a specific\npoint in time. The resulting number sequence is called a digital signal, and the analog signal is said\nto be sampled. The process is depicted in Figure 1, with a sample Moto r Unit Action Potential\n(MUAP) obtained with a DE-2.1 electrode.",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:5:10",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 5,
+      "page_end": 5,
+      "text": "he analog signal is said\nto be sampled. The process is depicted in Figure 1, with a sample Moto r Unit Action Potential\n(MUAP) obtained with a DE-2.1 electrode.\n\n1.1 The Sampling Frequency\nThe process of signal digitization is defined by the concept of the sampling frequency. Figure 1 (b)\ndepicts the sampling of an analog signal at a regu lar time interval of 0.5 ms. An alternate way of\nexpressing this information is to say that the signal is sampled at a frequency of 2000 samples/sec-\nond. This value is obtained by taking the inverse of the time interval, and is typically expressed in\nHertz (Hz). The sampling frequency then, is said to be 2kHz. This parameter plays a critical role in\nestablishing the accuracy and the reproducibility of the sampled signal. Figure 1: a) A typical analog EMG signal detected by the DE-2.1 electrode. (b) The digital sequence\nresulting from sampling the signal in (a), at 2 kHz (every 0.5 ms). -1\n-0.8\n-0.6\n-0.4\n-0.2\n0\n0.2\n0.4\n0.6\n0.8\n1\ntime (ms)\nAmplitude (mV)\n0 5 10 15 20 25\n(a)\n-1\n-0.8\n-0.6\n-0.4\n-0.2\n0\n0.2\n0.4\n0.6\n0.8\n1\ntime (ms)\nAmplitude (mV)\n0 5 10 15 20 25\n(b)",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:6:11",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 6,
+      "page_end": 6,
+      "text": "Fundamental Concepts in EMG Signal Acquisition Introduction: What is “Digital Sampling”? © Delsys Inc., 2003 3/31\n1.2 How High Should th e Sampling Frequency Be? It is critical to know what the minimum accepta ble sampling frequency of a signal should be in\norder to correctly reproduce the original analog information. Th e mathematical derivation of the\nanswer to this question can be fo und in most introductory signal processing text books (refer to\nBibliography for suggestions). We will approach the answer to this question from an intuitive per-\nspective by considering the sampling of a simple sinusoid, as shown below in Figure 2 (a)\nThis particular sinusoid can be described by its 1-V olt amplitu de and its frequency of 1 Hertz. Sampling this signal at frequency of 10 Hz yields a sequence of data points that closely resemble\nthe original sinusoid when th ey are connected by a line ( Figure 2). It is fundamental to note that\nthe lowest-frequency sinusoid cap able of tracing all the sampled points is the original 1 V , 1 Hz\nwave. Now consider Figure 3(a) where the same 1 V , 1 Hz sinusoid is sampled at a much lower fre-\nquency of approximately 2 Hz.",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:6:12",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 6,
+      "page_end": 6,
+      "text": "oints is the original 1 V , 1 Hz\nwave. Now consider Figure 3(a) where the same 1 V , 1 Hz sinusoid is sampled at a much lower fre-\nquency of approximately 2 Hz.\n\nCo nnecting the resulting group of da ta points with lines does not\nrecreate the visual image of the original sinusoid ( Figure 3(b)). However, if it assumed that the\nsequence of points must be matched with a sinusoid of the lowest possible frequency, then the only\npossible sine wave described by these data is th e original 1 V , 1 Hz signal. The original informa-\ntion has been retained in the sampled sequence of points. Figure 2: (a) Sampling a 1 V , 1 Hz sinusoid at 10 Hz. (b) Recreating the sinusoid sampled at 10 Hz. -1\n-0.8\n-0.6\n-0.4\n-0.2\n0\n0.2\n0.4\n0.6\n0.8\n1\n1.00 2.00.5 1.5 2.5 3.0\nAmplitude (V)\nTime (s)\n-1\n-0.8\n-0.6\n-0.4\n-0.2\n0\n0.2\n0.4\n0.6\n0.8\n1\n1.00 2.00.5 1.5 2.5 3.0\nAmplitude (V)\nTime (s)\n(a) (b)",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:7:13",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 7,
+      "page_end": 7,
+      "text": "Fundamental Concepts in EMG Signal Acquisition Introduction: What is “Digital Sampling”?\n© Delsys Inc., 2003 4/31\n1.3 Undersampling- When the Sampling Frequency is Too Low\nConsider one final time the same 1 V , 1 Hz sinu soid, this time sample d every 0.75 seconds\n(4⁄3 Hz). Unlike the previous two cases, the resu lting lowest frequency sinusoid that passes\nthrough this sequence of points is not a 1 Hz sinusoid, but rather a 1 ⁄3 Hz sine wave. It is clear\nFigure 3: (a) Sampling a 1 V , 1 Hz sinusoid at approximately 2 Hz. (b) Recreating the sinusoid sampled at\n~2 Hz.\n-1\n-0.8\n-0.6\n-0.4\n-0.2\n0\n0.2\n0.4\n0.6\n0.8\n1\n1.00 2.00.5 1.5 2.5 3.0\nAmplitude (V)\nTime (s)\n-1\n-0.8\n-0.6\n-0.4\n-0.2\n0\n0.2\n0.4\n0.6\n0.8\n1\n1.00 2.00.5 1.5 2.5 3.0\nAmplitude (V)\nTime (s)",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:8:14",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 8,
+      "page_end": 8,
+      "text": "Fundamental Concepts in EMG Signal Acquisition Introduction: What is “Digital Sampling”? © Delsys Inc., 2003 5/31\nfrom this example that the original signal is undersampled as not enough datum points have been\ngathered to capture all the information correctly. This condition of undersampling is said to result\nin aliasing\n1.4 The Nyquist Frequency\nWith the aid of the illustrations ab ove, it is important to realize that a sinusoid can only be cor-\nrectly recreated if it is sampled at no less than twice its frequency . This rule is known as the\nNyquist Theorem. Violating the Nyquist Theorem leads to an incorrect reconstruction of the signal,\ntypically referred to as aliasing, which is described later. Although these examples have been illus-\ntrated with simple sinusoids, th e Nyquist Theorem holds true for all complex analog signals as is\nshown in the following sections. 1.5 Delsys Application Note\nDelsys EMG equipment is designed to aid the us er in performing high qu ality signal recordings\nand acquisitions. EMGworks software offers distinct advantages when used in conjunction with\nDelsys recording instrumentation.",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:8:15",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 8,
+      "page_end": 8,
+      "text": "g high qu ality signal recordings\nand acquisitions. EMGworks software offers distinct advantages when used in conjunction with\nDelsys recording instrumentation.\n\nDelsys’ user interface will always suggest the optimal sampling\nfrequency to be used for a given experimental se tup so that the Nyquist Theorem is always ful-\nfilled. When using EMGworks software with third- party hardware, it is the responsibility of the\nuser to asses the minimum samp ling frequency necessary. The fo llowing chapters will provide\nguidelines for the user so that these assessments can be made correctly and efficiently. Figure 4: (a) Sampling a 1 V , 1 Hz sinusoid at 4⁄3 Hz. (b) Recreating the sinusoid sampled at 4⁄3 Hz yields\nthe red signal at 1⁄3 Hz. The original 1 Hz signal is undersampled. -1\n-0.8\n-0.6\n-0.4\n-0.2\n0\n0.2\n0.4\n0.6\n0.8\n1\n1.00 2.00.5 1.5 2.5 3.0\nAmplitude (V)\nTime (s)\n-1\n-0.8\n-0.6\n-0.4\n-0.2\n0\n0.2\n0.4\n0.6\n0.8\n1\n1.00 2.00.5 1.5 2.5 3.0\nAmplitude (V)\nTime (s)",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:9:16",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 9,
+      "page_end": 9,
+      "text": "Fundamental Concepts in EMG Signal Acquisition Sinusoids and th e Fourier Transform\n© Delsys Inc., 2003 6/31\n2. Sinusoids and the\nFourier Transform\nThe above example is illustrated with sinusoidal signals because they carry special significance in\nthe science of signal processing. It can be shown that any real continuous signal can be expressed\nas an infinite sum of weighted sinusoids. This set of sinusoids is called a Fourier Series, the deriva-\ntion and properties of which are far beyond the scop e of this article. The trigonometric expression\nfor this series is given below:\nThe co-efficient labeled “A” represents any DC component that the signal may have (i.e. non-zero\nmean), the Bn and Cn represent unique coefficients for the amplitude of each cosine and sine term,\nwhile the fn represents the unique frequency of each cosine and sine term. 2.1 Decomposing Signals into Sinusoids\nLet’s consider a sample analog signal, similar in appearance to a surface recorded MUAP, shown\nin the red trace at the bottom of Figure 5. This trace can be decomposed into a series of sinusoids\nderived from the Fourier Series described above.",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:9:17",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 9,
+      "page_end": 9,
+      "text": "MUAP, shown\nin the red trace at the bottom of Figure 5. This trace can be decomposed into a series of sinusoids\nderived from the Fourier Series described above.\n\nThe first 10 sinusoids from the resulting series\nare shown in Figure 5. The summation of these 10 sinusoids is depicted in the blue trace at the bot-\ntom of the figure. It is clear from comparing this trace to the original red one that a faithful recre-\nation of the signal can be made with only 10 si nusoids. Naturally, the fidelity of the recreated\nsignal increases as higher frequency sinusoids are included. (Eq. 1)\n(Eq. 2)\nxt() AB n fn t⋅() Cn fn t⋅()sin+cos[]\nn 1=\n∞\n∑+=\nxt() AB 1 f1 t⋅() C1 f1 t⋅()sin+cos B2 f2 t⋅() C2 f2 t⋅() …sin+cos++=",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:10:18",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 10,
+      "page_end": 10,
+      "text": "Fundamental Concepts in EMG Signal Acquisition Sinusoids and th e Fourier Transform\n© Delsys Inc., 2003 7/31\n2.2 The Frequency Domain\nThe information depicted in Figure 5 can be alternatively expressed in a convenient fashion by\nplotting a histogram of the am plitudes for each sinusoid. Th is concept is depicted in Figure 6,\nshowing the frequency of the sinusoids on the “X-axis” and their corresponding amplitudes on the\nFigure 5: Fourier decomposition of a sample motor unit action potential (MUAP) recorded using a\nDE-2.1 electrode. The original signal is shown in red. The superposed blue signal is the mathematical\nsummation of the 10 sinusoids above. The exact reconstruction of the red signal would require an infinite\nnumber of sinusoids, but appreciable accuracy can be achieved with only 10.\n+\n+\n+\n+\n+\n+\n+\n+\n+\n=\n1 Hz\n2 Hz\n3 Hz\n4 Hz\n5 Hz\n6 Hz\n7 Hz\n8 Hz\n9 Hz\n10 Hz\n15.0\n-15.0\n0\nAmplitude (mV)\n5.0\n-5.0\n5.0\n-5.0\n5.0\n-5.0\n5.0\n-5.0\n5.0\n-5.0\n1.0\n-1.0\n1.0\n-1.0\n1.0\n-1.0\n1.0\n-1.0\n1.0\n-1.0",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:11:19",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 11,
+      "page_end": 11,
+      "text": "Fundamental Concepts in EMG Signal Acquisition Sinusoids and th e Fourier Transform\n© Delsys Inc., 2003 8/31\n“Y-axis”. In this fashion, it is possible to describe the complete set of si nusoids that compose the\nelectrical signal. The original trace shown in Figure 5 is said to be expressed in the “Time Domain”, since it\ndescribes a voltage signal as a function of time. Figure 6 describes the same signal in the “Fre-\nquency Domain”, since it describe s the amplitude of the frequenci es contained in it. This type of\ngraph is commonly called a Frequency Spectrum or Power Spectrum. Nume rous algorithms and\ntechniques have been devised over the years for extracting frequency information from time vary-\ning signals. The most basic and most popular al gorithm for accomplishing this task is the “Fast\nFourier Transform” or “FFT”. It is highly recommended to fully understand the conditions,\nassumptions and caveats of the FFT and similar algo rithms before employing them in data analy-\nsis. 2.3 Aliasing- How to Avoid It\nThe above discussion illustrated that in order to capture correctly a sinusoidal signal, the sampling\nrate needs to be at least twice that of the signal’s frequency.",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:11:20",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 11,
+      "page_end": 11,
+      "text": "bove discussion illustrated that in order to capture correctly a sinusoidal signal, the sampling\nrate needs to be at least twice that of the signal’s frequency.\n\nSince it was also stated that all contin-\nuous analog signals can be expressed as a summation of sinusoids, it follows that the sampling fre-\nquency for any signal should be at least twice the value of the highest frequency component in the\nsignal. Referring back to the example described in Figure 6, the minimum acceptable sampling\nfrequency to capture all the rele vant information of this signal is 20 Hz, since the highest fre-\nquency component is 10 Hz. Consider the same signal described in Figure 6 with the addition of an unwanted noise component\nat 13 Hz. This is shown in Figure 7 by the red frequency component. Figure 6: Amplitude histogram of the 10\nsinusoids depicted in the above example of\nFigure 5. Note that with this method of\ndisplaying the amplitudes, it becomes\nreadily apparent that the signal contains\nstrong frequency components between\n1H z a n d 5H z . 123456789 1 00\n1.0\n2.0\n3.0\n4.0\nFrequency (Hz)\nAmplitude (mV)",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:12:21",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 12,
+      "page_end": 12,
+      "text": "Fundamental Concepts in EMG Signal Acquisition Sinusoids and th e Fourier Transform\n© Delsys Inc., 2003 9/31\nIn order to digitize correctly all the information in this signal, it is necessary to sample it at a fre-\nquency of at least 26 Hz. If this is not done, and the signal is undersampled at 20 Hz, the informa-\ntion is captured incorrectly as shown in Figure 8. Note that frequencies below ½ the sampling rate\n(i.e. 10 Hz) have been correctly captured, but the 13 Hz component is aliased, appearing as a com-\nponent “folded back” at a frequency of 7 Hz, and changing th e original amplitude of this compo-\nnent. Figure 7: The frequency spectrum of\nthe sample signal described in\nFigure 6 with the superposition of\nan external frequency not present in\nthe original signal, shown in red. This frequency component appears\nat 13 Hz and is considered to be\nnoise. Figure 8: The aliasing of the 13 Hz\nnoise component (shown above) due\nto undersampling of the signal at a\nfrequency of 20 Hz. Note the noise\nappears at the incorrect frequency of\n7 Hz.",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:12:22",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 12,
+      "page_end": 12,
+      "text": "f the 13 Hz\nnoise component (shown above) due\nto undersampling of the signal at a\nfrequency of 20 Hz. Note the noise\nappears at the incorrect frequency of\n7 Hz.\n\nThis component is said to be\naliased\n131 2 3 4 5 6 7 8 9 100\n1.0\n2.0\n3.0\n4.0\nFrequency (Hz)\nAmplitude (mV)\n11 12\n1 2 3 4 5 6 7 8 9 100\n1.0\n2.0\n3.0\n4.0\nFrequency (Hz)\nAmplitude (mV)",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:13:23",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 13,
+      "page_end": 13,
+      "text": "Fundamental Concepts in EMG Signal Acquisition Sinusoids and th e Fourier Transform\n© Delsys Inc., 2003 10/31\n2.4 The Anti-Aliasing Filter\nIn order to avoid the undesirable effect of aliasi ng, an anti-aliasing filter is employed before the\nsignal is sampled. It is necessary to know the band width of the signal of interest in order perform\nthis task. For example, an anti-aliasing filter with a bandwidth of 10 Hz can be applied to the sig-\nnal in the above example, effectively removing the 13 Hz noise component. Once this is accom-\nplished, the signal can be sampled at 20 Hz with no negative consequences. The alternative way to correctly sampl e all the information depicted in Figure 9 is to set the anti-\naliasing filter to a cutoff after 13 Hz, and sample the signal at a frequency of 26 Hz. This captures\nall of the information present, including the noise, which could be removed with a digital filter at a\nlater point in time. The use of an anti-aliasing filter is of para mount importance when sampling any signal. The\neffects of aliasing cannot be undone, nor can their presence always be detected.",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:13:24",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 13,
+      "page_end": 13,
+      "text": "anti-aliasing filter is of para mount importance when sampling any signal. The\neffects of aliasing cannot be undone, nor can their presence always be detected.\n\nIn any A/D acqui-\nsition system, the cutoff fre quency of the antialiasing filter must always be less than one half the\nsampling frequency. This guarantees that the no aliasing will occur. 2.5 Delsys Practical Note\nThe full bandwidth of the Surface EMG signal spans up to 500 Hz. All standard Delsys equipment\nis designed and configured to optimally detect the complete spectrum of the EMG signal. All sys-\ntems have built-in anti-aliasing filters, with upper bandwidths of 500 Hz. In typical circumstances,\nthe detected SEMG signal will contain little energy above 400 Hz, however it is strongly recom-\nmended that sampling of the EMG signal is perfo rmed at least at 1000 Hz, as dictated by the\nNyquist Theorem. Sampling the EMG system outputs at a rate less than 1000 samples/second may\nFigure 9: Removal of the 13 Hz\nnoise component using a sharp filter\nwith a cutoff at 10 Hz. A filter used\nfor discarding any frequencies not in\nthe sampling range of interest is\ncalled an antialiasing filter. 131 2 3 4 5 6 7 8 9 100\n1.0\n2.0\n3.0\n4.0\nFrequency (Hz)\nAmplitude (mV)\n11 12",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:14:25",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 14,
+      "page_end": 14,
+      "text": "Fundamental Concepts in EMG Signal Acquisition Sinusoids and th e Fourier Transform\n© Delsys Inc., 2003 11/31\nirreparably distort the signal due to aliasing . The default minimum sampling rate of EMGworks\nSignal Acquisition and Analysis Software is 1024 Hz. Extreme care must be exercised to preserve\nsignal integrity when modifying any hardware or software default parameters.",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:15:26",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 15,
+      "page_end": 15,
+      "text": "Fundamental Concepts in EMG Signal Acquisition Filters\n© Delsys Inc., 2003 12/31\n3. Filters\nThe antialiasing filter has been in troduced as the specific case of a low pass filter, an essential\ncomponent of any digitization proc ess. In practice, there is often need for other types of filters,\nsome involved with proper signal conditioning (implying the use of “analog filters”) others neces-\nsary for the analysis of data once it has been dig itized (“digital filters”). The study of filter theory\nand its applications is a science in its own right, the subject of which is appropriately left to the\ncountless texts describing it. Th e following discussion is a presen tation of some basic filter con-\ncepts commonly encountered (and often misunder stood) in the study of Electromyography. Once\nagain the reader is urged to review the references for more sophisticated discussions on the subject. 3.1 The Ideal Filter Types\nA filter is a device designed to attenuate specif ic ranges of frequencies, while allowing others to\npass, and in so doing limit in some fashion the frequency spectrum of a signal.",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:15:27",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 15,
+      "page_end": 15,
+      "text": "designed to attenuate specif ic ranges of frequencies, while allowing others to\npass, and in so doing limit in some fashion the frequency spectrum of a signal.\n\nThe frequency\nrange(s) which is attenuated is called the stopband, and the range which is transmitted is called the\npassband. The behavior of filters can be characteri zed by one of four functions depicted in\nFigure 10: low-pass, high-pass, band-bass and band-stop. The depictions of Figure 10 are representations of ideal filter characteristics, typically referred to\nas brick-wall responses, that imply the following behavior:\n1. The passband amplitude response is continuously flat at a value of 1. The frequencies which\nare allowed to pass through the filter do so completely undistorted. Figure 10: The four basic filter\ntypes. Frequencies where the\nfilter response amplitude is 1 are\ndefined as passband regions,\nwhile frequencies where the filter\nresponse amplitude is 0 are\ndefined as stopband regions. The\ncutoff frequency is denoted by\n‘f\nc’. (a) Low-Pass filter- all\nfrequencies higher than f c are\nattenuated to zero. (b) High-Pass\nfilter- all frequencies below fc are\nattenuated to zero. (c) Band-Pass\nfilter- all frequencies lower than\nfc1 and higher than f c2 are\nattenuated to zero. (d) Band-Stop\nfilter- all frequencies higher than\nfc1 and lower than f c2 are\nattenuated to zero.",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:15:28",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 15,
+      "page_end": 15,
+      "text": "es lower than\nfc1 and higher than f c2 are\nattenuated to zero. (d) Band-Stop\nfilter- all frequencies higher than\nfc1 and lower than f c2 are\nattenuated to zero.\n\n0 fc\nFrequency\n1 Amplitude 0\nLow Pass\nPassband\n0 fc\nFrequency\n1 Amplitude 0\nHigh Pass\nPassband\n0 fc1\nFrequency\n1 Amplitude 0\nfc2\nBand Pass\nPassband\n0 fc1\nFrequency\n1 Amplitude 0\nfc2\nBand Stop\nPassband Pass\nband\n(a) (b)\n(c) (d)",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:16:29",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 16,
+      "page_end": 16,
+      "text": "Fundamental Concepts in EMG Signal Acquisition Filters\n© Delsys Inc., 2003 13/31\n2. The stopband amplitude response is continuously flat at a value of 0. The undesirable fre-\nquencies are completely suppressed. 3. The transition between the passband and the stopband happens instantaneously. 3.2 Ideal Phase Response\nThe brick-wall responses of the ideal filters of Figure 10 only describe changes in the magnitude\nof the signals as a function of frequency. Since sinusoids are entirely described by the magnitude\nof their amplitude and by the angle of their ph ase, the complete specif ication of a filter must\ninclude a statement of its phase response. All cau sal filters introduce a time delay at the output\nsince they cannot act in stantaneously on the input signal. An ideal filter’s time delay is indepen-\ndent of frequency. That is to say, the filter will modify the phase of each frequency component\nentering the system exactly the same way. This be havior is characterized by the phase plot illus-\ntrated in Figure 11\nPractical implementations of filters in either analog or digital format can only approach the behav-\nior described by these ideal char acteristics.",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:16:30",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 16,
+      "page_end": 16,
+      "text": "in Figure 11\nPractical implementations of filters in either analog or digital format can only approach the behav-\nior described by these ideal char acteristics.\n\nFurthermore, filters are usually designed to maximize\nthe ideality of one of these characteristics, at the expense of some other. In order to gain a better\nappreciation for these trade-offs it is necessary to describe the filter resp onse in a more realistic\nlight. 3.3 The Practical Filter\nThe ideal filter models presented in Figure 10 can be modified to include parameters which more\naccurately describe the behavior of realizable filters (whether these are analog or digital in nature). The relative flatness of the passband(s) and stopba nd(s) can be described by the addition of a rip-\nple factor which specifies the maximum and mi nimum deviation from the ideal value. Further-\nmore, the transition characteristics of a filter cannot change in a discontinuous fashion between the\npassband and stopband as described by the brick-wall respon se. As such, a transition zone is\ndefined indicating a contained region of the transmission bandwidth where the signal transmission\nshifts from passband to stopband or vice versa. Naturally, the narrower this transition zone is, the\nFigure 11: Figure Phase plot of an ideal filter.",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:16:31",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 16,
+      "page_end": 16,
+      "text": "ansmission\nshifts from passband to stopband or vice versa. Naturally, the narrower this transition zone is, the\nFigure 11: Figure Phase plot of an ideal filter.\n\nNote\nthat all frequencies are affected by the same delay\nso that no phase distortion occurs\n0\nFrequency\n90°\nPhase Delay\n0°\nfc",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:17:32",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 17,
+      "page_end": 17,
+      "text": "Fundamental Concepts in EMG Signal Acquisition Filters\n© Delsys Inc., 2003 14/31\nmore ideal the filter is. The lack of a sharp “corne r” in the transition zone necessitates the defini-\ntion of the “corner frequency”, visu ally defined in the brickwall response filter. Historically, this\nfilter specification has been define d as the frequency where the powe r output of the filter is one-\nhalf of the input power. The relative steepness of the filter’s transition zone is described by the filter’s “order”; higher\norder filters yield narrow transition zones at the ex pense of complexity. Note that a filter’s stop\nband region will never completely eliminate frequency components in this range. It is important to\nspecify minimum acceptable attenuation factors for the specific application of the filter. Factors\nranging from –20 to –100 dB (1/10 to 1/100000) are achievable. 3.3.1 Non-linear Phase Response\nMany practical filter implementations suffer fro m a non-linear phase response. In these cases, the\nphase delay of the filter ch anges as a function of th e input frequency.",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:17:33",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 17,
+      "page_end": 17,
+      "text": "l filter implementations suffer fro m a non-linear phase response. In these cases, the\nphase delay of the filter ch anges as a function of th e input frequency.\n\nThat is to say that different\nfrequencies get delayed by different amounts, ca using phase distortion within the signal. For the\nsurface EMG signal, this is usually not a concern as the nature of the detection process does not\nFigure 12: Characteristics of practical filters: (a) Low Pass, (b) High Pass, (c) Band Pass and (d) Stop\nBand. Note the specification of an amplitude ripple for all passband and stopband regions, as well as the\ndefinition of a transition zone with a specified corner frequency (f c) and sometimes the slope of the\ntransition band. Passband\nRipple\nStopband\nRipple\n0 fc\nFrequency\n1 Amplitude 0\nfc\nPassband\nRipple\nStop\nBand\n0 fc\nFrequency\n1 Amplitude 0\nfc\n0 fc\nFrequency\n1 Amplitude 0\nPassband\nRipple\nStopband\nRipple\nTransition\nBand\n0 fc\nFrequency\n1 Amplitude 0\nPassband Ripple\nStopband\nRipple\nTransition\nBand\n(a) (b)\n(d)\n(c)",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:18:34",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 18,
+      "page_end": 18,
+      "text": "Fundamental Concepts in EMG Signal Acquisition Filters\n© Delsys Inc., 2003 15/31\npermit phase preservation. Recall that the surface EMG signal is a superposition of many action\npotentials. This superposition renders phase information of each action potential indistinguishable\nfrom its many neighbors. Furthermore, minute changes in muscle fiber orientation, motor unit fir-\ning rates and electrode contact position may cause significant changes in phase characteristics,\nleading to inconsistencies between recordings, and even within the same recording. Due to the rel-\native ineffectiveness of harnessing phase information in the EMG signal, the phase characteristics\nof filters typically used in Elec tromyography are not considered in detail when compared to the\namplitude response characteristics. 3.4 Measuring Amplitude- Voltage, Power and Decibels\nThe filter illustrations presented in Figure 10 and Figure 12 show approximate amplitudes of 1 for\nfilter transmission bands and 0 for filter stop bands. These amp litudes represent the magnitude of\nthe filter transfer function (i.e. the gain).",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:18:35",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 18,
+      "page_end": 18,
+      "text": "tudes of 1 for\nfilter transmission bands and 0 for filter stop bands. These amp litudes represent the magnitude of\nthe filter transfer function (i.e. the gain).\n\nOne para meter used for characterizing filters is the gain,\nexpressed as the ratio of output voltage to input voltage, keeping in mind that the voltages may be\nexpressed as time-varying functions:\nGain(v) filter = vout / vin (Eq. 3)\nIn the illustrations above, the gain of the filter transfer function is 1 when the filter’s voltage output\nis the same as the input, and obviously 0 when the filter voltage output is 0. A common way of expressing a filter’s gain characteristic is with the logarithmic units of decibels\n(dB). A filter’s voltage gain calculated in decibels is determined as follows:\nGain(v) filter = 20log(vout / vin) dB (Eq. 4)\nNote that if the ratio of filter’s output voltage amplitude to it’s input amplitude is 1 (i.e. gain=1),\nthen the filter’s gain in decibels is 0 dB:\nGain(v) filter = 20log(1) dB (Eq. 5)\nGain(v) filter = 0 dB (Eq. 6)\nConsider, for example, a filter with a gain of 100 in the passband re gion. Its gain in decibels for\nthis frequency band would be:\nGain(v) filter = 20log(100) dB (Eq. 7)\nGain(v) filter = 40 dB (Eq. 8)\nIn comparison, consider the same fi lter with an attenuation of 1/10 0 in the stop band region.",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:18:36",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 18,
+      "page_end": 18,
+      "text": "v) filter = 20log(100) dB (Eq. 7)\nGain(v) filter = 40 dB (Eq. 8)\nIn comparison, consider the same fi lter with an attenuation of 1/10 0 in the stop band region.\n\nIts\ngain for this frequency band would be:\nGain(v) filter = 20log(0.01) dB (Eq. 9)\nGain(v) filter = -40 dB (Eq. 10)",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:19:37",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 19,
+      "page_end": 19,
+      "text": "Fundamental Concepts in EMG Signal Acquisition Filters\n© Delsys Inc., 2003 16/31\nTable 1 compares example gains and attenuations expressed as ratios and in decibels. It can be shown that a signal’s power is quadratically related to it’s voltage amplitude. Thus, the\nfilter’s power transfer function can be shown to be:\nWe will make use of this fact in the next section to define the corner frequency of the filter. 3.5 The 3-dB Frequency\nThe previous sections presented the “brickwall” response of ideal filter characteristics as well as\nthe need to relax the ideal characteristics due to the limitations of prac tical implementations. An\nimportant specification of frequency-limiting filte rs is the establishment of a corner frequency\nwhich demarcates the Passband and Stopband region s. In many cases this value can be defined as\nthe frequency where the power of the filter’s signal output is ½ that of its input.",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:19:38",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 19,
+      "page_end": 19,
+      "text": "e Passband and Stopband region s. In many cases this value can be defined as\nthe frequency where the power of the filter’s signal output is ½ that of its input.\n\nRatio of vout/vin 20log(vout/vin) (dB) Ratio of vout/vin 20log(vout/vin) (dB)\n0.000001 -120 1,000,000 120\n0.00001 -100 100,000 100\n0.0001 -80 10,000 80\n0.001 -60 1,000 60\n0.01 -40 100 40\n0.1 -20 10 20\n0.5 -6 2 6\n0.707 -3 1.413 3\n1 0 1 0\nTable 1: Example gain and attenuation factors expressed in decibels. Note that decibel values less than\n0 denote attenuation, while positive values describe amplification. (Eq. 11)\n(Eq. 12)\n(Eq. 13)\n(Eq. 14)\nPowerGain v() vout\n2 vin\n2⁄=\nPowerGain v() vout\n2 vin\n2⁄=\n12⁄ vout\n2 vin\n2⁄=\n12 ()⁄ vout vin⁄=",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:20:39",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 20,
+      "page_end": 20,
+      "text": "Fundamental Concepts in EMG Signal Acquisition Filters\n© Delsys Inc., 2003 17/31\nThe corner frequency is thus defined as that fre quency where the output voltage is approximately\n0.707 of the input value. In Decibels, this frequ ency is called the “3-dB point”, as demonstrated\nbelow:\n3.6 Filter Order\nAn additional characteristic describ ing the behavior of a filter is the width of the transition zone\nillustrated in Figure 12. The tighter this transition range is, the more complex the filter design must\nbe. The complexity of the filter (and hence the steepness of the tr ansition slope) can be character-\nized by the “order” of the filter. The simplest design is a first-or der filter. This filter’s transition band attenuates the input signal\n-20 dB for every 10-fold change in frequency. The filter is said to attenuate at -20 dB/decade. This\nconcept is illustrated in the first-order low pass filter shown in Figure 13 (a), where a decade refers\nto the increase in frequency by a factor of 10. R ecall that –20 dB corresponds to a reduction by a\nfactor of 10. Thus the filter will reduce the amplitude of the input signal by 1/10th for every decade\nincrease in frequency.",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:20:40",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 20,
+      "page_end": 20,
+      "text": "dB corresponds to a reduction by a\nfactor of 10. Thus the filter will reduce the amplitude of the input signal by 1/10th for every decade\nincrease in frequency.\n\nThis same attenuation sl ope can be alternately ex pressed as –6 dB/octave,\nwhere an octave refers to the doubling of a frequency. To further illustrate the point, a second order low pass filter is shown in Figure 13 (b). The attenu-\nation of this design is –40 dB/decade or –12 dB/octave. While the performance of this latter design\nis essentially double that of th e former, it comes at the expense of higher complexity- generally,\n(Eq. 15)\n(Eq. 16)\n(Eq. 17)\nGain v() f3dB\n20 vout vin⁄() dBlog=\nGain v() f3dB\n20 1 2 ()⁄() dBlog=\nGain v() f3dB\n-3 dB=",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:21:41",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 21,
+      "page_end": 21,
+      "text": "Fundamental Concepts in EMG Signal Acquisition Filters\n© Delsys Inc., 2003 18/31\nthe second-order filter is composed of two first or der filter stages in series. The reader is directed\nto the suggested reading list for comprehensive information pertaining to filter design and issues of\nstability. 3.7 Filter Types\nNow that the basic characteristics of filters have been presented, we are in a position to appreciate\nthe salient features of some well-establish and comm only-used filter types. Each type has specific\nparameters which can be optimized to approach ideal filter featur es at the expense of some other\ncharacteristic. Unfortunately, there is no read ily available filter which can approach all the\nattributes of the ideal filter. The Butterworth Filter\nThis filter is best used for its maximally flat response in the transmi ssion passband, minimizing\npassband ripple (refer to Figure 12). As can be seen from th e magnitude response plots of\nFigure 14, the ideal brick wall response is approached as the order “N” is increased. Specifying the\nmaximum overshoot in the passband allows the de termination of the minimum necessary order to\nachieve the desired response.",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:21:42",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 21,
+      "page_end": 21,
+      "text": "der “N” is increased. Specifying the\nmaximum overshoot in the passband allows the de termination of the minimum necessary order to\nachieve the desired response.\n\nThis filter is best suited for applications requiring preservation of\namplitude linearity in the passband region. It is precisely this feature which makes the Butterworth\nfilter an ideal candidate for conditioning the EMG signal. The corner frequency, fc, of this filter is\ndefined as the 3-db point as described in the previous sections. Note that the phase response of this\nfilter is not particularly linear. This filter is co mpletely specified by the maximum passband gain,\nthe cutoff frequency and th e filter order. Refer to Figure 14 (a) for the magnitude and phase\nresponses of different order Butterworth filters. Figure 13: First-Order Low Pass Filter. Input frequencies above the corner frequency fc are attenuated by\n-20 dB for every increase in frequency by a factor of 10. Recall that -20 dB corresponds to a decrease in\namplitude by a factor of 10. This can equivalently be expressed as an attenuation of -6 dB/octave, where\nan octave refers to the doubling of a frequency. The magnitude frequency response of filters is\nconveniently plotted on logarithmic axis so that these attenuations can be represented by linear plots. (b)\nSecond-Order Low Pass Filter.",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:21:43",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 21,
+      "page_end": 21,
+      "text": "response of filters is\nconveniently plotted on logarithmic axis so that these attenuations can be represented by linear plots. (b)\nSecond-Order Low Pass Filter.\n\nThe slope of the magnitude response for this design shows that attenuation\nof the input frequencies is double that of the filter in (a). Frequency\nAmplitude\nResponse (dB)\n-20 dB/decade,\n-6 dB/octave\n3 dB -10\n0\n-20\n-40\n0.1 1 10 100\nFrequency\nAmplitude\nResponse (dB)\n-40 dB/decade,\n-12 dB/octave\n3 dB -10\n0\n-20\n-40\n0.1 1 10 100\n(a) (b)",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:22:44",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 22,
+      "page_end": 22,
+      "text": "Fundamental Concepts in EMG Signal Acquisition Filters\n© Delsys Inc., 2003 19/31\nThe Chebyshev Filter\nSimilar to the Butterworth filter, this filter can ach ieve steep rolloffs with high order designs. The\nChebyshev outperforms the Butterw orth’s attenuation in the tran sition band for the same order\ndesign. This advantage, however, comes at th e expense of noticeable ripple in the passband\nregions (refer to Figure 14 (a) and (b)). The total number of maxima and minima in the passband\nregion is equal to the filter order. Unlike the Butterworth filter, the cutoff frequency for this filter is\nnot specified at the 3-dB point, but rather at the frequency where the specified maximum passband\nripple is exceeded. Like the Butterworth filter, th is filter is completely specified by the maximum\npassband gain, the cutoff frequency and the filter order. The Elliptic Filter\nWhen compared to the Butterwor th and the Chebyshev filters, th e Elliptic filter maintains the\nsteepest cutoff slope for the lowest filter order. The filter, however, suffers from ripple in both the\npassband and the stopband regions. A sharp cutoff is achieved by adding di ps or “notches” in the\nstopband regions.",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:22:45",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 22,
+      "page_end": 22,
+      "text": "er, however, suffers from ripple in both the\npassband and the stopband regions. A sharp cutoff is achieved by adding di ps or “notches” in the\nstopband regions.\n\nThese notches introduce zero transmission (i.e. complete attenuation) in selected\nareas. In addition to the maximum passband gain and the corner frequency, complete specification\nof this filter includes its order and the stopband ripple. The complexity of this filter usually neces-\nsitates the use of a computer when it is being designed. Note that the phase response of this filter is\nparticularly non-linear. Refer to Figure 14 (c) for magnitude and phase response examples. The Thompson or Bessel Filter\nThe magnitude response of the Bessel filter is monotonic and smooth- there are no ripples in the\ntransmission band or the stop band. The roll off of this filter however, is much less steep than the\nfilters presented above. The main advantage to this filter is its exceptional phase linearity. This\npreservation of phase also minimizes “ringing” caused by sharp inputs (known as step or impulse\nresponses) which is commonly found in the other filters as shown in Figure 14.",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:23:46",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 23,
+      "page_end": 23,
+      "text": "Fundamental Concepts in EMG Signal Acquisition Filters\n© Delsys Inc., 2003 20/31\nFigure 14: Magnitude and phase comparison of high-pass filter types with a cutoff of 20Hz and varying orders (n=1,2,4,8). (a)\nButterworth filter, (b) Chebyshev filter, (c) Bessel Filter, (d) Elliptic Filter. Note how the logarithmic expression reveals\nparticular behavior patterns at large attenuations. These example s demonstrate salient features of each filter type, such as\nlinearity of pass-bands, stops and phase responses as well as relative cutoff sharpness.",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:23:47",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 23,
+      "page_end": 23,
+      "text": "ese example s demonstrate salient features of each filter type, such as\nlinearity of pass-bands, stops and phase responses as well as relative cutoff sharpness.\n\n0 10 20 30 40 50 60 70 80 0\n0.1\n0.2\n0.3\n0.4\n0.5\n0.6\n0.7\n0.8\n0.9\n1\nMagnitude Response of Butterworth\nFrequency, Hz\nMagnitude, Vout/Vin\nN=1\nN=2\nN=4\nN=8\n(a)\n10\n-1\n10\n0\n10\n1\n10\n2-50\n-45\n-40\n-35\n-30\n-25\n-20\n-15\n-10\n-5\n0\n5\nMagnitude Response of Butterworth Filter\nFrequency, Hz\nMagnitude, 20log(Vout/Vin), dB\nN=1\nN=2\nN=4\nN=8\n10\n-1 10\n0\n10\n1\n10\n2-700\n-600\n-500\n-400\n-300\n-200\n-100\n0\n100\n200\nPhase Response of Butterworth Filter\nFrequency, Hz\nPhase Angle, Degrees N=1\nN=2\nN=4\nN=8\n0 10 20 30 40 50 60 70 80 0\n0.2\n0.4\n0.6\n0.8\n1\n1.2\nMagnitude Response of Chebyshev Filter\nFrequency, Hz\nMagnitude, Vout/Vin\nN=1\nN=2\nN=4\nN=8\n(b)\n10\n-1\n10\n0\n10\n1\n10\n2-50\n-45\n-40\n-35\n-30\n-25\n-20\n-15\n-10\n-5\n0\n5\nMagnitude Response of Chebyshev Filter\nFrequency, Hz\nMagnitude, 20log(Vout/Vin), dB\nN=1\nN=2\nN=4\nN=8\n10\n-2 10\n-1 10\n0\n10\n1\n10\n2-700\n-600\n-500\n-400\n-300\n-200\n-100\n0\n100\n200\nPhase Response of Chebyshev Filter\nFrequency, Hz\nPhase Angle, Degrees\nN=1\nN=2\nN=4\nN=8\n0 10 20 30 40 50 60 70 80 0\n0.1\n0.2\n0.3\n0.4\n0.5\n0.6\n0.7\n0.8\n0.9\n1\nMagnitude Response of Bessel Filter\nFrequency, Hz\nMagnitude, Vout/Vin\nN=1\nN=2\nN=4\nN=8\n(c)\n10\n-1\n10\n0\n10\n1\n10\n2-50\n-45\n-40\n-35\n-30\n-25\n-20\n-15\n-10\n-5\n0\n5\nMagnitude Response of Bessel Filter\nFrequency, Hz\nMagnitude, 20log(Vout/Vin), dB\nN=1\nN=2\nN=4\nN=8\n10\n-2 10\n-1 10\n0\n10\n1\n10\n2-700\n-600\n-500\n-400\n-300\n-200\n-100\n0\n100\n200\nPhase Response of Bessel Filter\nFrequency, Hz\nPhase Angle, Degrees N=1\nN=2\nN=4\nN=8",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:24:48",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 24,
+      "page_end": 24,
+      "text": "Fundamental Concepts in EMG Signal Acquisition Filters\n© Delsys Inc., 2003 21/31\n3.8 Analog vs. Digital Filters\nThe previous section described th e behavior and the specification of several classic filter types. These filters (along with many others) can be implemented in either the analog signal domain\n(where the signals are continuously varying voltag es) or in the digital domain (where the analog\nsignals have been sampled and are represented by an array of numbers). Analog Filters\nAnalog filters are usually implemented with electr onic circuits, making us e of three fundamental\ncomponents: resistors, capacitors and inductors. By arranging these comp onents in a variety of\nconfigurations, it is possible to customize filter performance to very specific needs. In addition,\noperational amplifiers are commonly used to increase the performance of these filters. It is impor-\ntant to note that these filters are commonly used in “signal conditioning stages” before any digiti-\nzation takes place. Signal conditio ning generally refers to the mo dification of a signal for the\npurpose of facilitating its interaction with other components, circuits or systems.",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:24:49",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 24,
+      "page_end": 24,
+      "text": "gnal conditio ning generally refers to the mo dification of a signal for the\npurpose of facilitating its interaction with other components, circuits or systems.\n\nThis may involve\nthe removal of unwanted noise or the reduction of bandwidth to simplify further signal analysis or\nprocessing. The most notable application of this kind is low-pass filteri ng for anti-aliasing pur-\nposes, as described above. It is critical for the anti-aliasing filter to be applied on the analog signal\nbefore any digitization occurs since the effects of incorrectly-sampled data cannot be undone. Figure 14: Magnitude and phase comparison of high-pass filter types with a cutoff of 20Hz and varying orders (n=1,2,4,8). (a)\nButterworth filter, (b) Chebyshev filter, (c) Bessel Filter, (d) Elliptic Filter. Note how the logarithmic expression reveals\nparticular behavior patterns at large attenuations. These example s demonstrate salient features of each filter type, such as\nlinearity of pass-bands, stops and phase responses as well as relative cutoff sharpness.",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:24:50",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 24,
+      "page_end": 24,
+      "text": "ese example s demonstrate salient features of each filter type, such as\nlinearity of pass-bands, stops and phase responses as well as relative cutoff sharpness.\n\n0 10 20 30 40 50 60 70 80 0\n0.2\n0.4\n0.6\n0.8\n1\n1.2\n1.4\nMagnitude Response of Elliptic Filter\nFrequency, Hz\nMagnitude, Vout/Vin\nN=1\nN=2\nN=4\nN=8\n(d)\n10\n-1\n10\n0\n10\n1\n10\n2-50\n-45\n-40\n-35\n-30\n-25\n-20\n-15\n-10\n-5\n0\n5\nMagnitude Response of Elliptic Filter\nFrequency, Hz\nMagnitude, 20log(Vout/Vin), dB\nN=1\nN=2\nN=4\nN=8\n10\n-2 10\n-1 10\n0\n10\n1\n10\n2-100\n0\n100\n200\n300\n400\n500\n600\nPhase Response of Elliptic Filter\nFrequency, Hz\nPhase Angle, Degrees\nN=1\nN=2\nN=4\nN=8",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:25:51",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 25,
+      "page_end": 25,
+      "text": "Fundamental Concepts in EMG Signal Acquisition Filters\n© Delsys Inc., 2003 22/31\nThe performance of analog filters is directly related to the quality of the components used and the\ncircuit design. Things such as co mponent tolerances, power consumption, design techniques and\noften the physical size components all play important roles in es tablishing the practical limits of\nanalog filters. Digital Filters\nThe digitization of electric signals into sequenc es of numbers permits the complete manipulation\nof these signals to occur mathematically. V oltage signals that are expressed as numbers can easily\nbe scaled through scalar multiplication or offset by adding constants; they can be rectified by using\nthe absolute value operator or modulated with other signals th rough multiplicatio n. The digital\nrealm provides unbounded opportunities for condition and processing of the signal. This branch of\nscience is know as digital signal processing. The digital implem entation of the filters described in th e previous sections is typically accom-\nplished through various schemes of weighted averaging. An example of this process is illustrated\nin Figure 16.",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:25:52",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 25,
+      "page_end": 25,
+      "text": "bed in th e previous sections is typically accom-\nplished through various schemes of weighted averaging. An example of this process is illustrated\nin Figure 16.\n\nIt begins with an analog voltage signal which is digitized w ith an ADC after it is\nappropriately conditioned. Once sampled, the signal is defined by a sequence of numbers repre-\nsenting the voltage amplitude at specific instances in time. A window of “ n” input “taps” is cre-\nFigure 15: a) Single-pole low pass filter. This is the simplest analog filter possible with one resistor and\none capacitor. The rolloffs of this basic design is 20 dB/decade, with a corner frequency given as 1/RC. b)\nDouble-pole low pass filter. This design essentially cascades two single pole filters, facilitated by the use\nof an op amp. The rolloff of this filter is 40 dB/decade. The correct combination of R and C values can\ntailor this generic filter to have different respons es, such as the Butterwor th and Chebyshev filters\npreviously described. Higher order filters are obtained by cascading more RC single pole filters. vin vout\nR\nC\n(a)\nvin vout\nR1\nC1\nR2\nC2\nR4\nR3\n+\n-\n(b)",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:26:53",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 26,
+      "page_end": 26,
+      "text": "Fundamental Concepts in EMG Signal Acquisition Filters\n© Delsys Inc., 2003 23/31\nated, each tap consecutively holding one value of the sampled data (xn to xi). Individual tap values\nare then multiplied by a specific weighting factor (hn to hi). The current filter output, yi, is then cal-\nculated by summing all the weighted input tap values:\nFrom the illustration of Figure 16, an interesting property of this type of filter becomes apparent:\nthe filter’s output, yi, can be based on the past values of xi+k (k<0) as well as the future values of\nxi+k (k>0). This possibility accounts for an added design parameter which is not available in ana-\nlog filters due to their causal nature. Furthermore, digital filters can be designed to make use of\npreviously calculated outputs. In a sense, the di gital filter can be thought of as having a feedback\ncomponent (yi-1) used for determining the current output yi. These filters are generally called IIR\n(Infinite Impulse Response) filters or Recursive Filters. In contrast, filters that do not make use of\nprevious outputs are called FIR (Finite Impulse Response) filters.",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:26:54",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 26,
+      "page_end": 26,
+      "text": "Impulse Response) filters or Recursive Filters. In contrast, filters that do not make use of\nprevious outputs are called FIR (Finite Impulse Response) filters.\n\nGenerally, IIR filters can\nachieve much steeper roll-offs than FIR filters for the same number of input taps, but care must be\ntaken to ensure the feedback in the filter does not render it unstab le. FIR filters are always stable\nbut may require many more taps than IIR filters to achieve the same results. The reader is directed\nto the suggested reading list for further elaborations on this topic. (Eq. 18)\nwhere k is the summation index, i is sample value index, n is the number filter taps, x is the filter\ninput value, h is tap weight and y is the filter output value. Figure 16: The sampling and digital filtering of an analog voltage signal. The signal transmission\npropagates form left to right starting with an analog voltage signal being first digitized and then filtered. Note that the filter output, y i, can be a function of past values (x i+k, k>0) and, if desired, of “future”\nvalues (xi+k, k<0). Digital filters making use of future values are called non-causal filters.",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:26:55",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 26,
+      "page_end": 26,
+      "text": "function of past values (x i+k, k>0) and, if desired, of “future”\nvalues (xi+k, k<0). Digital filters making use of future values are called non-causal filters.\n\nyi hkxk\nki n –=\ni\n∑=\nanalog-to-\ndigital\nconverter\nanalog\nvoltage\nsignal\ndigital (sampled)\nsignal previous values future values\ncurrent\nvalue\ninput\ntaps\nsignal\nconditioning\nxi+3 xi+2 xi+1 xi xi-1 xi-2 xi-3\nΣ\nyi filtered output\nhi+3 hi+2 hi+1 hi hi-1 hi-2 hi-3\nADC",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:27:56",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 27,
+      "page_end": 27,
+      "text": "Fundamental Concepts in EMG Signal Acquisition Filters\n© Delsys Inc., 2003 24/31\n3.9 Delsys Practical Note\nDelsys EMG systems include high performance anal og filters for signal antialiasing and instru-\nmentation noise management. All filters are desi gned to maximize sign al passband linearity, as\nwell as phase linearity. Transitions bands for EMG systems are typically -80 dB/decade, with pass-\nband ripples within 0.5% deviating. Current hardware specifications can be obtained from the Del-\nsys web site (www.delsys.com). Filters present in the EMG systems can be modified upon request,\nbut should never be removed or excluded from the system. The analog filters present in the hard-\nware are designed to capture the full bandwidth of the EMG signal, as well as any auxiliary signals\nused in conjuction with the EMG re cording. Once the signals have been digitized and stored on a\ncomputer, additional filtering can be effected on the signals through EMGworks software. This fil-\ntering requires the definition of either an FIR or an IIR digital filter through the specification of tap\ninput coefficients (weights) as derived from th e desired filter’s characteristics.",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:27:57",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 27,
+      "page_end": 27,
+      "text": "n of either an FIR or an IIR digital filter through the specification of tap\ninput coefficients (weights) as derived from th e desired filter’s characteristics.\n\nThe reader is\ndirected to the EMGworks User’s Manual for further information on this topic.",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:28:58",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 28,
+      "page_end": 28,
+      "text": "Fundamental Concepts in EMG Signal Acquisition Considerations for Analog-to-Digital Converters\n© Delsys Inc., 2003 25/31\n4. Considerations for\nAnalog-to-Digital Converters\nThe digitization process of an analog signal is performed by a device known as an Analog-to-Dig-\nital Converter (ADC), as described in the previo us sections. These devices are a common compo-\nnent of modern electronic products, and their use is highly varied and widespread; it is important\nthat each application is assessed by considering the advantages and limitations of the specified\nADC. 4.1 Quantization\nThe concept of quantization is introduced when datum values can only be represented by a limited\nnumber of digits. In the case of computers, these values are described by binary digits, abbreviated\nas “bits”. All analog-to-digital converters have a fixed number of bits available for quantifying the\nvoltage signal detected at the input. The most common Adds quantize with a resolution of 8, 12 or\n16 bits, although other configurations are available. Figure 17 (a) illustrates the quantized range of\na 4-bit ADC. Note that 4 bits can describe 16 unique values.",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:28:59",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 28,
+      "page_end": 28,
+      "text": "bits, although other configurations are available. Figure 17 (a) illustrates the quantized range of\na 4-bit ADC. Note that 4 bits can describe 16 unique values.\n\nThe number of values described by\nand n-bit number (referred to as a ‘word’) is calculated with the following formula:\nRange of n-bit ADC = 2n values (Eq. 19)\nThe ranges of common analog-to-digital converters are listed in Figure 17 (b).",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:29:60",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 29,
+      "page_end": 29,
+      "text": "Fundamental Concepts in EMG Signal Acquisition Considerations for Analog-to-Digital Converters\n© Delsys Inc., 2003 26/31\n4.2 Dynamic Range\nThe digitization of an analog voltage signal is speci fied over a particular range. That is to say, a\nmaximum and minimum input voltage is defined over which the quantization should occur. By\ndefining this range of operation for a given n-bit quantization scheme, the precision or “resolution”\nof the analog-to-digital converter can be characterized with the following equation:\nVresolution=Vrange/(2n)( E q . 2 0 )\nFor example, in the case of a 16-bit A/D system, for a range between -5 an d +5 V olts, the resolu-\ntion becomes:\nQuantization Ranges of Different-\nLength Binary Words\nNumber of Bits Unique Values\n24\n41 6\n82 5 6\n12 4096\n14 16384\n16 65535\nFigure 17: a) Quantization steps of 4 bit analog-to-digital converter. The steps from 0 to 15 are scaled to\nrepresent the full voltage range input range (for example, the input range could be scaled for ±1 V , where\nthe bits from 0 to 7 represent the negative voltage ra nge and the bits from 8 to 15 represent the positive\nvoltage range. b) Quantization range as a function of bit length.",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:29:61",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 29,
+      "page_end": 29,
+      "text": "0 to 7 represent the negative voltage ra nge and the bits from 8 to 15 represent the positive\nvoltage range. b) Quantization range as a function of bit length.\n\nNote that the possible resolution doubles\nwith the addition of each bit to the word length. Vresolution =10V/(216)\n=1.53x10-4 V\n=153 µ\n0\n8\n15\n0000\n0001\n0111\n1000\n1110\n1111\nDecimal\nBinary\n(a)\nQuantization of a 4-Bit ADC",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:30:62",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 30,
+      "page_end": 30,
+      "text": "Fundamental Concepts in EMG Signal Acquisition Considerations for Analog-to-Digital Converters\n© Delsys Inc., 2003 27/31\nIn this case the digitization process is unable to resolve input voltage fluctuations that are less than\n153 µV . This inherent limitation of a discrete num ber representation scheme is said to introduce\n“quantization error” in the measure ment process. The reader is referred to the suggested reading\nlist for a detailed analysis of quantization error. It is important to ensure that the quantization error\nintroduced by the digitization pr ocess does not significantly affect the accuracy of the measured\nsignal.\nTypical ranges for ADCs are ±1.25, ±2.5, ±5, and ±10 V olts. As stated in the example above, a 16-\nbit ADC specified for a range of ±5V , would have a precision of 153µV . This same ADC specified\nfor a range one fourth this size, at ±1.25V would have a precision of 38 µV (a value 4 times\nsmaller than the previous case). Th is point is further illustrated in Figure 18. It is important to",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:31:63",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 31,
+      "page_end": 31,
+      "text": "Fundamental Concepts in EMG Signal Acquisition Considerations for Analog-to-Digital Converters\n© Delsys Inc., 2003 28/31\nensure that the ADC range encompasses the full sp an of the voltage input while maintaining the\nminimum resolution necessary. If the necessary re solution for a given inpu t voltage swing cannot\nbe obtained, then it may be necessary to use an ADC with a higher number of quantization bits.\n4.3 EMG Signal Quantization\nWhen choosing an appropriate AD C for digitizing EMG signals, it is important to consider three\ninteracting factors:\n1. The gain of the system.\nFigure 18: Resolution vs. A/D Range: (a) A representative signal with a peak-to-peak amplitude of 2.5\nvolts sampled over a ±5 V range. For a 16 bit digital converter, the resolution, ∆V , is 153 me. (b) the same\nsignal sampled over a ±1.25 V range. For the same 16 bit ADC, the resolution has now increased to four-\nfold to 38 mV\n(a) Quantization of a sample MUAP in a 10V Range\n∆V {\nAmplitude (V)\nTime (S) -5.0\n+5.0\n∆V {\nAmplitude (V)\nTime (S) -1.25\n+1.25\n(b) Quantization of a sample MUAP in a 2.5V Range",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:32:64",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 32,
+      "page_end": 32,
+      "text": "Fundamental Concepts in EMG Signal Acquisition Considerations for Analog-to-Digital Converters\n© Delsys Inc., 2003 29/31\n2. The input noise of the system. 3. The maximum voltage output of the system. It is important to understand how these three factors interrelate in order to determine the necessary\nspecifications of the analog-to-digital conversion system. System Gain\nKnowledge of the overall system am plification is necessary for rela ting the output signals to the\ntrue input signals detected. For example, if the overall system gain is 1000 V/V , the occurrence of\na 1 V spike at the output corresponds to a 1 mV (1/1000 V) disturbance at the input. A similar 1 V\noutput recorded with a gain of 10 000 would be caused by a 100 µV (1/10 000 V) input signal. When the amplitude of output signals are divided by the overall system gain to obtain the input\namplitude, it said that they are referred to input, abbreviated as “r.t.i.”. This is a useful procedure\nfor modeling and comparing signal and noise characteristics, regardless of a signal’s origin.",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:32:65",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 32,
+      "page_end": 32,
+      "text": "rred to input, abbreviated as “r.t.i.”. This is a useful procedure\nfor modeling and comparing signal and noise characteristics, regardless of a signal’s origin.\n\nSystem Noise\nNoise can be described as any portion or aspect of the output signal which is undesirable and may\npossibly mask the true signal of interest. Noise can have many so urces and interpretations; it can\ncome from external radiated sources (such as “lin e interference”), it can be caused by electrical\ndisturbances intrinsic to the recording environment (such as motion or stimulus artifact), and it can\nbe caused by the nature of the recording devic es themselves. The design of the EMG equipment,\nthe establishment of a noise-free recording environment and the methodologies for using the EMG\nequipment must be carefully considered so that the EMG signal may be recorded with high fidelity\nand so that the signal-to-noise ratio is maximized. In most cases, the degree to which external radiated noise sources and environmental noise sources\naffect the detected signal, can largely be cont rolled by the user and the recording methodology. The intrinsic noise of the EMG eq uipment, however, is beyond the control of the user and is\ngrossly determined by the design and construc tion of the equipment.",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:32:66",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 32,
+      "page_end": 32,
+      "text": "he intrinsic noise of the EMG eq uipment, however, is beyond the control of the user and is\ngrossly determined by the design and construc tion of the equipment.\n\nThe electronic components\nand the design of DelSys equipm ent is regularly updated to incl ude recent developments in low\nnoise technologies. At this point in time DelSys has succeeded in obtaining an extremely low sys-\ntem noise of 5 µV(r.t.i.) per channel, measured by connecting the EMG electrode inputs to the ref-\nerence potential. This means that if the output of a channel is recorded with no EMG signal, a\nbaseline noise with an average amplitude of 5 µV(r.t.i.) will be observed. This is an important\nspecification, as the minimum discernible EMG signal is within this range. A more comprehensive\ndiscussion on noise is presented in the following section on Noise. Signal Range\nThe signal range of a system is defined as th e maximum voltage output the device is capable of\nsustaining. The voltage output of Delsys EMG systems is specified to be within the range of ±5V . This means that even in the most adverse circum stances, when the amplifie rs are saturated or in\nthe presence of excessively large noise artifacts, the system output will never exceed ±5V .",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:33:67",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 33,
+      "page_end": 33,
+      "text": "Fundamental Concepts in EMG Signal Acquisition Considerations for Analog-to-Digital Converters\n© Delsys Inc., 2003 30/31\n4.4 Determining the ADC Specifications\nWith the information presented above, it is possi ble to begin assessing the ADC characteristics. The following points should be considered, not necessarily in the order presented:\nADC Range Setting\nIt is logical to state that the ADC range setting should match the analog output voltage of the EMG\nsystem of ±5 V . An input range larger than this 10-volt swing would offer no benefit, as the system\nis physically incapable of outp utting signals that would take advantage of the added span. A\nsmaller range than the rated output would increase overall signal precision, but must be used with\ncaution due to the possibility of ADC input saturation. Gain Setting\nThe selection of gain for a signal conditioning system is determined by the amplitude range of the\ninput signals and the desired syst em output signal range. In the case of the EMG signal, the input\namplitude ranges from ±20 µV for the faintest signals to ±2 mV for robust signals.",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:33:68",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 33,
+      "page_end": 33,
+      "text": "desired syst em output signal range. In the case of the EMG signal, the input\namplitude ranges from ±20 µV for the faintest signals to ±2 mV for robust signals.\n\nFor the purpose\nof interacting with common electr onic instrumentation, it is conv enient to amplify this EMG sig-\nnal so that it never exceeds ±5 V . An amplification factor of 1000 would comfortably place the\nEMG signal in an amplitude range of ±20 mV to ±2V . Different gain settings can be used if it is known that the recorded signal of interest will occupy a\nmore stringent subset of the presumed range. For example, if it is not expected to record EMG sig-\nnals greater than ±200 µV for a particular muscle site, it ma y be advantageous to use a gain of\n10 000, since this will place the output at ±0.2 V to ±2 V . Similarly if the detected signal is\nexpected to be abnormally large, ±20 mV for example, a gain of 100 could be used. Choosing an\nappropriate gain setting so that the output signal range is compa tible with the next stage of elec-\ntronic equipment (usually a data acquisition system) is key for high signal fidelity. Another essential consideration when selecting a system gain is the effect of non-linearities on the\nsignal output, occurring most often when the input signal is outside the ideal or the expected range.",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:33:69",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 33,
+      "page_end": 33,
+      "text": "ting a system gain is the effect of non-linearities on the\nsignal output, occurring most often when the input signal is outside the ideal or the expected range.\n\nFor example, if an amplification factor of 10000 is used, and the input signal to the system is 1 mV ,\nthe expected output should be 10 V . However, if the system is on ly capable of outputting a signal\nin the 5-volt range, the output signal will be clipped. The recorded signal would then not be a cor-\nrect linear representation of the input signal. Other non-linearities could be introduced from the components used for electrical safety isolation. All isolation sub-systems) have specified linear operating ranges. If the gain is such that a portion\nof the output signal does not fall within this specified linear range, then the potential exists for the\nsignal to be distorted (most often unpredictably). Fortunately, with the proper gain settings and dis-\ntribution throughout the system, it is possible to ensure that the signal of interest is always trashi-\nness in a linear fashion. DelSys EMG systems have selectable gains of 100,.1000 and 10000. The recommended gain set-\nting for most recording scenarios is 1000 V/V . As will be described in the next section, use of a 16-\nbit A/D system captures the full span of the EMG si gnal.",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:33:70",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 33,
+      "page_end": 33,
+      "text": "ting for most recording scenarios is 1000 V/V . As will be described in the next section, use of a 16-\nbit A/D system captures the full span of the EMG si gnal.\n\nIt also guarantees operation in the linear\nrange of the isolation transformers included with each system.",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:34:71",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 34,
+      "page_end": 34,
+      "text": "Fundamental Concepts in EMG Signal Acquisition Considerations for Analog-to-Digital Converters\n© Delsys Inc., 2003 31/31\nMinimum Resolution:\nAn important specification to determine is the minimum acceptable signal resolution. With a base-\nline noise of ±5 µV , it is necessary to digitize the signal with enough bits so that even the faintest\nEMG activity can be appreciably quantified. A 16-bit analog to digital system set at ±5 V has a resolution of 0.153 µV(r.t.i.) for a system with a\ngain of 1000. This means that the recorded noise can be resolved with at least 5 bits (i.e. 32 quan-\ntization steps). This leaves ample resolution fo r all EMG activity, which will be decidedly larger\nthan the baseline level. In contrast, a 12 bit A-D system with the same parameters has a much\npoorer resolution 2.441 mV . This value can be improved to 244 µV(r.t.i.) if a system gain of 10000\nis used. Clearly, a 16-bit digitiza tion system with a fixed gain of 1000 is the preferred choice for\nfull scale range and minimum signal resolution. 4.5 Delsys Practical Note\nAll Delsys EMG equipment is typi cally supplied with 16-bit data acquisition capability.",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:34:72",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 34,
+      "page_end": 34,
+      "text": "ll scale range and minimum signal resolution. 4.5 Delsys Practical Note\nAll Delsys EMG equipment is typi cally supplied with 16-bit data acquisition capability.\n\nThis pol-\nicy ensures ample minimum signal resolution as well as plenty of dynamic range for a ±5V signal\nspan. This configuration is found to be the most versatile, as it is ideal for guaranteeing the accu-\nracy of very low voltage EMG signals while pe rmitting the inclusion high voltage signals from\nauxiliary inputs such as goniometers and force gauges. Data acquisition systems with less than 16\nbits may present limitations when analyzing very low level EMG contractions, while the increase\nin resolution of ADCs greater than 16 bits is superfluous and comes at a much greater expense. Number of Bits\nRange 81 2 1 6\nG=100 G=1k G=10k G=100 G=1k G=10k G=100 G=1k G=10k\n±10 V 781 µV7 8 . 1 µV7 . 8 1 µV 48.8 µV4 . 8 8 µV 488 nV 3.05 µV 305 nV 30.5 nV\n±5 V 391 µV3 9 . 1 µV3 . 9 1 µV 24.4 µV2 . 4 4 µV 244 nV 1.53 µV 153 nV 15.3 nV\n±2.5 V 195 µV1 9 . 5 µV1 . 9 5 µV 12.2 µV1 . 2 2 µV 122 nV 763 nV 76.3 nV 7.63 nV\n±1.25 V 97.7 µV 9.77 µV 977 nV 6.10 µV 610 nV 61.0 nV 381 nV 38.1 nV 3.81 nV\nTable 2: Achievable resolution as a function of available bits, ADC range setting and system gain. All\ncalculations are referred to input (r.t.i.).",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "fundamental-concepts-in-emg-signal-acquisition:34:73",
+      "source_name": "fundamental-concepts-in-emg-signal-acquisition.pdf",
+      "title": "Delsys Fundamental Concepts in EMG Signal Acquisition",
+      "page_start": 34,
+      "page_end": 34,
+      "text": "1 nV 3.81 nV\nTable 2: Achievable resolution as a function of available bits, ADC range setting and system gain. All\ncalculations are referred to input (r.t.i.).\n\nNote that DelSys Systems have a baseline noise of 5µV (r.t.i.). The\nrecommended configuration for DelSys Systems is to digitize data at a ±5V range with a 16-bit analog-to-\ndigital converter and a gain setting of 1000. This will ensure appropriate resolution under any condition. (Metric prefixes: ‘k’ refers to a factor of 103 (e.g. 10 k=10000), ‘µ’ refers to a factor of 10-6 (e.g. 391 µV =\n0.000391 V), and ‘n’ refers to a factor of 10-9 (e.g. 153 nV=0.000000153 V)",
+      "tags": [
+        "emg",
+        "signal acquisition",
+        "noise",
+        "artifact",
+        "filter",
+        "sampling",
+        "adc",
+        "signal quality",
+        "electrode",
+        "sensor"
+      ]
+    },
+    {
+      "chunk_id": "seniam_commentary.en:1:1",
+      "source_name": "seniam_commentary.en.pdf",
+      "title": "SENIAM Commentary",
+      "page_start": 1,
+      "page_end": 1,
+      "text": "1\nA commentary to the\nEuropean Concerted Action\n“Surface Electromyography for Non Invasive Assessment of Muscles”\n(SENIAM, 1996-1999)\nTwenty years later\nMarch 2021\nRoberto Merletti, Ph.D\nLISiN, Politecnico di Torino, Italy,\nSENIAM Management Group\n1. Objectives:\nThe European Concerted Action “Surface electromyography for non invasive assessment of\nmuscles “ (SENIAM) was carried out with EU support in 1996-1999 with two main objectives:\n1. To exchange knowledge and experiences among different countries, disciplines and\nprofessions, and to enhance transfer of knowledge from research labs to teaching and\nclinical institutions. 2. To develop recommendations on key items that were limiting exchange of knowledge and\nexperience with respect to clinical surface electromyography (sEMG) data and findings. 2. Project Management Group\nThe SENIAM project was co-ordinated and managed by:\nDr. H.J. Hermens and B Freriks – Enschede - the Netherlands,\nProf. R. Merletti - Torino - Italy\nProf. Dr. G. Rau and Dr. C. Disselhorst-Klug - Aachen - Germany\nProf. Dr. D. F. Stegeman - Nijmegen - the Netherlands\nDr. G.M.",
+      "tags": [
+        "seniam",
+        "commentary",
+        "surface emg",
+        "electrode",
+        "placement",
+        "signal quality",
+        "measurement",
+        "biceps",
+        "biceps brachii",
+        "muscle belly",
+        "tendon",
+        "innervation zone",
+        "motor point"
+      ]
+    },
+    {
+      "chunk_id": "seniam_commentary.en:1:2",
+      "source_name": "seniam_commentary.en.pdf",
+      "title": "SENIAM Commentary",
+      "page_start": 1,
+      "page_end": 1,
+      "text": "rof. R. Merletti - Torino - Italy\nProf. Dr. G. Rau and Dr. C. Disselhorst-Klug - Aachen - Germany\nProf. Dr. D. F. Stegeman - Nijmegen - the Netherlands\nDr. G.M.\n\nHägg - Solna - Sweden\nResearchers and clinicians of nine countries participated to the project:\nBelgium, Finland, France, Greece, Italy, Germany, the Netherlands, Sweden, Switzerland\n3. Products and Results of the Project\nThe Projec t supported the exchange of researchers among the participating countries and\nproduced eight deliverables/books collected in a CD -ROM and in the we bsite\nwww.seniam.org. Volume 8 is a summary of recommendations and is available in this website,\nwith permission. These books are:\nSENIAM 1. European Activities on Surface Electromyography. Proceedings of the first general SENIAM workshop, Torino, Italy, September 1996\nHermie J. Hermens, Roberto Merletti, Bart Freriks",
+      "tags": [
+        "seniam",
+        "commentary",
+        "surface emg",
+        "electrode",
+        "placement",
+        "signal quality",
+        "measurement",
+        "biceps",
+        "biceps brachii",
+        "muscle belly",
+        "tendon",
+        "innervation zone",
+        "motor point"
+      ]
+    },
+    {
+      "chunk_id": "seniam_commentary.en:2:3",
+      "source_name": "seniam_commentary.en.pdf",
+      "title": "SENIAM Commentary",
+      "page_start": 2,
+      "page_end": 2,
+      "text": "2\nSENIAM 2. European Applications of Surface Electromyography. Proceedings of the second general SENIAM workshop, Stockholm, Sweden, June 1997\nHermie J. Hermens, Göran Hägg, Bart Freriks\nSENIAM 3. Surface Electromyography Application Areas and Parameters. Proceedings of the third general SENIAM workshop, Aachen, Germany, May 1998\nHermie J. Hermens, Günter Rau, Catherine Disselhorst-Klug , Bart Freriks\nSENIAM 4 Future Applications of Surface Electromyography\nProceedings of the fourth general SENIAM workshop, Hertogenbosch, the Netherlands,\nSeptember 1999\nHermie J. Hermens, Bart Freriks\nSENIAM 5. The State of the Art on Sensors and Sensor Placement Procedures for Surface\nElectromyography: A proposal for sensor placement procedures. 1997\nHermie J. Hermens, Bart Freriks\nSENIAM 6. State of the Art on Modelling Methods for Surface Electromyography, 1998\nHermie J. Hermens, Dick Stegeman, Joleen Blok, Bart Freriks\nSENIAM 7. The State of the Art on Signal Processing Methods for Surface\nElectromyography. 1999\nHermie J. Hermens, Roberto Merletti , Herve Rix , Bart Freriks\nSENIAM 8. European Recommendations for Surface Electromyography. Results of the\nSENIAM project . 1999\nHermie J.",
+      "tags": [
+        "seniam",
+        "commentary",
+        "surface emg",
+        "electrode",
+        "placement",
+        "signal quality",
+        "measurement",
+        "biceps",
+        "biceps brachii",
+        "muscle belly",
+        "tendon",
+        "innervation zone",
+        "motor point"
+      ]
+    },
+    {
+      "chunk_id": "seniam_commentary.en:2:4",
+      "source_name": "seniam_commentary.en.pdf",
+      "title": "SENIAM Commentary",
+      "page_start": 2,
+      "page_end": 2,
+      "text": "ens, Roberto Merletti , Herve Rix , Bart Freriks\nSENIAM 8. European Recommendations for Surface Electromyography. Results of the\nSENIAM project . 1999\nHermie J.\n\nHermens, Bart Freriks, Roberto Merletti, Dick Stegeman, Joleen Blok, Günter Rau,\nCatherine Disselhorst-Klug, Göran Hägg\nThe tables of content of these books are available on www.seniam.org. Volume 8 has been translated in Italian and is available from the Italian version of this\nwebsite. 4. Twenty years later\n4.1 Strengths of the SENIAM Project\nThe SENIAM Project came 15 years after the fundamental textbook by J. Basmajian and C. J. De Luca “Muscles alive: their functions revealed by electromyography” Williams & Wilkins,\nUSA, Fifth Edition,1985, with the purpose of disseminating and systematizing the growing\nsEMG knowledge and methodology. The SENIAM Project provided recommendations and\nguidelines concerning the use of surface EMG in the research and clinical worlds in particular\nin the fields of neuromuscular physiology, sport, prevention and occupational medicine. Most\npapers published in these fields in the last two decades refer to SENIAM Guidelines in their\nmethodology sections. Many subsequent initiatives were directly or indirectly inspired by the SENIAM Pro ject.",
+      "tags": [
+        "seniam",
+        "commentary",
+        "surface emg",
+        "electrode",
+        "placement",
+        "signal quality",
+        "measurement",
+        "biceps",
+        "biceps brachii",
+        "muscle belly",
+        "tendon",
+        "innervation zone",
+        "motor point"
+      ]
+    },
+    {
+      "chunk_id": "seniam_commentary.en:2:5",
+      "source_name": "seniam_commentary.en.pdf",
+      "title": "SENIAM Commentary",
+      "page_start": 2,
+      "page_end": 2,
+      "text": "t two decades refer to SENIAM Guidelines in their\nmethodology sections. Many subsequent initiatives were directly or indirectly inspired by the SENIAM Pro ject.\n\nThousands of papers in the last two decades further investigated and illustrated the nature and\nthe information content of the surface EMG providing new knowledge and material that\nupdated and tuned the original recommendations. A few textbooks (listed in this website) have",
+      "tags": [
+        "seniam",
+        "commentary",
+        "surface emg",
+        "electrode",
+        "placement",
+        "signal quality",
+        "measurement",
+        "biceps",
+        "biceps brachii",
+        "muscle belly",
+        "tendon",
+        "innervation zone",
+        "motor point"
+      ]
+    },
+    {
+      "chunk_id": "seniam_commentary.en:3:6",
+      "source_name": "seniam_commentary.en.pdf",
+      "title": "SENIAM Commentary",
+      "page_start": 3,
+      "page_end": 3,
+      "text": "3\nbeen written to disseminate this knowledge among students in the many fields involving\nsEMG. Fig. 1 provides a general perception. See section 4.3. Fig. 1. Plot of the sEMG publications per year resulting from Pubmed using the search string\n< “surface electromyography” OR “surface EMG”> in February 2021. Most of the articles\nare written by engineers. The total number of publications drops to 51 if < AND “c linical\napplications”> is added to the search string. 4.2 Weaknesses of the SENIAM Project\nDespite the efforts of the SENIAM partners, the SENIAM recommendations never generated\na set of accepted standards and protocols to be followed in clinical practice. Despite pressure\nby researchers, time was not mature for a substantial participation of clinicians in a project that\nmany of them considered of engineering pertinence. The work has been well rece ived by\nscholars and researchers but its consideration by teachers and schools in the fields of\nphysiotherapy and occupational therapy has been very country-dependent.",
+      "tags": [
+        "seniam",
+        "commentary",
+        "surface emg",
+        "electrode",
+        "placement",
+        "signal quality",
+        "measurement",
+        "biceps",
+        "biceps brachii",
+        "muscle belly",
+        "tendon",
+        "innervation zone",
+        "motor point"
+      ]
+    },
+    {
+      "chunk_id": "seniam_commentary.en:3:7",
+      "source_name": "seniam_commentary.en.pdf",
+      "title": "SENIAM Commentary",
+      "page_start": 3,
+      "page_end": 3,
+      "text": "scholars and researchers but its consideration by teachers and schools in the fields of\nphysiotherapy and occupational therapy has been very country-dependent.\n\nThis fact limited\nfurther projects and progress in the educational field, but certainly not in the research fields,\nresulting in a widening gap between available knowledge and its clinical applications. In some\ncountries this gap is dramatic and has led to vicious circles such as indicated in Fig. 2. Interventions are needed to correct this situation and break the circle. The creation of graduate\nprograms with strong interdisciplinary connotation is one of such interventions.",
+      "tags": [
+        "seniam",
+        "commentary",
+        "surface emg",
+        "electrode",
+        "placement",
+        "signal quality",
+        "measurement",
+        "biceps",
+        "biceps brachii",
+        "muscle belly",
+        "tendon",
+        "innervation zone",
+        "motor point"
+      ]
+    },
+    {
+      "chunk_id": "seniam_commentary.en:4:8",
+      "source_name": "seniam_commentary.en.pdf",
+      "title": "SENIAM Commentary",
+      "page_start": 4,
+      "page_end": 4,
+      "text": "4\nFig. 2. A vicious circle developed in countries who do not offer Ph.D. or post graduate\neducation in the fields of physiotherapy and occupational therapy. The situation is less critical\nin the fields of movement sciences and kinesiology. Improving the level and quality of teaching\nby introducing a higher level of education, including technological knowledge, is one way to\nbreak the circle. An alternative way is to introduce new figures with a predominant technical\nknowledge. 4.3. Post-SENIAM developments: the last twenty years\nExtensive new sEMG knowledge and technologies have been developed since the SENIAM\nProject and are described in a number of books. Some of the recommendations need updating\nand adaptation to such new knowledge, in particular concerning the development of 2D High\nDensity electrode technology (electrode size and distance, signal processing and clinical\ninterpretation) and the technology for the decomposition of sEMG into the constituent trains\nof motor unit action potentials.",
+      "tags": [
+        "seniam",
+        "commentary",
+        "surface emg",
+        "electrode",
+        "placement",
+        "signal quality",
+        "measurement",
+        "biceps",
+        "biceps brachii",
+        "muscle belly",
+        "tendon",
+        "innervation zone",
+        "motor point"
+      ]
+    },
+    {
+      "chunk_id": "seniam_commentary.en:4:9",
+      "source_name": "seniam_commentary.en.pdf",
+      "title": "SENIAM Commentary",
+      "page_start": 4,
+      "page_end": 4,
+      "text": "ce, signal processing and clinical\ninterpretation) and the technology for the decomposition of sEMG into the constituent trains\nof motor unit action potentials.\n\nRemarkable differences still exists between EU countries and\nrequire additional EU (as well as worldwide) efforts for standardization of the tec hnique,\ndefinition of clinical protocols and teaching and training of new technical and/or clinical\noperators able to address the multidisciplinary nature of the field. Conditions limiting the dissemination, teaching and clinical use of sEMG (as well as of other\nmeasurement techniques) still exist in many countries where technology seems to be more\nwelcome when it provides “therapeutic” tools than when provides sensors and measurement\ntools. An authoritative analysis of the problem is provided by the Editorial Project: “Surface\nElectromyography: barriers limiting widespread use of sEMG in clinical assessment and\nneurorehabilitation” sponsored by the open -access journal Frontiers in Neurology/\nNeurorehabilitation (https://www.frontiersin.org/research-topics/11157 ). The Project is\ndescribed in a free e -book with 18 contributions from seven countries and 80 authors (33\nengineers, 16 MDs, 18 physio-therapists and occupational therapists, 13 movement scientists)\nwho are highly respected experts in the many fields of sEMG.",
+      "tags": [
+        "seniam",
+        "commentary",
+        "surface emg",
+        "electrode",
+        "placement",
+        "signal quality",
+        "measurement",
+        "biceps",
+        "biceps brachii",
+        "muscle belly",
+        "tendon",
+        "innervation zone",
+        "motor point"
+      ]
+    },
+    {
+      "chunk_id": "seniam_commentary.en:4:10",
+      "source_name": "seniam_commentary.en.pdf",
+      "title": "SENIAM Commentary",
+      "page_start": 4,
+      "page_end": 4,
+      "text": "rs (33\nengineers, 16 MDs, 18 physio-therapists and occupational therapists, 13 movement scientists)\nwho are highly respected experts in the many fields of sEMG.\n\nThe Project received about\n30.000 views (February 2021) , indicating the high interest n the subject . Other efforts are\ncarried out by the Journal of Electromyography and Kinesiology with the publication of open\naccess tutorials and consensus papers.",
+      "tags": [
+        "seniam",
+        "commentary",
+        "surface emg",
+        "electrode",
+        "placement",
+        "signal quality",
+        "measurement",
+        "biceps",
+        "biceps brachii",
+        "muscle belly",
+        "tendon",
+        "innervation zone",
+        "motor point"
+      ]
+    },
+    {
+      "chunk_id": "seniam_commentary.en:5:11",
+      "source_name": "seniam_commentary.en.pdf",
+      "title": "SENIAM Commentary",
+      "page_start": 5,
+      "page_end": 5,
+      "text": "5\n4.4. Post-SENIAM developments: the next twenty years\nThe sEMG technology is rapidly growing and major advances are expected in the near future. Some will focus on the acquisition of new knowledge but many will focus on the solving of\ntechnical problems that make the clinical applications relatively difficult or cumbersome. Wearable elastic sleeves containing hundreds of electrodes are becoming available in research\nlabs and software for the automatic selection of relevant channels and for the interpretation of\nthe associated information is being developed. Without proper user education the gap between\nsophisticated technology and user clinical experience may widen. Inclusion of “intelligence”\nin new devices, to facilitate signal interpretation, is not necessarily a good solution, although\nproposed by some clinicians as a possible approach. As happened in other interdisciplinary fields , the training of new hybrid figures may be an\nalternative to increasing the knowledge and competence of the existing ones that are already\noverloaded.",
+      "tags": [
+        "seniam",
+        "commentary",
+        "surface emg",
+        "electrode",
+        "placement",
+        "signal quality",
+        "measurement",
+        "biceps",
+        "biceps brachii",
+        "muscle belly",
+        "tendon",
+        "innervation zone",
+        "motor point"
+      ]
+    },
+    {
+      "chunk_id": "seniam_commentary.en:5:12",
+      "source_name": "seniam_commentary.en.pdf",
+      "title": "SENIAM Commentary",
+      "page_start": 5,
+      "page_end": 5,
+      "text": "y fields , the training of new hybrid figures may be an\nalternative to increasing the knowledge and competence of the existing ones that are already\noverloaded.\n\nThe new figure of the “clinical technologist” is the option described in\nhttps://www.tudelft.nl/en/2020/3me/june/clinical-technologists-officially-registered-\nhealthcare-professionals/ (March 2021). Its area of expertise includes a) the correct application of existing measurement procedures,\nb) the design and development of new methods and therapies using technology , and c) the\ncarrying out of complex technical procedures in the field in which the clinical technologist is\ntrained. While other options may be possible, international collaboration and EU support/coordination\nare badly needed to smooth out the differences between countries in the field of technology\neducation in the health delivery sector , and specifically in the sEMG field . This requires a\ngreater involvement of the clinical operators in achieving higher levels of education and in\nwriting international proposals to address the issue of technology management. The international and national scientific societies should take a role in proposing a new\nSENIAM Project focused on technology transfer , user education and training of new figures\nwith interdisciplinary knowledge.",
+      "tags": [
+        "seniam",
+        "commentary",
+        "surface emg",
+        "electrode",
+        "placement",
+        "signal quality",
+        "measurement",
+        "biceps",
+        "biceps brachii",
+        "muscle belly",
+        "tendon",
+        "innervation zone",
+        "motor point"
+      ]
+    },
+    {
+      "chunk_id": "Your-Home-Exercise-Plan-ML3403:1:1",
+      "source_name": "Your-Home-Exercise-Plan-ML3403.pdf",
+      "title": "NHS Home Exercise Plan",
+      "page_start": 1,
+      "page_end": 1,
+      "text": "Information and advice for patients\nCommunity Respiratory Service\nYour Home Exercise Plan\nPage 1\nA Home Exercise Plan is designed for people who are unable to attend Pulmonary\nRehabilitation classes in a community setting. This may be for a number of reasons such as\ntravelling difficulties, personal circumstances, or individuals who are unsuitable for group\nwork. The aim of the programme is to help you increase your fitness levels in order to\nimprove your quality of life. What are the benefits of these exercises? These exercises can:\n• Help to strengthen your heart so it does not have to work as hard\n• Use more of your lungs and reduce how often you have to breathe thus reducing stress\non your heart. • As you get fitter you produce more red blood cells to take oxygen around your body\n• Help you lose excess weight\n• Improve your circulation\n• Strengthen your muscles and bones and keep your joints healthy\n• Improve your balance, thus preventing falls\nThe benefits of the exercises will depend on how much effort you put in. The exercises need\nto be performed correctly and on a regular basis. Are there any risks to doing the exercises?",
+      "tags": [
+        "exercise",
+        "wall press",
+        "push up",
+        "push-up",
+        "press up",
+        "bicep curl",
+        "biceps curl",
+        "standing arcs",
+        "lateral raise",
+        "form"
+      ]
+    },
+    {
+      "chunk_id": "Your-Home-Exercise-Plan-ML3403:1:2",
+      "source_name": "Your-Home-Exercise-Plan-ML3403.pdf",
+      "title": "NHS Home Exercise Plan",
+      "page_start": 1,
+      "page_end": 1,
+      "text": "ises will depend on how much effort you put in. The exercises need\nto be performed correctly and on a regular basis. Are there any risks to doing the exercises?\n\nThere are no risks to the exercises as long as they are performed correctly. If the exercises\ncause you pain or if you feel faint/dizzy, STOP immediately and call the Community\nrespiratory service on 0121 612 2007. Are there any alternatives to doing the exercises? There are no alternatives to doing the exercises that will benefit you in the same way;\nhowever the exercises can be modified to suit your needs and abilities. Your Community\nRespiratory Team will be able to advise you about this. How often should the exercises be performed? We recommend you perform these exercises 3 times per week. You will be advised how long\nyou need to do the exercises for and how many repetitions of each one you should do by\nyour Community Respiratory Team, as this will be based on what you achieve on your initial\nassessment session. Your progress will be checked by your Community Respiratory Team every week until you\nfeel confident enough to continue by yourself.",
+      "tags": [
+        "exercise",
+        "wall press",
+        "push up",
+        "push-up",
+        "press up",
+        "bicep curl",
+        "biceps curl",
+        "standing arcs",
+        "lateral raise",
+        "form"
+      ]
+    },
+    {
+      "chunk_id": "Your-Home-Exercise-Plan-ML3403:2:3",
+      "source_name": "Your-Home-Exercise-Plan-ML3403.pdf",
+      "title": "NHS Home Exercise Plan",
+      "page_start": 2,
+      "page_end": 2,
+      "text": "Information and advice for patients\nCommunity Respiratory Service\nYour Home Exercise Plan\nBefore you exercise\nHere are a few Do’s and Don’ts to bear in mind before exercising:\n• Do wear loose clothing and flat, non slip shoes\n• Do eat before exercising, but after you have eaten leave at least an hour before you start\n• Do keep hydrated before, during and after exercise\n• Don’t exercise if you feel unwell\n• Don’t continue if you do not understand the exercise session\n• Don’t rush – pace yourself – use breathing control\nWarm up before exercise\nIt is important to warm up before doing any exercise to prevent injuries to your muscles and\njoints. Before exercising make sure you follow this warm up plan:\nStart in a standing position facing forwards (upper body warm ups may be done in a sitting\nposition).",
+      "tags": [
+        "exercise",
+        "wall press",
+        "push up",
+        "push-up",
+        "press up",
+        "bicep curl",
+        "biceps curl",
+        "standing arcs",
+        "lateral raise",
+        "form"
+      ]
+    },
+    {
+      "chunk_id": "Your-Home-Exercise-Plan-ML3403:2:4",
+      "source_name": "Your-Home-Exercise-Plan-ML3403.pdf",
+      "title": "NHS Home Exercise Plan",
+      "page_start": 2,
+      "page_end": 2,
+      "text": "Before exercising make sure you follow this warm up plan:\nStart in a standing position facing forwards (upper body warm ups may be done in a sitting\nposition).\n\n• Tilt your head up to the ceiling, then back to your natural position - x5\n• Tilt your head down to the floor, then back to your natural position - x5\n• Look over your right shoulder, then back to your natural position - x5\n• Look over your left shoulder, then back to your natural position - x5\n• Bring your right ear to your shoulder - x5\n• Bring your left ear to your shoulder - x5\n• Roll your shoulders forwards - x5\n• Roll your shoulder backwards - x5\n• Side bends* – left - x5\n• Side bends* – right - x5\n• Heel to toe** – left - x5\n• Heel to toe** – right - x5\n*Side bends\nTo perform a side bend:\n• Start in a standing position, facing forwards, with your arms by your sides\n• Bend your upper body to one side whilst sliding your hand down towards your outer\nknee. • Do this until you feel a gentle stretch on the opposite side of your waist or as far as is\ncomfortable. Page 2",
+      "tags": [
+        "exercise",
+        "wall press",
+        "push up",
+        "push-up",
+        "press up",
+        "bicep curl",
+        "biceps curl",
+        "standing arcs",
+        "lateral raise",
+        "form"
+      ]
+    },
+    {
+      "chunk_id": "Your-Home-Exercise-Plan-ML3403:3:5",
+      "source_name": "Your-Home-Exercise-Plan-ML3403.pdf",
+      "title": "NHS Home Exercise Plan",
+      "page_start": 3,
+      "page_end": 3,
+      "text": "Information and advice for patients\nCommunity Respiratory Service\nYour Home Exercise Plan\n**Heel to toe\nTo perform a heel to toe bend:\n• Stand facing forwards, holding onto something sturdy for support if necessary.\n• Stretch one leg out in front of you, keeping it straight and with your heel on the floor\nand the toes pointing upwards.\n• Extend (stretch) your leg out until your toes are touching the floor.\n• Alternate heels and toes touching the floor for 5 times.\n• You will feel a gentle stretch in your calf muscles.\nWhat to do when you feel short of breath\nShortness of breath is normal during exercise. However if you become too breathless to\ncontinue, adopt a position of rest until normal breathing is resumed. Use your inhaled\nmedication if needed.\nPositions of rest to use when you’re breathless\n• Sit upright with your arms supported on your lap or on the arms of a chair\n• Lean forwards from the waist with your arms on a pillow, a table or your thighs.\n• Stand and lean on a window sill or other stable surface\n• Stand with your back against a wall\n• Stand and lean sideways against a wall with your hands in your pocket\nPage 3",
+      "tags": [
+        "exercise",
+        "wall press",
+        "push up",
+        "push-up",
+        "press up",
+        "bicep curl",
+        "biceps curl",
+        "standing arcs",
+        "lateral raise",
+        "form"
+      ]
+    },
+    {
+      "chunk_id": "Your-Home-Exercise-Plan-ML3403:4:6",
+      "source_name": "Your-Home-Exercise-Plan-ML3403.pdf",
+      "title": "NHS Home Exercise Plan",
+      "page_start": 4,
+      "page_end": 4,
+      "text": "Information and advice for patients\nCommunity Respiratory Service\nYour Home Exercise Plan\nBreathing control\nIt will be helpful to use the following breathing techniques whilst exercising to prevent you\ngetting short of breath, reduce stress on your heart and thus enabling you to do more. Breathing techniques for exercise\nThese techniques can be used on their own or together:\nSlow, controlled deep breathing\nSlow down your breathing, breathe more deeply, breathe in through your nose and breathe\nout through your mouth. Paced breathing\nThis is useful when climbing the stairs or walking. Breathe in and out in time with the steps\nyou take. Do this in a rhythm that suits you and how breathless you are. When climbing the stairs:\n• Breathe in when on the step, and breathe out as you go up a step (blow as you go!), or\n• Breathe in for 1 step and out for 1 step\n• Breathe in for 1 step and out for 2\n• Breath in for 2 steps and out for 3\nWhen you are walking:\n• Breathe in for 1 step and out for 2\n• Breathe in for 1 step and out for 3\n• Breathe out when you’re making a big effort (blow as you go!) e.g.",
+      "tags": [
+        "exercise",
+        "wall press",
+        "push up",
+        "push-up",
+        "press up",
+        "bicep curl",
+        "biceps curl",
+        "standing arcs",
+        "lateral raise",
+        "form"
+      ]
+    },
+    {
+      "chunk_id": "Your-Home-Exercise-Plan-ML3403:4:7",
+      "source_name": "Your-Home-Exercise-Plan-ML3403.pdf",
+      "title": "NHS Home Exercise Plan",
+      "page_start": 4,
+      "page_end": 4,
+      "text": "ou are walking:\n• Breathe in for 1 step and out for 2\n• Breathe in for 1 step and out for 3\n• Breathe out when you’re making a big effort (blow as you go!) e.g.\n\n- Stretching your arms above your head\n- Reaching for something on a shelf\n- Bending down\n- Going up a step\n- Standing up\n- During the hardest part of any action like lifting, moving a\nweight, during the hard part of a resistance exercise\nPursed lip breathing\nBreath out with your lips pursed, as if you’re whistling or going to kiss someone. This slows\nyour breathing down and helps to make your easier. Take longer to breathe out than you do\nto breathe in. Do not force your lungs to empty. Page 4",
+      "tags": [
+        "exercise",
+        "wall press",
+        "push up",
+        "push-up",
+        "press up",
+        "bicep curl",
+        "biceps curl",
+        "standing arcs",
+        "lateral raise",
+        "form"
+      ]
+    },
+    {
+      "chunk_id": "Your-Home-Exercise-Plan-ML3403:5:8",
+      "source_name": "Your-Home-Exercise-Plan-ML3403.pdf",
+      "title": "NHS Home Exercise Plan",
+      "page_start": 5,
+      "page_end": 5,
+      "text": "Information and advice for patients\nCommunity Respiratory Service\nYour Home Exercise Plan\nLeg Exercises\n1. Leg Extensions\n• Sit in an upright position with you feet flat on the\nfloor\n• Straighten one leg out in front of you.\n• Hold and count to 10 seconds out loud.\n• Slowly lower the leg back to the start position\n• Repeat ____ times\n• Repeat ____ times on the other leg.\nPractice breathing control during the exercise. Breathe\nOUT through your mouth on the exertion part and\nbreathe IN through the nose on the resting part of the\nexercise.\n2. Knee Raises\n• Sit straight in a chair with your feet flat on the floor\n• Keep your knee bent and lift it up\n• Hold for five seconds\n• Slowly lower the knee\n• Repeat ____ times\n• Repeat ____ times on the other leg.\nPractice breathing control during the exercise. Breathe OUT\nthrough your mouth on the exertion part and breathe IN through\nthe nose on the resting part of the exercise.\nPage 5",
+      "tags": [
+        "exercise",
+        "wall press",
+        "push up",
+        "push-up",
+        "press up",
+        "bicep curl",
+        "biceps curl",
+        "standing arcs",
+        "lateral raise",
+        "form"
+      ]
+    },
+    {
+      "chunk_id": "Your-Home-Exercise-Plan-ML3403:6:9",
+      "source_name": "Your-Home-Exercise-Plan-ML3403.pdf",
+      "title": "NHS Home Exercise Plan",
+      "page_start": 6,
+      "page_end": 6,
+      "text": "Information and advice for patients\nCommunity Respiratory Service\nYour Home Exercise Plan\n3. Sit to Stand\n• Sit in a chair with arm rests\n• Place your hands on the arm rests\n• Lean forwards and shuffle forward\n• Try to push your bottom up by straightening your legs.\n• Slowly lower yourself back into sitting position.\n• Repeat ____ times\nPractice breathing control during the exercise. Breathe OUT\nas you stand up. Breathe IN as you sit down.\n4. Toe Ups\n• Sit straight on a chair with feet flat on the floor\n• Gently rise up on your toes by lifting your heels and\nkeeping your toes on the floor\n• Then lean back on your heels with your feet flat on\nthe floor and toes straight\n• Repeat ____ times\nPractice breathing control during the exercise. Breathe\nIN through your nose and OUT through your mouth.\nPage 6",
+      "tags": [
+        "exercise",
+        "wall press",
+        "push up",
+        "push-up",
+        "press up",
+        "bicep curl",
+        "biceps curl",
+        "standing arcs",
+        "lateral raise",
+        "form"
+      ]
+    },
+    {
+      "chunk_id": "Your-Home-Exercise-Plan-ML3403:7:10",
+      "source_name": "Your-Home-Exercise-Plan-ML3403.pdf",
+      "title": "NHS Home Exercise Plan",
+      "page_start": 7,
+      "page_end": 7,
+      "text": "Information and advice for patients\nCommunity Respiratory Service\nYour Home Exercise Plan\n5. Hip Backward Kicks\n• Stand behind a chair with your feet flat on the floor\n• Hold on to the chair for balance\n• Keep your legs shoulder width apart and your toes\npointed forward.\n• Slowly move one leg back, keeping your knee straight.\nDo not lean forward.\n• Slowly bring the leg back to starting position and\nrepeat on the other leg\n• Repeat ____ times\nPractice breathing control during the exercise. Breathe\nOUT through the nose on the exertion (lifting the leg)\nand breathe IN on the resting part. (lowering the leg).\n6. Hip Side Kicks\n• Stand behind a chair with your feet flat on the floor\n• Hold on to the chair for balance\n• Keep your legs shoulder width apart and your toes pointed\nforward.\n• Kick one leg out to the side, keeping your knee straight. Do not\nlean\n• Slowly bring the leg back to starting position and repeat on the\nother leg\n• Repeat ____ times\nPractice breathing control during the exercise. Breathe OUT\nthrough the nose on the exertion (lifting the leg) and breathe IN on\nthe resting part (lowering the leg).\nPage 7",
+      "tags": [
+        "exercise",
+        "wall press",
+        "push up",
+        "push-up",
+        "press up",
+        "bicep curl",
+        "biceps curl",
+        "standing arcs",
+        "lateral raise",
+        "form"
+      ]
+    },
+    {
+      "chunk_id": "Your-Home-Exercise-Plan-ML3403:8:11",
+      "source_name": "Your-Home-Exercise-Plan-ML3403.pdf",
+      "title": "NHS Home Exercise Plan",
+      "page_start": 8,
+      "page_end": 8,
+      "text": "Information and advice for patients\nCommunity Respiratory Service\nYour Home Exercise Plan\nArm Exercises\n1. Wall Press\n• Stand facing a wall\n• Keeping your arms straight out in front\nof you put your hands on the wall.\n• Do push-ups against the wall keeping\nyour body in a straight line.\n• Keep your back straight and bring your\nupper body towards the wall keeping\nyour feet on the floor. Push away from\nthe wall with your arms\n• Repeat ____ times\nPractice breathing control during the\nexercise. Breathe OUT as you push away\nfrom the wall.\n2. Bicep Curls\n• Sit in a chair with no arms.\n• Place you feet as far apart as is comfortable, feet flat on the\nfloor\n• Rest your arm holding a weight on your inner thigh. For\nweights you can use tins of food or small bottles filled with\nwater or sand.\n• Raise your forearm and slowly “curl” the weight to your\nshoulder.\n• Relax your arm back to starting position.\n• Repeat with the opposite arm.\n• Repeat ____ times\nPractice breathing control during the exercise. Breathe IN\nthrough your nose and OUT through your mouth.\nPage 8",
+      "tags": [
+        "exercise",
+        "wall press",
+        "push up",
+        "push-up",
+        "press up",
+        "bicep curl",
+        "biceps curl",
+        "standing arcs",
+        "lateral raise",
+        "form"
+      ]
+    },
+    {
+      "chunk_id": "Your-Home-Exercise-Plan-ML3403:9:12",
+      "source_name": "Your-Home-Exercise-Plan-ML3403.pdf",
+      "title": "NHS Home Exercise Plan",
+      "page_start": 9,
+      "page_end": 9,
+      "text": "Information and advice for patients\nCommunity Respiratory Service\nYour Home Exercise Plan\n3. Ball Lift\n• Sit on a chair\n• Hold a ball or book in both hands at chest level\n• Slowly lift the ball/book upwards and outwards in front\nof you.\n• Return to starting position\n• Repeat ____ times\nPractice breathing control during the exercise. Breathe OUT\nas you lift the ball/book. Breathe IN as you lower it.\n4. Standing Arcs\n• Sit or stand with your arms by your sides\n• Hold a weight in each hand\n• Lift your arms out to the side and up as far as possible.\n• Lower your arms back down slowly.\n• Repeat ____ times\nPractice breathing control during the exercise. Breathe OUT as\nyou lift the weights. Breathe IN as you lower them.\n5. Arm Raises\n• Sit or stand with your arms by your sides\n• Hold a weight in each hand, with the palms of your hands\nfacing down.\n• Slowly lift your arms to shoulder level\n• Return to starting position\n• Repeat ____ times\nPractice breathing control during the exercise. Breathe OUT\nas you raise your arms. Breathe IN as you lower them.\nPage 9",
+      "tags": [
+        "exercise",
+        "wall press",
+        "push up",
+        "push-up",
+        "press up",
+        "bicep curl",
+        "biceps curl",
+        "standing arcs",
+        "lateral raise",
+        "form"
+      ]
+    },
+    {
+      "chunk_id": "Your-Home-Exercise-Plan-ML3403:10:13",
+      "source_name": "Your-Home-Exercise-Plan-ML3403.pdf",
+      "title": "NHS Home Exercise Plan",
+      "page_start": 10,
+      "page_end": 10,
+      "text": "Information and advice for patients\nCommunity Respiratory Service\nYour Home Exercise Plan\nWalking\nAim to walk for set periods of time as often as you can, say 5 -10 minutes at a steady pace\nwithout stopping. Aim to feel between 3 and 5 on the breathless scale as you walk. You\nshould try to walk as often as you can, preferably every day.\nHere is your walking plan\n_______________________________________________________________________________________\n_______________________________________________________________________________________\n_______________________________________________________________________________________\nHow hard are you working?\nYou will be aiming for scores of 3 – 5 on the BORG scale. BORG is the scale used to measure\nyour Rate of Perceived Exertion (RPE) i.e how breathless you are feeling.\nThe BORG scale\nScore How breathless you are feeling\n0 Not at all, no problem\n0.5 Very, very light, very, very easy\n1 Very light, very easy\n2 Easy\n3 Starting to feel a bit puffed\n4 Fairly hard, feeling a bit puffed\n5 Hard, feeling puffed\n6 Very hard, very tiring\n7 Very, very hard, very tiring\n8 Exhausted, out of breath\n9 Maximum exhausted\nPage 10",
+      "tags": [
+        "exercise",
+        "wall press",
+        "push up",
+        "push-up",
+        "press up",
+        "bicep curl",
+        "biceps curl",
+        "standing arcs",
+        "lateral raise",
+        "form"
+      ]
+    },
+    {
+      "chunk_id": "Your-Home-Exercise-Plan-ML3403:11:14",
+      "source_name": "Your-Home-Exercise-Plan-ML3403.pdf",
+      "title": "NHS Home Exercise Plan",
+      "page_start": 11,
+      "page_end": 11,
+      "text": "Information and advice for patients\nCommunity Respiratory Service\nYour Home Exercise Plan\nYou should record your BORG scores on the recording sheet below each time you perform\nyour exercises. If you record scores of 2 or below you are not working hard enough and your\nexercises will need to be increased. If you record scores of 6 or above you are working too\nhard and your exercises will need to be decreased.\nAs you get fitter and your BORG scores decrease, your exercises will be increased in order for\nyou to achieve 3 – 5 on the BORG scale\nDATE\nBORG\nBORG\nBORG\nBORG\nBORG\nBORG\nBORG\nBORG\nBORG\nBORG\nBORG\nBORG\nBORG\nCool Down\nAfter exercising it is important for you to cool down. Here is your cool down plan:\n_______________________________________________________________________________________\n_______________________________________________________________________________________\nPage 11",
+      "tags": [
+        "exercise",
+        "wall press",
+        "push up",
+        "push-up",
+        "press up",
+        "bicep curl",
+        "biceps curl",
+        "standing arcs",
+        "lateral raise",
+        "form"
+      ]
+    },
+    {
+      "chunk_id": "Your-Home-Exercise-Plan-ML3403:12:15",
+      "source_name": "Your-Home-Exercise-Plan-ML3403.pdf",
+      "title": "NHS Home Exercise Plan",
+      "page_start": 12,
+      "page_end": 12,
+      "text": "If you would like to suggest any amendments or improvements to this leaflet please contact the\ncommunications department on 0121 507 5420 or email: swb-tr.swbh-gm-patient-information@nhs.net\nML3403\nIssue Date: October 2011\nReview Date: October 2013\nA Teaching Trust of The University of Birmingham\nIncorporating City, Sandwell and Rowley Regis Hospitals\n© Sandwell and West Birmingham Hospitals NHS Trust\nInformation and advice for patients\nCommunity Respiratory Service\nYour Home Exercise Plan\nPage 12\nContact details\nIf you have any questions or concerns please contact:\nCommunity respiratory service\n0121 612 2007\nSources used for the information in this leaflet\n• British Thoracic Society, ‘Statement on Pulmonary Rehabilitation’, 2001 (reviewed 2010)\n• Loughborough College Sports, exercise and fitness, ‘The Chronic Respiratory Disease\nExercise Course Manual’, 2004\n• Visual Health Info exercise images",
+      "tags": [
+        "exercise",
+        "wall press",
+        "push up",
+        "push-up",
+        "press up",
+        "bicep curl",
+        "biceps curl",
+        "standing arcs",
+        "lateral raise",
+        "form"
+      ]
+    }
+  ]
+}
