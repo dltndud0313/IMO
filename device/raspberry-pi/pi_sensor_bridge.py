@@ -50,12 +50,15 @@ from glass_metrics import (
 UI_DIR = Path(__file__).with_name("glass-ui")
 EMG_DETACHED_THRESHOLD = 0.99
 # ESP32 sample rate = 50Hz (kSampleIntervalMs=20). 따라서 프레임 수 / 50 = 측정 초.
-# REST 는 "힘 빼고 자세 유지" 라 짧아도 무방하나, MVC 는 사람이 "준비→최대 수축
-# →유지" 사이클을 거쳐야 해서 최소 3초는 필요. 너무 짧으면 기준값 noise 가
-# 결과 muscle_map 활성도 비율을 왜곡한다.
-CALIBRATION_REST_FRAMES = 150   # 3.0s @ 50Hz
-CALIBRATION_MVC_FRAMES = 200    # 4.0s @ 50Hz
+# 운동 앱 캘리브레이션 전용 기준. 게임 페이지는 별도 로직을 사용하므로 이 값에 영향받지 않는다.
+CALIBRATION_REST_FRAMES = 250   # 5.0s @ 50Hz
+CALIBRATION_MVC_FRAMES = 250    # 5.0s @ 50Hz
 CALIBRATION_TIMEOUT_SEC = 20.0
+PRESET_CALIBRATION_STAGE_SEC = 5.0
+# 2026-05-12 17:52:49 bicep_curl 로그 기준. 센서 실측 없이 데모 플로우를
+# 통과시킬 때만 사용하며, 기본 실행에서는 비활성화한다.
+PRESET_CALIBRATION_REST_BASELINE = [0.0079, 0.0105, 0.0, 0.0039]
+PRESET_CALIBRATION_MVC = [0.9, 0.9, 0.707, 0.899]
 CALIBRATION_MIN_VALID_EMG_FRAMES = 10
 CALIBRATION_REST_MAX_EMG_MEAN = 0.12
 CALIBRATION_REST_MAX_EMG_STD = 0.05
@@ -175,10 +178,11 @@ class RepMotionProfile:
 
 
 class BridgeState:
-    def __init__(self, rep_debug: bool = False) -> None:
+    def __init__(self, rep_debug: bool = False, preset_calibration: bool = False) -> None:
         self._lock = threading.Lock()
         self._esp32_connected = False
         self._glass_connected = False
+        self._preset_calibration = preset_calibration
         self._exercise_type: Optional[str] = None
         self._phase = "idle"
         self._set_count = 0
@@ -234,6 +238,33 @@ class BridgeState:
     def tick(self) -> list[dict[str, Any]]:
         with self._lock:
             return self._maybe_finish_rest_locked()
+
+    def advance_preset_calibration(self) -> Optional[str]:
+        with self._lock:
+            if not self._preset_calibration:
+                return None
+            if self._calibration_started_monotonic is None:
+                return None
+            if time.monotonic() - self._calibration_started_monotonic < PRESET_CALIBRATION_STAGE_SEC:
+                return None
+
+            if self._calibration_stage == "preset_rest":
+                self._apply_preset_rest_calibration_locked()
+                self._calibration_stage = "preset_mvc"
+                self._phase = "calibrating_mvc"
+                self._calibration_started_monotonic = time.monotonic()
+                print("[calib] preset rest injected — switching to MVC stage")
+                return "rest_complete"
+
+            if self._calibration_stage == "preset_mvc":
+                self._apply_preset_mvc_calibration_locked()
+                self._calibration_started_monotonic = None
+                self._phase = "awaiting_workout_start"
+                self._start_workout_locked()
+                print("[calib] preset mvc injected — calibration success")
+                return "mvc_complete"
+
+            return None
 
     def check_calibration_timeout(self) -> bool:
         # 프레임 수신이 멈춰서 maybe_collect_calibration_frame 자체가 호출되지 않을 때도
@@ -311,13 +342,19 @@ class BridgeState:
         with self._lock:
             self._reset_calibration_results_locked()
             self._calibration_frames = []
-            self._calibration_collecting = True
-            self._calibration_stage = "rest"
+            self._calibration_collecting = not self._preset_calibration
+            self._calibration_stage = "preset_rest" if self._preset_calibration else "rest"
             self._phase = "calibrating"
             self._calibration_started_monotonic = time.monotonic()
             self._calibration_failure_message = None
             self._calibration_last_rejection_reason = None
             self._calibration_rejection_streak = 0
+            if self._preset_calibration:
+                print(
+                    "[calib] preset start stage=rest "
+                    f"wait={PRESET_CALIBRATION_STAGE_SEC:.0f}s"
+                )
+                return
             print(
                 f"[calib] start stage=rest need_frames={CALIBRATION_REST_FRAMES} "
                 f"timeout={CALIBRATION_TIMEOUT_SEC:.0f}s"
@@ -352,20 +389,23 @@ class BridgeState:
         with self._lock:
             if self._phase != "awaiting_workout_start":
                 return False
-            # calibration/대기 화면에서도 sensor frame 은 계속 들어오므로 rep_index,
-            # motion state, 속도 측정 시점이 남아 있을 수 있다. 이를 비우지 않으면
-            # 실제 운동 첫 반복이 누락되거나 이전 상태를 이어받아 오검출된다.
-            self._current_rep = None
-            self._motion_active = False
-            self._last_rep_timestamp_ms = None
-            self._current_set_rep_intervals_ms = []
-            self._last_rep_speed_label = "분석 중"
-            self._reset_rep_counter_locked()
-            self._last_rep_debug_timestamp_ms = None
-            self._ignored_device_rep_index_logged = False
-            self._phase = "monitoring"
-            self._ensure_session_started_locked()
+            self._start_workout_locked()
             return True
+
+    def _start_workout_locked(self) -> None:
+        # calibration/대기 화면에서도 sensor frame 은 계속 들어오므로 rep_index,
+        # motion state, 속도 측정 시점이 남아 있을 수 있다. 이를 비우지 않으면
+        # 실제 운동 첫 반복이 누락되거나 이전 상태를 이어받아 오검출된다.
+        self._current_rep = None
+        self._motion_active = False
+        self._last_rep_timestamp_ms = None
+        self._current_set_rep_intervals_ms = []
+        self._last_rep_speed_label = "분석 중"
+        self._reset_rep_counter_locked()
+        self._last_rep_debug_timestamp_ms = None
+        self._ignored_device_rep_index_logged = False
+        self._phase = "monitoring"
+        self._ensure_session_started_locked()
 
     def mark_completed(self) -> None:
         with self._lock:
@@ -451,11 +491,46 @@ class BridgeState:
     def _calibration_progress_locked(self) -> float:
         if self._calibration_data.ready or self._calibration_stage == "done":
             return 1.0
+        if self._calibration_stage == "preset_mvc":
+            elapsed = (
+                0.0
+                if self._calibration_started_monotonic is None
+                else time.monotonic() - self._calibration_started_monotonic
+            )
+            return 0.5 + min(0.5, elapsed / PRESET_CALIBRATION_STAGE_SEC * 0.5)
+        if self._calibration_stage == "preset_rest":
+            elapsed = (
+                0.0
+                if self._calibration_started_monotonic is None
+                else time.monotonic() - self._calibration_started_monotonic
+            )
+            return min(0.5, elapsed / PRESET_CALIBRATION_STAGE_SEC * 0.5)
         if self._calibration_stage == "mvc":
             return 0.5 + min(0.5, len(self._calibration_frames) / CALIBRATION_MVC_FRAMES * 0.5)
         if self._calibration_stage == "rest":
             return min(0.5, len(self._calibration_frames) / CALIBRATION_REST_FRAMES * 0.5)
         return 0.0
+
+    def _apply_preset_rest_calibration_locked(self) -> None:
+        self._calibration_data.emg_rest_baseline = list(PRESET_CALIBRATION_REST_BASELINE)
+        self._calibration_data.emg_activation_threshold = [
+            baseline + 0.03 for baseline in self._calibration_data.emg_rest_baseline
+        ]
+        self._calibration_data.imu_rest_accel = [[0.0, 0.0, 0.0] for _ in range(3)]
+        self._calibration_data.imu_rest_gyro = [[0.0, 0.0, 0.0] for _ in range(3)]
+        self._calibration_rest_std = [0.0] * 4
+        self._calibration_data.ready = False
+
+    def _apply_preset_mvc_calibration_locked(self) -> None:
+        self._calibration_data.emg_mvc = [
+            max(PRESET_CALIBRATION_MVC[index], self._calibration_data.emg_rest_baseline[index] + 0.05)
+            for index in range(4)
+        ]
+        self._calibration_data.ready = True
+        self._calibration_collecting = False
+        self._calibration_frames = []
+        self._calibration_stage = "done"
+        self._calibration_failure_message = None
 
     def _valid_emg_values(self, frame: DecodedFrame) -> list[Optional[float]]:
         values: list[Optional[float]] = []
@@ -1896,10 +1971,15 @@ class SensorBridge:
         baud_rate: int,
         rep_debug: bool = False,
         glass_debug: bool = False,
+        preset_calibration: bool = False,
+        replay_log_path: Optional[Path] = None,
     ) -> None:
         self._serial_port = serial_port
         self._baud_rate = baud_rate
-        self._state = BridgeState(rep_debug=rep_debug)
+        self._state = BridgeState(
+            rep_debug=rep_debug,
+            preset_calibration=preset_calibration,
+        )
         self._clients: set[ServerConnection] = set()
         self._queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
         self._loop: Optional[asyncio.AbstractEventLoop] = None
@@ -1907,6 +1987,9 @@ class SensorBridge:
         self._workout_started_emitted = False
         self._rep_debug = rep_debug
         self._glass_debug = glass_debug
+        self._preset_calibration = preset_calibration
+        self._replay_log_path = replay_log_path
+        self._replay_restart_requested = False
         self._last_glass_debug_log_monotonic = 0.0
 
     def _maybe_log_glass_emg_channels(self, message: dict[str, Any]) -> None:
@@ -2062,7 +2145,8 @@ class SensorBridge:
         self._loop = asyncio.get_running_loop()
         self._start_ui_http_server(ui_host, ui_port)
 
-        worker = threading.Thread(target=self._serial_reader_main, daemon=True)
+        worker_target = self._replay_reader_main if self._replay_log_path else self._serial_reader_main
+        worker = threading.Thread(target=worker_target, daemon=True)
         worker.start()
 
         async with serve(self._handle_client, ws_host, ws_port):
@@ -2072,6 +2156,10 @@ class SensorBridge:
                 print("[bridge] rep debug logging enabled")
             if self._glass_debug:
                 print("[bridge] glass emg debug logging enabled")
+            if self._preset_calibration:
+                print("[bridge] preset calibration enabled")
+            if self._replay_log_path is not None:
+                print(f"[bridge] replay log enabled: {self._replay_log_path}")
             timer_task = asyncio.create_task(self._state_tick_loop())
             try:
                 await self._broadcast_loop()
@@ -2186,7 +2274,11 @@ class SensorBridge:
                 json.dumps(
                     build_calibration_status(
                         status="started",
-                        message="안정 자세 기준값 측정을 시작합니다. 이후 최대 수축 측정으로 자동 전환됩니다.",
+                        message=(
+                            "힘을 빼고 5초간 유지하세요. 저장된 기준값을 자동 적용합니다."
+                            if self._preset_calibration
+                            else "안정 자세 기준값 측정을 시작합니다. 이후 최대 수축 측정으로 자동 전환됩니다."
+                        ),
                         request_id=request_id,
                         progress=0.0,
                     )
@@ -2216,6 +2308,7 @@ class SensorBridge:
                 )
                 return
             self._workout_started_emitted = False
+            self._replay_restart_requested = True
             self._emit_from_thread(build_glass_session_state(self._state.session_snapshot()))
             self._emit_from_thread(self._build_glass_display_message())
             self._emit_workout_started_if_needed()
@@ -2358,6 +2451,36 @@ class SensorBridge:
     async def _state_tick_loop(self) -> None:
         while True:
             await asyncio.sleep(0.2)
+            preset_update = self._state.advance_preset_calibration()
+            if preset_update == "rest_complete":
+                self._emit_from_thread(
+                    build_calibration_status(
+                        status="started",
+                        message="힘을 주세요. 5초 후 저장된 MVC 기준값을 자동 적용합니다.",
+                        progress=0.5,
+                    )
+                )
+                self._emit_from_thread(build_glass_session_state(self._state.session_snapshot()))
+                self._emit_from_thread(self._build_glass_display_message())
+            if preset_update == "mvc_complete":
+                calibration = self._state.calibration_snapshot()
+                self._replay_restart_requested = True
+                self._emit_from_thread(
+                    build_calibration_status(
+                        status="success",
+                        message="저장된 REST/MVC 기준값 적용 완료",
+                        calibration_summary={
+                            "ch1_mvc": calibration.emg_mvc[0],
+                            "ch2_mvc": calibration.emg_mvc[1],
+                            "ch3_mvc": calibration.emg_mvc[2],
+                            "ch4_mvc": calibration.emg_mvc[3],
+                        },
+                        progress=1.0,
+                    )
+                )
+                self._emit_workout_started_if_needed()
+                self._emit_from_thread(build_glass_session_state(self._state.session_snapshot()))
+                self._emit_from_thread(self._build_glass_display_message())
             if self._state.check_calibration_timeout():
                 failure_message = self._state.consume_calibration_failure_message()
                 self._emit_from_thread(
@@ -2388,6 +2511,163 @@ class SensorBridge:
         if mtype not in ("sensor_frame", "glass_display_data"):
             print(f"[bridge] pi -> app type={mtype} payload={message.get('payload')}")
         self._loop.call_soon_threadsafe(self._queue.put_nowait, message)
+
+    def _process_decoded_frame(self, decoded: DecodedFrame) -> None:
+        first_connected = not self._state.connection_snapshot().esp32_connected
+        previous_phase = self._state.session_snapshot().phase
+        workout_events = self._state.update_frame(decoded)
+        self._last_frame = decoded
+        calibration_update = self._state.maybe_collect_calibration_frame(decoded)
+        if first_connected:
+            self._emit_from_thread(build_connection_status(self._state.connection_snapshot()))
+        current_session = self._state.session_snapshot()
+        if previous_phase != current_session.phase:
+            self._emit_from_thread(build_glass_session_state(current_session))
+        self._emit_from_thread(self._build_glass_display_message(decoded))
+        self._emit_from_thread(build_sensor_frame_message(decoded))
+        for workout_event in workout_events:
+            event_type = str(workout_event.get("event", "unknown"))
+            details = {key: value for key, value in workout_event.items() if key != "event"}
+            self._emit_from_thread(self._build_app_event_from_state(event_type, details))
+        session_result = self._state.consume_pending_session_result()
+        if session_result is not None:
+            self._emit_from_thread(session_result)
+        if calibration_update == "rest_complete":
+            self._emit_from_thread(
+                build_calibration_status(
+                    status="started",
+                    message="안정 자세 측정이 끝났습니다. 이제 최대 수축을 5초간 유지하세요.",
+                    progress=0.5,
+                )
+            )
+            self._emit_from_thread(build_glass_session_state(self._state.session_snapshot()))
+            self._emit_from_thread(self._build_glass_display_message(decoded))
+        if calibration_update == "mvc_complete":
+            calibration = self._state.calibration_snapshot()
+            self._emit_from_thread(
+                build_calibration_status(
+                    status="success",
+                    message="REST/MVC 기준값 측정 완료",
+                    calibration_summary={
+                        "ch1_mvc": calibration.emg_mvc[0],
+                        "ch2_mvc": calibration.emg_mvc[1],
+                        "ch3_mvc": calibration.emg_mvc[2],
+                        "ch4_mvc": calibration.emg_mvc[3],
+                    },
+                    progress=1.0,
+                )
+            )
+            self._emit_workout_started_if_needed()
+            self._emit_from_thread(build_glass_session_state(self._state.session_snapshot()))
+            self._emit_from_thread(self._build_glass_display_message(decoded))
+        if calibration_update == "failed":
+            failure_message = self._state.consume_calibration_failure_message()
+            self._emit_from_thread(
+                build_calibration_status(
+                    status="failed",
+                    message=failure_message or "캘리브레이션에 실패했습니다. 다시 시도하세요.",
+                )
+            )
+            self._emit_from_thread(build_glass_session_state(self._state.session_snapshot()))
+            self._emit_from_thread(self._build_glass_display_message(decoded))
+
+    @staticmethod
+    def _decoded_frame_from_log_record(record: dict[str, Any]) -> Optional[DecodedFrame]:
+        if record.get("type") != "sensor_frame":
+            return None
+        emg = record.get("emg")
+        imus = record.get("imus")
+        if not isinstance(emg, list) or len(emg) < 4:
+            return None
+        imu_accels: list[tuple[float, float, float]] = []
+        imu_gyros: list[tuple[float, float, float]] = []
+        if isinstance(imus, list):
+            for imu in imus[:3]:
+                if not isinstance(imu, dict):
+                    continue
+                accel = imu.get("accel")
+                gyro = imu.get("gyro")
+                if isinstance(accel, list) and len(accel) >= 3:
+                    imu_accels.append(tuple(float(value) for value in accel[:3]))
+                if isinstance(gyro, list) and len(gyro) >= 3:
+                    imu_gyros.append(tuple(float(value) for value in gyro[:3]))
+        while len(imu_accels) < 3:
+            imu_accels.append((0.0, 0.0, 0.0))
+        while len(imu_gyros) < 3:
+            imu_gyros.append((0.0, 0.0, 0.0))
+        state_code = int(record.get("state_code", 1) or 1)
+        flags = int(record.get("flags", 0) or 0)
+        rep_index = record.get("rep_index")
+        return DecodedFrame(
+            seq=int(record.get("seq", 0) or 0),
+            timestamp_ms=int(record.get("timestamp_ms", 0) or 0),
+            emg=tuple(float(value) for value in emg[:4]),
+            imu_accels=tuple(imu_accels),
+            imu_gyros=tuple(imu_gyros),
+            state_code=state_code,
+            flags=flags,
+            rep_index=rep_index if isinstance(rep_index, int) else None,
+        )
+
+    def _load_replay_frames(self) -> list[DecodedFrame]:
+        if self._replay_log_path is None:
+            return []
+        frames: list[DecodedFrame] = []
+        with self._replay_log_path.open("r", encoding="utf-8") as handle:
+            for line in handle:
+                try:
+                    record = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if not isinstance(record, dict):
+                    continue
+                frame = self._decoded_frame_from_log_record(record)
+                if frame is not None:
+                    frames.append(frame)
+        return frames
+
+    def _replay_reader_main(self) -> None:
+        try:
+            frames = self._load_replay_frames()
+        except OSError as exc:
+            self._emit_from_thread(
+                build_error_message(
+                    "REPLAY_LOG_ERROR",
+                    f"Replay log could not be loaded: {exc}",
+                )
+            )
+            return
+        if not frames:
+            self._emit_from_thread(
+                build_error_message(
+                    "REPLAY_LOG_EMPTY",
+                    "Replay log has no sensor_frame records.",
+                )
+            )
+            return
+
+        print(f"[bridge] loaded replay frames={len(frames)}")
+        index = 0
+        last_timestamp_ms: Optional[int] = None
+        while True:
+            session = self._state.session_snapshot()
+            if session.phase != "monitoring":
+                threading.Event().wait(0.05)
+                continue
+            if self._replay_restart_requested:
+                index = 0
+                last_timestamp_ms = None
+                self._replay_restart_requested = False
+
+            frame = frames[index]
+            if last_timestamp_ms is not None:
+                delay_ms = max(1, min(200, frame.timestamp_ms - last_timestamp_ms))
+                threading.Event().wait(delay_ms / 1000.0)
+            else:
+                threading.Event().wait(0.02)
+            last_timestamp_ms = frame.timestamp_ms
+            self._process_decoded_frame(frame)
+            index = (index + 1) % len(frames)
 
     def _serial_reader_main(self) -> None:
         while True:
@@ -2445,63 +2725,7 @@ class SensorBridge:
                         continue
 
                     del buffer[:FRAME_SIZE]
-                    first_connected = not self._state.connection_snapshot().esp32_connected
-                    previous_phase = self._state.session_snapshot().phase
-                    workout_events = self._state.update_frame(decoded)
-                    self._last_frame = decoded
-                    calibration_update = self._state.maybe_collect_calibration_frame(decoded)
-                    if first_connected:
-                        self._emit_from_thread(build_connection_status(self._state.connection_snapshot()))
-                    current_session = self._state.session_snapshot()
-                    if previous_phase != current_session.phase:
-                        self._emit_from_thread(build_glass_session_state(current_session))
-                    self._emit_from_thread(self._build_glass_display_message(decoded))
-                    self._emit_from_thread(build_sensor_frame_message(decoded))
-                    for workout_event in workout_events:
-                        event_type = str(workout_event.get("event", "unknown"))
-                        details = {key: value for key, value in workout_event.items() if key != "event"}
-                        self._emit_from_thread(self._build_app_event_from_state(event_type, details))
-                    session_result = self._state.consume_pending_session_result()
-                    if session_result is not None:
-                        self._emit_from_thread(session_result)
-                    if calibration_update == "rest_complete":
-                        self._emit_from_thread(
-                            build_calibration_status(
-                                status="started",
-                                message="안정 자세 측정이 끝났습니다. 이제 최대 수축을 3초간 유지하세요.",
-                                progress=0.5,
-                            )
-                        )
-                        self._emit_from_thread(build_glass_session_state(self._state.session_snapshot()))
-                        self._emit_from_thread(self._build_glass_display_message(decoded))
-                    if calibration_update == "mvc_complete":
-                        calibration = self._state.calibration_snapshot()
-                        self._emit_from_thread(
-                            build_calibration_status(
-                                status="success",
-                                message="REST/MVC 기준값 측정 완료",
-                                calibration_summary={
-                                    "ch1_mvc": calibration.emg_mvc[0],
-                                    "ch2_mvc": calibration.emg_mvc[1],
-                                    "ch3_mvc": calibration.emg_mvc[2],
-                                    "ch4_mvc": calibration.emg_mvc[3],
-                                },
-                                progress=1.0,
-                            )
-                        )
-                        self._emit_workout_started_if_needed()
-                        self._emit_from_thread(build_glass_session_state(self._state.session_snapshot()))
-                        self._emit_from_thread(self._build_glass_display_message(decoded))
-                    if calibration_update == "failed":
-                        failure_message = self._state.consume_calibration_failure_message()
-                        self._emit_from_thread(
-                            build_calibration_status(
-                                status="failed",
-                                message=failure_message or "캘리브레이션에 실패했습니다. 다시 시도하세요.",
-                            )
-                        )
-                        self._emit_from_thread(build_glass_session_state(self._state.session_snapshot()))
-                        self._emit_from_thread(self._build_glass_display_message(decoded))
+                    self._process_decoded_frame(decoded)
         finally:
             ser.close()
             self._state.mark_esp32_disconnected()
@@ -2535,6 +2759,17 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Print throttled glass EMG channel logs as (raw, attached, activation).",
     )
+    parser.add_argument(
+        "--preset-calibration",
+        action="store_true",
+        help="Skip live REST/MVC collection and inject demo calibration values after 5s + 5s.",
+    )
+    parser.add_argument(
+        "--replay-log",
+        type=Path,
+        default=None,
+        help="Replay sensor_frame records from a JSONL log after workout starts instead of reading serial.",
+    )
     return parser.parse_args()
 
 
@@ -2545,6 +2780,8 @@ async def async_main() -> int:
         baud_rate=args.baud,
         rep_debug=args.rep_debug,
         glass_debug=args.glass_debug,
+        preset_calibration=args.preset_calibration,
+        replay_log_path=args.replay_log,
     )
     await bridge.run(
         ws_host=args.ws_host,
