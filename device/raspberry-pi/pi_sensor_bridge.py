@@ -2810,19 +2810,23 @@ def parse_args() -> argparse.Namespace:
         "--replay-log",
         type=Path,
         default=None,
-        help="Replay sensor_frame records from a JSONL log after workout starts instead of reading serial.",
+        help=(
+            "Replay sensor_frame records from a JSONL log after workout starts instead of "
+            "reading serial. This also enables preset calibration for the demo flow."
+        ),
     )
     return parser.parse_args()
 
 
 async def async_main() -> int:
     args = parse_args()
+    preset_calibration = args.preset_calibration or args.replay_log is not None
     bridge = SensorBridge(
         serial_port=args.serial_port,
         baud_rate=args.baud,
         rep_debug=args.rep_debug,
         glass_debug=args.glass_debug,
-        preset_calibration=args.preset_calibration,
+        preset_calibration=preset_calibration,
         replay_log_path=args.replay_log,
     )
     await bridge.run(

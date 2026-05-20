@@ -34,6 +34,7 @@ class _CalibrationScreenAppVersionState
   _CalibrationStage _stage = _CalibrationStage.ready;
   String _statusMessage = '';
   late final WorkoutSetupViewModel _viewModel;
+  bool _autoNavigatedToWorkout = false;
 
   @override
   void initState() {
@@ -51,6 +52,9 @@ class _CalibrationScreenAppVersionState
             _setStage(_CalibrationStage.measuringMvc);
           case CalibrationStage.success:
             _setStage(_CalibrationStage.wearGlasses);
+            if (widget.autoStart) {
+              unawaited(_goToWorkoutAfterCalibration());
+            }
           case CalibrationStage.failed:
             _setStage(_CalibrationStage.failed);
         }
@@ -110,6 +114,18 @@ class _CalibrationScreenAppVersionState
   bool get _isMeasuring =>
       _stage == _CalibrationStage.measuringRest ||
       _stage == _CalibrationStage.measuringMvc;
+
+  Future<void> _goToWorkoutAfterCalibration() async {
+    if (_autoNavigatedToWorkout) {
+      return;
+    }
+    _autoNavigatedToWorkout = true;
+    await Future<void>.delayed(Duration.zero);
+    if (!mounted) {
+      return;
+    }
+    context.go('/workout');
+  }
 
   @override
   Widget build(BuildContext context) {
