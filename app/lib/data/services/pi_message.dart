@@ -176,6 +176,7 @@ class SensorFrameMessage extends PiMessage {
     required this.timestampMs,
     required this.flags,
     required this.state,
+    required this.emg,
     required this.imus,
     required this.repIndex,
     required this.motionDetected,
@@ -186,6 +187,10 @@ class SensorFrameMessage extends PiMessage {
   final int timestampMs;
   final int flags;
   final String state;
+  /// ESP → Pi 에서 그대로 전달된 EMG 1~4 raw 값. 정규화 전 값이며,
+  /// `glass_display_data.emg_channels` 의 `activation_percent` 와 비교해
+  /// raw → 정규화 단계의 누락 여부를 디버깅하기 위해 보존한다.
+  final List<double> emg;
   final List<SensorFrameImuSample> imus;
   final int? repIndex;
   final bool motionDetected;
@@ -205,6 +210,14 @@ class SensorFrameMessage extends PiMessage {
               )
               .toList(growable: false)
         : const <SensorFrameImuSample>[];
+    final rawEmg = payload['emg'];
+    final emg = List<double>.generate(4, (index) {
+      if (rawEmg is! List || index >= rawEmg.length) {
+        return 0;
+      }
+      final value = rawEmg[index];
+      return value is num ? value.toDouble() : 0;
+    });
     final flagDetail = payload['flag_detail'];
     final flagMap = flagDetail is Map<String, dynamic>
         ? flagDetail
@@ -215,6 +228,7 @@ class SensorFrameMessage extends PiMessage {
       timestampMs: payload['timestamp_ms'] as int? ?? 0,
       flags: payload['flags'] as int? ?? 0,
       state: payload['state'] as String? ?? '',
+      emg: emg,
       imus: imus,
       repIndex: payload['rep_index'] as int?,
       motionDetected: flagMap['motion_detected'] as bool? ?? false,
@@ -228,6 +242,7 @@ class SensorFrameMessage extends PiMessage {
         'timestamp_ms': timestampMs,
         'flags': flags,
         'state': state,
+        'emg': emg,
         'imus': imus.map((imu) => imu.toJson()).toList(growable: false),
         'rep_index': repIndex,
         'flag_detail': {
