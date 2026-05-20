@@ -271,7 +271,7 @@ class _GlassHudLayout extends StatelessWidget {
                         compact: true,
                       ),
                     ),
-                    SizedBox(height: compact ? 8 : 12),
+                    SizedBox(height: compact ? 6 : 12),
                     Expanded(
                       flex: 10,
                       child: _EmgCard(
@@ -281,7 +281,7 @@ class _GlassHudLayout extends StatelessWidget {
                         compact: true,
                       ),
                     ),
-                    SizedBox(height: compact ? 8 : 12),
+                    SizedBox(height: compact ? 6 : 12),
                     Expanded(
                       flex: 10,
                       child: _EmgCard(
@@ -291,7 +291,7 @@ class _GlassHudLayout extends StatelessWidget {
                         compact: true,
                       ),
                     ),
-                    SizedBox(height: compact ? 8 : 12),
+                    SizedBox(height: compact ? 6 : 12),
                     Expanded(
                       flex: 10,
                       child: _EmgCard(
@@ -301,7 +301,7 @@ class _GlassHudLayout extends StatelessWidget {
                         compact: true,
                       ),
                     ),
-                    SizedBox(height: compact ? 8 : 12),
+                    SizedBox(height: compact ? 6 : 12),
                     Expanded(
                       flex: 12,
                       child: _ControlCard(
@@ -635,8 +635,8 @@ class _ControlCard extends StatelessWidget {
         !canSendControl || awaitingSessionResult || emergencyStopped;
     return _GlassPanel(
       padding: EdgeInsets.symmetric(
-        horizontal: compact ? 14 : 18,
-        vertical: compact ? 8 : 16,
+        horizontal: compact ? 12 : 18,
+        vertical: compact ? 4 : 16,
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -651,7 +651,7 @@ class _ControlCard extends StatelessWidget {
                   compact: compact,
                 ),
               ),
-              const SizedBox(width: 10),
+              SizedBox(width: compact ? 8 : 10),
               Expanded(
                 child: _ControlButton(
                   label: paused ? '재개' : '일시정지',
@@ -691,7 +691,7 @@ class _ControlButton extends StatelessWidget {
       child: Ink(
         padding: EdgeInsets.symmetric(
           horizontal: 10,
-          vertical: compact ? 8 : 14,
+          vertical: compact ? 5 : 14,
         ),
         decoration: BoxDecoration(
           color: disabled

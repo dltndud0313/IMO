@@ -1140,10 +1140,52 @@ class BridgeState:
         self._motion_active = active_now
         return []
 
+    def _maybe_increment_replay_demo_rep(self, frame: DecodedFrame) -> list[dict[str, Any]]:
+        normalized_emg = self._normalized_emg_values_locked(frame)
+        primary_emg = (normalized_emg[0] + normalized_emg[1]) / 2.0
+        active_now = primary_emg >= 0.70
+        release_now = primary_emg <= 0.25
+
+        if active_now:
+            self._track_active_frame_locked(frame)
+
+        if active_now and not self._motion_active:
+            enough_gap = (
+                self._last_rep_timestamp_ms is None
+                or frame.timestamp_ms - self._last_rep_timestamp_ms >= 1200
+            )
+            if enough_gap:
+                self._motion_active = True
+                self._log_rep_debug_locked(
+                    f"replay demo rep peak ts={frame.timestamp_ms} primary={primary_emg:.3f}"
+                )
+            return []
+
+        if self._motion_active and not release_now:
+            return []
+
+        if self._motion_active and release_now:
+            self._update_last_rep_speed_locked(frame.timestamp_ms)
+            self._current_rep = 1 if self._current_rep is None else self._current_rep + 1
+            self._last_rep_timestamp_ms = frame.timestamp_ms
+            self._motion_active = False
+            self._log_rep_debug_locked(
+                "replay demo rep counted on release "
+                f"ts={frame.timestamp_ms} current_rep={self._current_rep} "
+                f"primary={primary_emg:.3f} speed={self._last_rep_speed_label}"
+            )
+            return self._maybe_advance_workout_locked(frame.timestamp_ms)
+
+        self._motion_active = active_now
+        return []
+
     def _maybe_increment_rep(self, frame: DecodedFrame) -> list[dict[str, Any]]:
         if self._phase != "monitoring":
             self._reset_rep_counter_locked()
             return []
+
+        if self._preset_calibration:
+            return self._maybe_increment_replay_demo_rep(frame)
 
         profile = self._build_rep_motion_profile_locked(frame)
         counter = self._rep_counter
