@@ -1299,6 +1299,10 @@ class SensorBridge:
                                 status="success",
                                 message="기준값 측정 완료",
                                 calibration_summary={
+                                    "ch1_mvc": calibration.emg_mvc[0],
+                                    "ch2_mvc": calibration.emg_mvc[1],
+                                    "ch3_mvc": calibration.emg_mvc[2],
+                                    "ch4_mvc": calibration.emg_mvc[3],
                                     "emg_rest_baseline": calibration.emg_rest_baseline,
                                     "emg_activation_threshold": calibration.emg_activation_threshold,
                                     "imu_rest_accel": calibration.imu_rest_accel,

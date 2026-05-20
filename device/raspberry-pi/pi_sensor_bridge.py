@@ -1490,20 +1490,28 @@ class BridgeState:
         minimum_valid_samples = math.ceil(
             CALIBRATION_MVC_FRAMES * CALIBRATION_MVC_MIN_VALID_RATIO
         )
-        mvc_values = [0.0] * 4
+        # Keep a conservative fallback MVC for channels that end up warning-only.
+        mvc_values = list(self._calibration_data.emg_mvc)
         mvc_failures: list[str] = []
+        mvc_warnings: list[str] = []
         primary_active_thresholds = [0.0, 0.0]
 
         for channel_index in range(4):
+            is_primary_channel = channel_index < 2
             valid_samples = [
                 frame.emg[channel_index]
                 for frame in frames
                 if frame.emg[channel_index] < EMG_DETACHED_THRESHOLD
             ]
             if len(valid_samples) < minimum_valid_samples:
-                mvc_failures.append(
-                    f"EMG {channel_index + 1} valid {len(valid_samples)}/{len(frames)}"
+                issue = (
+                    f"EMG {channel_index + 1} valid "
+                    f"{len(valid_samples)}/{len(frames)}"
                 )
+                if is_primary_channel:
+                    mvc_failures.append(issue)
+                else:
+                    mvc_warnings.append(issue)
                 continue
 
             samples = sorted(valid_samples)
@@ -1512,7 +1520,6 @@ class BridgeState:
             peak_value = samples[-1]
             baseline = self._calibration_data.emg_rest_baseline[channel_index]
             rest_std = self._calibration_rest_std[channel_index]
-            is_primary_channel = channel_index < 2
             minimum_delta = max(
                 CALIBRATION_MVC_MIN_PRIMARY_DELTA
                 if is_primary_channel
@@ -1548,22 +1555,26 @@ class BridgeState:
                 f"lift={lift:.4f} active_frames={active_frames}"
             )
 
+            channel_issues: list[str] = []
             if lift < minimum_delta:
-                mvc_failures.append(
+                channel_issues.append(
                     f"EMG {channel_index + 1} lift {lift:.3f} < {minimum_delta:.3f}"
                 )
-                continue
             if peak_lift < minimum_peak_delta:
-                mvc_failures.append(
+                channel_issues.append(
                     f"EMG {channel_index + 1} peak {peak_lift:.3f} < {minimum_peak_delta:.3f}"
                 )
-                continue
             if active_frames < minimum_active_frames:
-                mvc_failures.append(
+                channel_issues.append(
                     f"EMG {channel_index + 1} active {active_frames} < "
                     f"{minimum_active_frames}"
                 )
-                continue
+
+            if channel_issues:
+                if is_primary_channel:
+                    mvc_failures.extend(channel_issues)
+                    continue
+                mvc_warnings.extend(channel_issues)
 
             mvc_values[channel_index] = max(baseline + minimum_delta, top_average)
 
@@ -1581,6 +1592,8 @@ class BridgeState:
                 f"{CALIBRATION_MVC_MIN_PRIMARY_SYNC_FRAMES}"
             )
 
+        if mvc_warnings:
+            print(f"[calib] mvc warnings: {'; '.join(mvc_warnings)}")
         if mvc_failures:
             print(f"[calib] mvc quality issues: {'; '.join(mvc_failures)}")
             raise ValueError(
@@ -2396,6 +2409,7 @@ class SensorBridge:
                                     "ch1_mvc": calibration.emg_mvc[0],
                                     "ch2_mvc": calibration.emg_mvc[1],
                                     "ch3_mvc": calibration.emg_mvc[2],
+                                    "ch4_mvc": calibration.emg_mvc[3],
                                 },
                                 progress=1.0,
                             )
