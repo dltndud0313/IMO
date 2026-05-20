@@ -6,23 +6,27 @@ class CalibrationSummary {
   final double ch1Mvc;
   final double ch2Mvc;
   final double ch3Mvc;
+  final double ch4Mvc;
 
   const CalibrationSummary({
     required this.ch1Mvc,
     required this.ch2Mvc,
     required this.ch3Mvc,
+    required this.ch4Mvc,
   });
 
   factory CalibrationSummary.fromJson(Map<String, dynamic> json) => CalibrationSummary(
-        ch1Mvc: (json['ch1_mvc'] as num).toDouble(),
-        ch2Mvc: (json['ch2_mvc'] as num).toDouble(),
-        ch3Mvc: (json['ch3_mvc'] as num).toDouble(),
+        ch1Mvc: (json['ch1_mvc'] as num?)?.toDouble() ?? 0.0,
+        ch2Mvc: (json['ch2_mvc'] as num?)?.toDouble() ?? 0.0,
+        ch3Mvc: (json['ch3_mvc'] as num?)?.toDouble() ?? 0.0,
+        ch4Mvc: (json['ch4_mvc'] as num?)?.toDouble() ?? 0.0,
       );
 
   Map<String, dynamic> toJson() => {
         'ch1_mvc': ch1Mvc,
         'ch2_mvc': ch2Mvc,
         'ch3_mvc': ch3Mvc,
+        'ch4_mvc': ch4Mvc,
       };
 }
 
