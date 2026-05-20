@@ -227,6 +227,51 @@ def _channel_activation_percent(features: FrameFeatures) -> list[Optional[int]]:
     ]
 
 
+def _detached_channel_indices(features: FrameFeatures) -> list[int]:
+    detached_flags = [
+        features.left_primary_detached,
+        features.right_primary_detached,
+        features.left_secondary_detached,
+        features.right_secondary_detached,
+    ]
+    return [
+        index + 1 for index, detached in enumerate(detached_flags) if detached
+    ]
+
+
+def _should_block_for_detached_channels(features: FrameFeatures) -> bool:
+    primary_detached_count = sum(
+        (features.left_primary_detached, features.right_primary_detached)
+    )
+    return primary_detached_count >= 2 or features.detached_emg_channels >= 3
+
+
+def _apply_partial_detached_warning(
+    result: HeuristicResult,
+    features: FrameFeatures,
+) -> HeuristicResult:
+    if features.detached_emg_channels <= 0:
+        return result
+
+    detached_channels = ", ".join(
+        f"EMG {index}" for index in _detached_channel_indices(features)
+    )
+    return HeuristicResult(
+        activation_percent=result.activation_percent,
+        channel_activation_percent=result.channel_activation_percent,
+        activation_level=result.activation_level,
+        usage_text="일부 EMG 채널 접촉이 불안정하지만 측정은 계속 진행합니다.",
+        usage_tone="warn",
+        pose_badge="Sensor",
+        pose_title="일부 센서 접촉 불안정",
+        pose_detail=(
+            f"{detached_channels} 값이 1.000으로 감지되었습니다. "
+            "운동은 계속 측정하되, 해당 패드 부착 상태를 확인해주세요."
+        ),
+        pose_tone="warn",
+    )
+
+
 def build_waiting_result() -> HeuristicResult:
     return HeuristicResult(
         activation_percent=0,
@@ -467,6 +512,36 @@ def analyze_frame(
         return build_waiting_result()
 
     features = _extract_features(frame, calibration)
+
+    if _should_block_for_detached_channels(features):
+        detached_channels = ", ".join(
+            f"EMG {index}" for index in _detached_channel_indices(features)
+        )
+        return HeuristicResult(
+            activation_percent=0,
+            channel_activation_percent=_channel_activation_percent(features),
+            activation_level="LOW",
+            usage_text="핵심 EMG 채널이 분리되어 근활성도 값을 신뢰하기 어렵습니다.",
+            usage_tone="danger",
+            pose_badge="Sensor",
+            pose_title="센서 재부착 필요",
+            pose_detail=(
+                f"{detached_channels} 값이 1.000으로 감지되었습니다. "
+                "전극 부착 상태를 먼저 확인한 뒤 다시 진행해주세요."
+            ),
+            pose_tone="danger",
+        )
+
+    if exercise_type == "pushup":
+        result = _analyze_pushup(features)
+    elif exercise_type == "lateral_raise":
+        result = _analyze_lateral_raise(features)
+    else:
+        result = _analyze_bicep_curl(features)
+
+    if features.detached_emg_channels > 0:
+        return _apply_partial_detached_warning(result, features)
+    return result
 
     if features.detached_emg_channels > 0:
         return HeuristicResult(
