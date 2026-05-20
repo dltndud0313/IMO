@@ -1,12 +1,8 @@
-import 'dart:math' as math;
-import 'dart:ui' show FontFeature;
-
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/themes/design_tokens.dart';
+import '../../core/themes/app_text_styles.dart';
 import '../view_model/game_viewmodel.dart';
 
 class GameScreen extends StatefulWidget {
@@ -18,18 +14,15 @@ class GameScreen extends StatefulWidget {
 
 class _GameScreenState extends State<GameScreen> {
   @override
-  void initState() {
-    super.initState();
-    SystemChrome.setPreferredOrientations(const [
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
-  }
-
-  @override
-  void dispose() {
-    SystemChrome.setPreferredOrientations(const [DeviceOrientation.portraitUp]);
-    super.dispose();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Register the navigation callback every time we (re)enter this screen.
+    final viewModel = context.read<GameViewModel>();
+    viewModel.setOnReadyToPlay(() {
+      if (mounted) {
+        context.push('/game/play', extra: viewModel);
+      }
+    });
   }
 
   @override
@@ -38,7 +31,7 @@ class _GameScreenState extends State<GameScreen> {
       backgroundColor: const Color(0xFF041017),
       body: SafeArea(
         child: Consumer<GameViewModel>(
-          builder: (context, viewModel, _) {
+          builder: (context, vm, _) {
             return DecoratedBox(
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
@@ -51,19 +44,16 @@ class _GameScreenState extends State<GameScreen> {
                   ],
                 ),
               ),
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 260),
-                switchInCurve: Curves.easeOutCubic,
-                switchOutCurve: Curves.easeInCubic,
-                child: viewModel.showPreparationScreen
-                    ? _PreparationStage(
-                        key: const ValueKey('game-preparation'),
-                        viewModel: viewModel,
-                      )
-                    : _GameplayStage(
-                        key: const ValueKey('game-play'),
-                        viewModel: viewModel,
-                      ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _TopBar(vm: vm),
+                    const SizedBox(height: 20),
+                    Expanded(child: _CalibrationBody(vm: vm)),
+                  ],
+                ),
               ),
             );
           },
@@ -73,427 +63,12 @@ class _GameScreenState extends State<GameScreen> {
   }
 }
 
-class _PreparationStage extends StatelessWidget {
-  const _PreparationStage({
-    super.key,
-    required this.viewModel,
-  });
+// ─── Top bar ─────────────────────────────────────────────────────────────────
 
-  final GameViewModel viewModel;
+class _TopBar extends StatelessWidget {
+  const _TopBar({required this.vm});
 
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final wide = constraints.maxWidth >= 900;
-
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
-          child: Column(
-            children: [
-              _GameTopBar(connectionLabel: viewModel.connectionLabel),
-              const SizedBox(height: 18),
-              Expanded(
-                child: wide
-                    ? Row(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Expanded(child: _PreparationHero(viewModel: viewModel)),
-                          const SizedBox(width: 18),
-                          SizedBox(
-                            width: 320,
-                            child: _PreparationSidePanel(viewModel: viewModel),
-                          ),
-                        ],
-                      )
-                    : Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Expanded(child: _PreparationHero(viewModel: viewModel)),
-                          const SizedBox(height: 14),
-                          SizedBox(
-                            height: 250,
-                            child: _PreparationSidePanel(viewModel: viewModel),
-                          ),
-                        ],
-                      ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _PreparationHero extends StatelessWidget {
-  const _PreparationHero({
-    required this.viewModel,
-  });
-
-  final GameViewModel viewModel;
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isCounting = viewModel.isPreparing;
-        final compact = constraints.maxHeight < 560;
-        final padding = compact ? 20.0 : 28.0;
-        final titleSize = compact ? 40.0 : 52.0;
-        final countdownSize = compact ? 156.0 : 200.0;
-        final startBadgeWidth = compact ? 300.0 : 360.0;
-
-        return Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: const Color(0x206DF2D6)),
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Color(0xCC112432),
-                Color(0xCC08131B),
-              ],
-            ),
-          ),
-          child: Padding(
-            padding: EdgeInsets.all(padding),
-            child: Column(
-              children: [
-                Text(
-                  'IMU BRICK BREAKER',
-                  style: AppTextStyles.caption.copyWith(
-                    color: const Color(0xFF9EC8C1),
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.6,
-                  ),
-                ),
-                SizedBox(height: compact ? 10 : 16),
-                Text(
-                  viewModel.preparationTitle,
-                  style: AppTextStyles.display.copyWith(
-                    color: Colors.white,
-                    fontSize: titleSize,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                SizedBox(height: compact ? 10 : 14),
-                Text(
-                  viewModel.preparationDescription,
-                  style: AppTextStyles.bodyLg.copyWith(
-                    color: const Color(0xFFBED4CF),
-                    height: 1.5,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const Spacer(),
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 220),
-                  child: isCounting
-                      ? _CountdownBadge(
-                          key: const ValueKey('countdown-badge'),
-                          label: viewModel.preparationCountdown,
-                          size: countdownSize,
-                        )
-                      : _StartReadyBadge(
-                          key: const ValueKey('start-ready-badge'),
-                          progress: viewModel.startHoldProgress,
-                          width: startBadgeWidth,
-                        ),
-                ),
-                const Spacer(),
-                Text(
-                  viewModel.liveInputHint,
-                  style: AppTextStyles.body.copyWith(
-                    color: const Color(0xFFD8FF7D),
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _PreparationSidePanel extends StatelessWidget {
-  const _PreparationSidePanel({
-    required this.viewModel,
-  });
-
-  final GameViewModel viewModel;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        _GlassCard(
-          title: 'Connection',
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                viewModel.connectionLabel,
-                style: AppTextStyles.sectionTitle.copyWith(color: Colors.white),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                viewModel.connectionDetail,
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: const Color(0xFFAAC3BE),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 14),
-        _GlassCard(
-          title: 'Live IMU',
-          child: Column(
-            children: [
-              _SignalMeter(label: '왼팔', value: viewModel.leftScore),
-              const SizedBox(height: 12),
-              _SignalMeter(label: '오른팔', value: viewModel.rightScore),
-            ],
-          ),
-        ),
-        const SizedBox(height: 14),
-        Expanded(
-          child: _GlassCard(
-            title: 'Guide',
-            child: Align(
-              alignment: Alignment.topLeft,
-              child: Text(
-                isConnectedText(viewModel),
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: const Color(0xFFAAC3BE),
-                  height: 1.5,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  String isConnectedText(GameViewModel viewModel) {
-    if (viewModel.isPreparing) {
-      return '15초 동안 기본 자세를 유지하세요.\n카운트다운이 끝나면 양팔 들기 제스처를 기다립니다.';
-    }
-    return '두 팔을 동시에 들어 올리면 즉시 게임이 시작됩니다.\n한쪽 팔만 들면 시작되지 않습니다.';
-  }
-}
-
-class _GameplayStage extends StatelessWidget {
-  const _GameplayStage({
-    super.key,
-    required this.viewModel,
-  });
-
-  final GameViewModel viewModel;
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final wide = constraints.maxWidth >= 900;
-
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
-          child: Column(
-            children: [
-              _GameTopBar(connectionLabel: viewModel.connectionLabel),
-              const SizedBox(height: 14),
-              Expanded(
-                child: wide
-                    ? Row(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          SizedBox(
-                            width: 290,
-                            child: _HudPanel(viewModel: viewModel),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(child: _BoardPanel(viewModel: viewModel)),
-                        ],
-                      )
-                    : Column(
-                        children: [
-                          SizedBox(
-                            height: 220,
-                            child: _HudPanel(viewModel: viewModel),
-                          ),
-                          const SizedBox(height: 14),
-                          Expanded(child: _BoardPanel(viewModel: viewModel)),
-                        ],
-                      ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _HudPanel extends StatelessWidget {
-  const _HudPanel({
-    required this.viewModel,
-  });
-
-  final GameViewModel viewModel;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        _GlassCard(
-          title: 'Level / Score',
-          child: Row(
-            children: [
-              Expanded(
-                child: _MetricBlock(
-                  label: 'LEVEL',
-                  value: '${viewModel.displayLevel}',
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _MetricBlock(
-                  label: 'SCORE',
-                  value: '${viewModel.score}',
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _MetricBlock(
-                  label: 'LIFE',
-                  value: '${viewModel.lives}',
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 14),
-        _GlassCard(
-          title: 'Live IMU',
-          child: Column(
-            children: [
-              _SignalMeter(label: '왼팔', value: viewModel.leftScore),
-              const SizedBox(height: 12),
-              _SignalMeter(label: '오른팔', value: viewModel.rightScore),
-            ],
-          ),
-        ),
-        const SizedBox(height: 14),
-        Expanded(
-          child: _GlassCard(
-            title: 'Guide',
-            child: Align(
-              alignment: Alignment.topLeft,
-              child: Text(
-                viewModel.gameplayHint,
-                style: AppTextStyles.body.copyWith(
-                  color: const Color(0xFFBED4CF),
-                  height: 1.5,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _BoardPanel extends StatelessWidget {
-  const _BoardPanel({
-    required this.viewModel,
-  });
-
-  final GameViewModel viewModel;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: const Color(0x206DF2D6)),
-        gradient: const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Color(0xFF0E1E28),
-            Color(0xFF061018),
-          ],
-        ),
-      ),
-      padding: const EdgeInsets.all(16),
-      child: Center(
-        child: AspectRatio(
-          aspectRatio: GameViewModel.boardWidth / GameViewModel.boardHeight,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                CustomPaint(
-                  painter: _GameBoardPainter(viewModel.board),
-                ),
-                Positioned.fill(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      children: [
-                        Row(
-                          children: [
-                            _BoardChip(label: 'level ${viewModel.displayLevel}'),
-                            const SizedBox(width: 8),
-                            _BoardChip(label: 'score ${viewModel.score}'),
-                            const Spacer(),
-                            _BoardChip(label: 'life ${viewModel.lives}'),
-                          ],
-                        ),
-                        const Spacer(),
-                        if (viewModel.showBoardOverlay)
-                          _BoardOverlay(
-                            title: viewModel.boardOverlayTitle,
-                            message: viewModel.boardOverlayMessage,
-                            hint: viewModel.gameplayHint,
-                          ),
-                        const Spacer(),
-                        Row(
-                          children: const [
-                            _BoardChip(label: 'left arm'),
-                            SizedBox(width: 8),
-                            _BoardChip(label: 'center both arms'),
-                            SizedBox(width: 8),
-                            _BoardChip(label: 'right arm'),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _GameTopBar extends StatelessWidget {
-  const _GameTopBar({
-    required this.connectionLabel,
-  });
-
-  final String connectionLabel;
+  final GameViewModel vm;
 
   @override
   Widget build(BuildContext context) {
@@ -516,17 +91,238 @@ class _GameTopBar extends StatelessWidget {
             style: AppTextStyles.title.copyWith(color: Colors.white),
           ),
         ),
-        _StatusPill(label: connectionLabel),
+        _StatusPill(
+          label: vm.connectionLabel,
+          connected: vm.isConnected && vm.esp32Connected,
+        ),
       ],
     );
   }
 }
 
+// ─── Main body ────────────────────────────────────────────────────────────────
+
+class _CalibrationBody extends StatelessWidget {
+  const _CalibrationBody({required this.vm});
+
+  final GameViewModel vm;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // ── Center hero card ──────────────────────────────────────────────
+        Expanded(
+          flex: 3,
+          child: _HeroCard(vm: vm),
+        ),
+        const SizedBox(height: 16),
+        // ── Live IMU meters ───────────────────────────────────────────────
+        _GlassCard(
+          title: 'LIVE IMU',
+          child: Row(
+            children: [
+              Expanded(
+                child: _SignalMeter(label: '왼팔', value: vm.leftScore),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _SignalMeter(label: '오른팔', value: vm.rightScore),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        // ── Guide card ────────────────────────────────────────────────────
+        _GlassCard(
+          title: 'GUIDE',
+          child: Text(
+            vm.isCalibrating
+                ? '${GameViewModel.calibrationSeconds}초 동안 양팔을 편하게 내린 기본 자세를 유지하세요.\n카운트다운이 끝나면 기준점이 자동으로 설정됩니다.'
+                : '왼팔은 왼쪽, 오른팔은 오른쪽, 양팔은 가운데 패들을 조종합니다.\n두 팔을 어깨 높이로 올리면 게임이 즉시 시작됩니다.',
+            style: AppTextStyles.bodySmall
+                .copyWith(color: const Color(0xFFAAC3BE), height: 1.55),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Hero card (countdown / armed) ───────────────────────────────────────────
+
+class _HeroCard extends StatelessWidget {
+  const _HeroCard({required this.vm});
+
+  final GameViewModel vm;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: const Color(0x206DF2D6)),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xCC112432), Color(0xCC08131B)],
+        ),
+      ),
+      padding: const EdgeInsets.all(28),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            'IMU BRICK BREAKER',
+            style: AppTextStyles.caption.copyWith(
+              color: const Color(0xFF9EC8C1),
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.6,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            vm.isCalibrating ? '기준 자세 측정 중' : '게임 시작 준비 완료',
+            style: AppTextStyles.title.copyWith(
+              color: Colors.white,
+              fontSize: 26,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            vm.isCalibrating
+                ? '편안한 자세로 가만히 계세요'
+                : '양팔을 들어 게임을 시작해주세요',
+            style: AppTextStyles.body.copyWith(
+              color: const Color(0xFFBED4CF),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 28),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            child: vm.isCalibrating
+                ? _CountdownBadge(
+                    key: const ValueKey('countdown'),
+                    label: vm.calibrationCountdown,
+                  )
+                : _StartReadyBadge(
+                    key: const ValueKey('start-ready'),
+                    progress: vm.startHoldProgress,
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Countdown badge ─────────────────────────────────────────────────────────
+
+class _CountdownBadge extends StatelessWidget {
+  const _CountdownBadge({super.key, required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 160,
+      height: 160,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: const RadialGradient(
+          colors: [Color(0x4DD8FF7D), Color(0x1F6DF2D6), Color(0x00041017)],
+          stops: [0, 0.58, 1],
+        ),
+        border: Border.all(color: const Color(0x66D8FF7D)),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        label,
+        style: AppTextStyles.metric.copyWith(
+          color: Colors.white,
+          fontSize: 68,
+          fontWeight: FontWeight.w800,
+          fontFeatures: const [FontFeature.tabularFigures()],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Start-ready badge ────────────────────────────────────────────────────────
+
+class _StartReadyBadge extends StatelessWidget {
+  const _StartReadyBadge({super.key, required this.progress});
+
+  final double progress;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      constraints: const BoxConstraints(maxWidth: 400),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        color: Colors.white.withValues(alpha: 0.05),
+        border: Border.all(color: const Color(0x556DF2D6)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.fitness_center_rounded,
+                color: Color(0xFFD8FF7D),
+                size: 22,
+              ),
+              const SizedBox(width: 10),
+              Text(
+                '양팔을 동시에 들어 올리세요',
+                style: AppTextStyles.label.copyWith(
+                  color: const Color(0xFFD8FF7D),
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 10,
+              backgroundColor: Colors.white.withValues(alpha: 0.08),
+              valueColor: const AlwaysStoppedAnimation<Color>(
+                Color(0xFFD8FF7D),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            progress < 0.01 ? '팔을 올리면 시작됩니다' : '잠시만 유지하세요...',
+            style: AppTextStyles.caption.copyWith(
+              color: const Color(0xFF9EC8C1),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Shared small widgets ─────────────────────────────────────────────────────
+
 class _GlassCard extends StatelessWidget {
-  const _GlassCard({
-    required this.title,
-    required this.child,
-  });
+  const _GlassCard({required this.title, required this.child});
 
   final String title;
   final Widget child;
@@ -537,12 +333,13 @@ class _GlassCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(20),
         color: const Color(0x80101B23),
         border: Border.all(color: const Color(0x1FFFFFFF)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Text(
             title,
@@ -560,53 +357,8 @@ class _GlassCard extends StatelessWidget {
   }
 }
 
-class _MetricBlock extends StatelessWidget {
-  const _MetricBlock({
-    required this.label,
-    required this.value,
-  });
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        color: Colors.white.withValues(alpha: 0.04),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: AppTextStyles.caption.copyWith(
-              color: const Color(0xFF8EB7B1),
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: AppTextStyles.metric.copyWith(
-              color: Colors.white,
-              fontSize: 30,
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _SignalMeter extends StatelessWidget {
-  const _SignalMeter({
-    required this.label,
-    required this.value,
-  });
+  const _SignalMeter({required this.label, required this.value});
 
   final String label;
   final double value;
@@ -614,7 +366,6 @@ class _SignalMeter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final progress = (value / 1.2).clamp(0.0, 1.0);
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -640,9 +391,10 @@ class _SignalMeter extends StatelessWidget {
           borderRadius: BorderRadius.circular(999),
           child: LinearProgressIndicator(
             value: progress,
-            minHeight: 10,
+            minHeight: 8,
             backgroundColor: Colors.white.withValues(alpha: 0.08),
-            valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF6DF2D6)),
+            valueColor:
+                const AlwaysStoppedAnimation<Color>(Color(0xFF6DF2D6)),
           ),
         ),
       ],
@@ -651,26 +403,27 @@ class _SignalMeter extends StatelessWidget {
 }
 
 class _StatusPill extends StatelessWidget {
-  const _StatusPill({
-    required this.label,
-  });
+  const _StatusPill({required this.label, required this.connected});
 
   final String label;
+  final bool connected;
 
   @override
   Widget build(BuildContext context) {
+    final color =
+        connected ? const Color(0xFF6DF2D6) : const Color(0xFFFFB347);
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(999),
-        color: Colors.white.withValues(alpha: 0.08),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+        color: color.withValues(alpha: 0.12),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         child: Text(
           label,
           style: AppTextStyles.caption.copyWith(
-            color: Colors.white,
+            color: color,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -680,10 +433,7 @@ class _StatusPill extends StatelessWidget {
 }
 
 class _RoundIconButton extends StatelessWidget {
-  const _RoundIconButton({
-    required this.icon,
-    required this.onTap,
-  });
+  const _RoundIconButton({required this.icon, required this.onTap});
 
   final IconData icon;
   final VoidCallback onTap;
@@ -702,328 +452,5 @@ class _RoundIconButton extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-class _CountdownBadge extends StatelessWidget {
-  const _CountdownBadge({
-    super.key,
-    required this.label,
-    required this.size,
-  });
-
-  final String label;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: const RadialGradient(
-          colors: [
-            Color(0x4DD8FF7D),
-            Color(0x1F6DF2D6),
-            Color(0x00041017),
-          ],
-          stops: [0, 0.58, 1],
-        ),
-        border: Border.all(color: const Color(0x66D8FF7D)),
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        label,
-        style: AppTextStyles.metric.copyWith(
-          color: Colors.white,
-          fontSize: 72,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-    );
-  }
-}
-
-class _StartReadyBadge extends StatelessWidget {
-  const _StartReadyBadge({
-    super.key,
-    required this.progress,
-    required this.width,
-  });
-
-  final double progress;
-  final double width;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: width,
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(26),
-        color: Colors.white.withValues(alpha: 0.05),
-        border: Border.all(color: const Color(0x336DF2D6)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            'START',
-            style: AppTextStyles.metric.copyWith(
-              color: const Color(0xFFD8FF7D),
-              fontSize: 48,
-              letterSpacing: 1.4,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            '양팔을 동시에 들어 올리세요',
-            style: AppTextStyles.body.copyWith(color: Colors.white),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 12,
-              backgroundColor: Colors.white.withValues(alpha: 0.08),
-              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFD8FF7D)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _BoardOverlay extends StatelessWidget {
-  const _BoardOverlay({
-    required this.title,
-    required this.message,
-    required this.hint,
-  });
-
-  final String title;
-  final String message;
-  final String hint;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 520),
-        child: Container(
-          padding: const EdgeInsets.all(22),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(24),
-            color: const Color(0xD9071118),
-            border: Border.all(color: const Color(0x286DF2D6)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                title,
-                style: AppTextStyles.title.copyWith(color: Colors.white),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                message,
-                style: AppTextStyles.body.copyWith(
-                  color: const Color(0xFFBED4CF),
-                  height: 1.5,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                hint,
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: const Color(0xFFD8FF7D),
-                  fontWeight: FontWeight.w700,
-                  height: 1.5,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _BoardChip extends StatelessWidget {
-  const _BoardChip({
-    required this.label,
-  });
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(999),
-        color: Colors.white.withValues(alpha: 0.08),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-        child: Text(
-          label,
-          style: AppTextStyles.caption.copyWith(
-            color: Colors.white,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _GameBoardPainter extends CustomPainter {
-  const _GameBoardPainter(this.snapshot);
-
-  final GameBoardSnapshot snapshot;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final scale = math.min(size.width / snapshot.width, size.height / snapshot.height);
-    final dx = (size.width - snapshot.width * scale) / 2;
-    final dy = (size.height - snapshot.height * scale) / 2;
-
-    canvas.save();
-    canvas.translate(dx, dy);
-    canvas.scale(scale);
-
-    _drawBackground(canvas);
-    _drawBricks(canvas);
-    _drawPaddle(canvas);
-    _drawBall(canvas);
-
-    canvas.restore();
-  }
-
-  void _drawBackground(Canvas canvas) {
-    final fillPaint = Paint()
-      ..shader = const LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          Color(0xFF102331),
-          Color(0xFF09141D),
-          Color(0xFF040A10),
-        ],
-      ).createShader(Rect.fromLTWH(0, 0, snapshot.width, snapshot.height));
-    canvas.drawRect(
-      Rect.fromLTWH(0, 0, snapshot.width, snapshot.height),
-      fillPaint,
-    );
-
-    final gridPaint = Paint()
-      ..color = const Color(0x196DF2D6)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1;
-
-    for (double y = 54; y < snapshot.height; y += 42) {
-      canvas.drawLine(
-        Offset(18, y),
-        Offset(snapshot.width - 18, y),
-        gridPaint,
-      );
-    }
-
-    for (double x = 36; x < snapshot.width; x += 84) {
-      canvas.drawLine(
-        Offset(x, 16),
-        Offset(x, snapshot.height - 16),
-        gridPaint,
-      );
-    }
-  }
-
-  void _drawBricks(Canvas canvas) {
-    final fillPaint = Paint()..color = snapshot.brickColor;
-    final strokePaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.16)
-      ..style = PaintingStyle.stroke;
-
-    for (final brick in snapshot.bricks) {
-      final rect = Rect.fromLTWH(brick.x, brick.y, brick.width, brick.height);
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(rect, const Radius.circular(6)),
-        fillPaint,
-      );
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(rect, const Radius.circular(6)),
-        strokePaint,
-      );
-    }
-  }
-
-  void _drawPaddle(Canvas canvas) {
-    final paddle = snapshot.paddle;
-    final baseRect = Rect.fromLTWH(paddle.x, paddle.y, paddle.width, paddle.height);
-    final basePaint = Paint()..color = Colors.white.withValues(alpha: 0.08);
-    final borderPaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.16)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
-    final dividerPaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.22)
-      ..strokeWidth = 2;
-    final activePaint = Paint()..color = const Color(0xFFD8FF7D);
-
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(baseRect, const Radius.circular(10)),
-      basePaint,
-    );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(baseRect, const Radius.circular(10)),
-      borderPaint,
-    );
-
-    final segmentWidth = paddle.width / 3;
-    for (var i = 0; i < 3; i++) {
-      final segmentX = paddle.x + segmentWidth * i;
-      final segmentRect = Rect.fromLTWH(
-        segmentX,
-        paddle.y,
-        i == 2 ? paddle.x + paddle.width - segmentX : segmentWidth,
-        paddle.height,
-      );
-
-      if (i == paddle.activeIndex) {
-        canvas.drawRRect(
-          RRect.fromRectAndRadius(segmentRect, const Radius.circular(10)),
-          activePaint,
-        );
-      }
-      if (i > 0) {
-        canvas.drawLine(
-          Offset(segmentX, paddle.y),
-          Offset(segmentX, paddle.y + paddle.height),
-          dividerPaint,
-        );
-      }
-    }
-  }
-
-  void _drawBall(Canvas canvas) {
-    final ballPaint = Paint()..color = Colors.white;
-    canvas.drawCircle(
-      Offset(snapshot.ball.x, snapshot.ball.y),
-      snapshot.ball.radius,
-      ballPaint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _GameBoardPainter oldDelegate) {
-    return oldDelegate.snapshot != snapshot;
   }
 }

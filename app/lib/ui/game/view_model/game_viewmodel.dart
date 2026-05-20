@@ -17,7 +17,7 @@ class GameViewModel extends ChangeNotifier {
 
   static const double boardWidth = 960;
   static const double boardHeight = 540;
-  static const int preparationSeconds = 15;
+  static const int calibrationSeconds = 15;
 
   final List<_GameLevelConfig> _levels = const [
     _GameLevelConfig(rows: 4, cols: 7, ballSpeed: 5.0, brickColor: Color(0xFF6DF2D6)),
@@ -29,17 +29,17 @@ class GameViewModel extends ChangeNotifier {
   StreamSubscription<ConnectionStatusMessage>? _connectionStatusSubscription;
   StreamSubscription<SensorFrameMessage>? _sensorSubscription;
   Timer? _gameLoopTimer;
-  Timer? _preparationTicker;
+  Timer? _calibrationTicker;
   Timer? _reconnectTimer;
 
   bool _disposed = false;
   DateTime? _lastTickAt;
-  DateTime _preparationEndsAt = DateTime.now();
-  bool _hasStartedGame = false;
+  DateTime _calibrationEndsAt = DateTime.now();
 
-  final List<_ArmFrame> _stablePreparationFrames = <_ArmFrame>[];
-  final List<_ArmFrame> _allPreparationFrames = <_ArmFrame>[];
-  _ArmFrame? _previousPreparationFrame;
+  // Calibration baseline data
+  final List<_ArmFrame> _stableCalibrationFrames = <_ArmFrame>[];
+  final List<_ArmFrame> _allCalibrationFrames = <_ArmFrame>[];
+  _ArmFrame? _previousCalibrationFrame;
   _ArmFrame? _latestFrame;
   List<List<double>>? _baselineAccels;
   List<List<double>>? _baselineGyros;
@@ -48,7 +48,7 @@ class GameViewModel extends ChangeNotifier {
   bool _esp32Connected = false;
   String _frameStatus = 'frame waiting';
 
-  _GamePhase _phase = _GamePhase.preparing;
+  _GamePhase _phase = _GamePhase.calibrating;
   double _leftScore = 0;
   double _rightScore = 0;
   bool _leftRaised = false;
@@ -62,14 +62,21 @@ class GameViewModel extends ChangeNotifier {
   final _GameBall _ball = _GameBall();
   List<_GameBrick> _bricks = <_GameBrick>[];
 
+  // Called by GameSetupScreen when navigating to play screen
+  VoidCallback? _onReadyToPlay;
+
+  // ─── Public getters ───────────────────────────────────────────────────────
+
   bool get isConnected => _socketState == PiSocketConnectionState.connected;
   bool get esp32Connected => _esp32Connected;
-  bool get showPreparationScreen =>
-      !_hasStartedGame && (_phase == _GamePhase.preparing || _phase == _GamePhase.armed);
-  bool get showBoardOverlay => !showPreparationScreen && _phase != _GamePhase.running;
-  bool get isPreparing => _phase == _GamePhase.preparing;
+
+  bool get isCalibrating => _phase == _GamePhase.calibrating;
   bool get isArmed => _phase == _GamePhase.armed;
+  bool get isSetupPhase =>
+      _phase == _GamePhase.calibrating || _phase == _GamePhase.armed;
+
   bool get isRunning => _phase == _GamePhase.running;
+  bool get isLevelReady => _phase == _GamePhase.levelReady;
   bool get isGameOver => _phase == _GamePhase.gameOver;
   bool get isVictory => _phase == _GamePhase.victory;
 
@@ -80,73 +87,37 @@ class GameViewModel extends ChangeNotifier {
   double get rightScore => _rightScore;
   String get frameStatus => _frameStatus;
 
-  String get connectionLabel {
-    if (_socketState == PiSocketConnectionState.connecting) {
-      return '연결 중';
-    }
-    if (!isConnected) {
-      return '오프라인';
-    }
-    if (!_esp32Connected) {
-      return '센서 대기';
-    }
-    return '센서 연결됨';
-  }
-
-  String get connectionDetail {
-    if (!isConnected) {
-      return 'Pi WebSocket 연결을 확인하세요.';
-    }
-    if (!_esp32Connected) {
-      return 'ESP32 센서 입력을 기다리는 중입니다.';
-    }
-    return _frameStatus;
-  }
-
-  String get preparationTitle =>
-      isPreparing ? '자세를 준비하세요' : '준비됐으면 시작하세요';
-
-  String get preparationDescription {
-    if (isPreparing) {
-      return '15초 동안 양팔을 편하게 내린 기본 자세를 유지하면\n시작 기준점을 자동으로 잡습니다.';
-    }
-    return '두 팔을 동시에 들어 올리면 게임 화면으로 전환되며\n즉시 게임이 시작됩니다.';
-  }
-
-  String get preparationCountdown {
-    if (!isPreparing) {
-      return '';
-    }
-    final remainingMs = _preparationEndsAt.difference(DateTime.now()).inMilliseconds;
+  String get calibrationCountdown {
+    if (!isCalibrating) return '';
+    final remainingMs =
+        _calibrationEndsAt.difference(DateTime.now()).inMilliseconds;
     final remainingSec = math.max(0, (remainingMs / 1000).ceil());
     return '$remainingSec';
   }
 
   double get startHoldProgress {
-    if (_bothRaisedSince == null) {
-      return 0.0;
-    }
+    if (_bothRaisedSince == null) return 0.0;
     final elapsed = DateTime.now().difference(_bothRaisedSince!).inMilliseconds;
     return (elapsed / _requiredStartHoldMs).clamp(0.0, 1.0);
   }
 
-  String get liveInputHint => '왼팔과 오른팔 IMU만 사용합니다.';
+  String get connectionLabel {
+    if (_socketState == PiSocketConnectionState.connecting) return '연결 중';
+    if (!isConnected) return '오프라인';
+    if (!_esp32Connected) return '센서 대기';
+    return '센서 연결됨';
+  }
 
-  String get gameplayHint {
-    return switch (_phase) {
-      _GamePhase.preparing => '기준 자세를 유지하면서 카운트다운을 기다리세요.',
-      _GamePhase.armed => '양팔을 동시에 들어 올리면 시작합니다.',
-      _GamePhase.running => '왼팔은 왼쪽, 오른팔은 오른쪽, 양팔은 가운데 패들을 선택합니다.',
-      _GamePhase.levelReady => '다음 레벨입니다. 양팔을 들어 다시 시작하세요.',
-      _GamePhase.victory => '모든 레벨을 클리어했습니다. 양팔을 들면 처음부터 다시 시작합니다.',
-      _GamePhase.gameOver => '남은 라이프가 없습니다. 양팔을 들면 다시 시작합니다.',
-    };
+  String get connectionDetail {
+    if (!isConnected) return 'Pi WebSocket 연결을 확인하세요.';
+    if (!_esp32Connected) return 'ESP32 센서 입력을 기다리는 중입니다.';
+    return _frameStatus;
   }
 
   String get boardOverlayTitle {
     return switch (_phase) {
       _GamePhase.levelReady => '다음 레벨 준비',
-      _GamePhase.victory => '클리어',
+      _GamePhase.victory => '클리어!',
       _GamePhase.gameOver => '게임 오버',
       _ => '',
     };
@@ -155,18 +126,21 @@ class GameViewModel extends ChangeNotifier {
   String get boardOverlayMessage {
     return switch (_phase) {
       _GamePhase.levelReady => '양팔을 동시에 들어 다음 레벨을 시작하세요.',
-      _GamePhase.victory => '양팔을 동시에 들면 1레벨부터 다시 시작합니다.',
-      _GamePhase.gameOver => '양팔을 동시에 들면 다시 도전할 수 있습니다.',
+      _GamePhase.victory => '모든 레벨 클리어!\n양팔을 들면 처음부터 다시 시작합니다.',
+      _GamePhase.gameOver => '양팔을 들면 다시 도전할 수 있습니다.',
       _ => '',
     };
   }
 
+  bool get showBoardOverlay =>
+      _phase == _GamePhase.levelReady ||
+      _phase == _GamePhase.victory ||
+      _phase == _GamePhase.gameOver;
+
   GameStatusTone get statusTone {
-    if (!isConnected || !_esp32Connected) {
-      return GameStatusTone.warning;
-    }
+    if (!isConnected || !_esp32Connected) return GameStatusTone.warning;
     return switch (_phase) {
-      _GamePhase.preparing => GameStatusTone.normal,
+      _GamePhase.calibrating => GameStatusTone.normal,
       _GamePhase.armed => GameStatusTone.success,
       _GamePhase.running => GameStatusTone.normal,
       _GamePhase.levelReady => GameStatusTone.success,
@@ -205,23 +179,59 @@ class GameViewModel extends ChangeNotifier {
         brickColor: _levels[_levelIndex].brickColor,
       );
 
+  // ─── Setup screen API ─────────────────────────────────────────────────────
+
+  void setOnReadyToPlay(VoidCallback callback) {
+    _onReadyToPlay = callback;
+  }
+
+  /// Called by GamePlayScreen in initState to actually start the game.
+  void beginGameplay() {
+    _loadLevel(_levelIndex);
+    _attachBallToPaddle();
+    final speed = _levels[_levelIndex].ballSpeed;
+    _ball.vx = speed * 0.75;
+    _ball.vy = -speed;
+    _ball.stuck = false;
+    _phase = _GamePhase.running;
+    _lastTickAt = null;
+    _bothRaisedSince = null;
+    _safeNotify();
+  }
+
+  /// Restarts game from scratch after game over/victory (keeps baseline).
+  void restartPlay() {
+    _score = 0;
+    _lives = 3;
+    _levelIndex = 0;
+    beginGameplay();
+  }
+
+  /// Called when leaving the play screen so the setup screen shows armed state.
+  void returnToSetup() {
+    _phase = _GamePhase.armed;
+    _bothRaisedSince = null;
+    _attachBallToPaddle();
+    _safeNotify();
+  }
+
+  // ─── Initialization ───────────────────────────────────────────────────────
+
   void _initialize() {
     _loadLevel(0);
-    _startPreparation(resetBaseline: true);
+    _startCalibration();
     _startGameLoop();
-    _startPreparationTicker();
+    _startCalibrationTicker();
 
-    _connectionSubscription = _piSocketService.connectionState.listen(
-      _handleSocketState,
-    );
+    _connectionSubscription =
+        _piSocketService.connectionState.listen(_handleSocketState);
     _connectionStatusSubscription =
-        _piSocketService.messagesOf<ConnectionStatusMessage>().listen(
-      (message) {
-        _esp32Connected = message.esp32Connected;
-        _safeNotify();
-      },
-    );
-    _sensorSubscription = _piSocketService.messagesOf<SensorFrameMessage>().listen(
+        _piSocketService.messagesOf<ConnectionStatusMessage>().listen((msg) {
+      _esp32Connected = msg.esp32Connected;
+      _safeNotify();
+    });
+    _sensorSubscription =
+        _piSocketService.messagesOf<SensorFrameMessage>().listen(
       _handleSensorFrame,
     );
 
@@ -229,9 +239,7 @@ class GameViewModel extends ChangeNotifier {
   }
 
   Future<void> _ensureConnected() async {
-    if (_disposed || _piSocketService.isConnected) {
-      return;
-    }
+    if (_disposed || _piSocketService.isConnected) return;
     try {
       await _piSocketService.connect();
     } catch (_) {
@@ -251,10 +259,9 @@ class GameViewModel extends ChangeNotifier {
   }
 
   void _scheduleReconnect() {
-    if (_disposed || _reconnectTimer != null) {
-      return;
-    }
-    _reconnectTimer = Timer.periodic(const Duration(milliseconds: 1500), (timer) {
+    if (_disposed || _reconnectTimer != null) return;
+    _reconnectTimer =
+        Timer.periodic(const Duration(milliseconds: 1500), (timer) {
       if (_disposed) {
         timer.cancel();
         return;
@@ -268,103 +275,18 @@ class GameViewModel extends ChangeNotifier {
     });
   }
 
-  void _startGameLoop() {
-    _gameLoopTimer?.cancel();
-    _gameLoopTimer = Timer.periodic(const Duration(milliseconds: 16), (_) {
-      if (_phase != _GamePhase.running) {
-        return;
-      }
+  // ─── Calibration phase ────────────────────────────────────────────────────
 
-      final now = DateTime.now();
-      final last = _lastTickAt;
-      _lastTickAt = now;
-      final deltaMs = last == null ? 16.0 : now.difference(last).inMilliseconds.toDouble();
-
-      _updateBall(deltaMs);
-      _updateBricks();
-      _safeNotify();
-    });
-  }
-
-  void _startPreparationTicker() {
-    _preparationTicker?.cancel();
-    _preparationTicker = Timer.periodic(const Duration(milliseconds: 250), (_) {
-      if (_phase == _GamePhase.preparing &&
-          DateTime.now().isAfter(_preparationEndsAt)) {
-        _completePreparation();
-      }
-      _safeNotify();
-    });
-  }
-
-  void _handleSensorFrame(SensorFrameMessage message) {
-    if (message.imus.length < 2) {
-      return;
-    }
-
-    _frameStatus = 'seq ${message.seq} / ts ${message.timestampMs}ms';
-    final frame = _ArmFrame.fromMessage(message);
-    _latestFrame = frame;
-
-    if (_phase == _GamePhase.preparing) {
-      _collectPreparationFrame(frame);
-      if (DateTime.now().isAfter(_preparationEndsAt)) {
-        _completePreparation();
-      }
-      _safeNotify();
-      return;
-    }
-
-    if (_baselineAccels == null || _baselineGyros == null) {
-      _finalizePreparationBaseline();
-    }
-
-    _updateArmScores(frame);
-    _updateControlFromScores();
-
-    if (_phase == _GamePhase.armed || _phase == _GamePhase.levelReady) {
-      _handleTwoArmStart(_startRound);
-    } else if (_phase == _GamePhase.victory || _phase == _GamePhase.gameOver) {
-      _handleTwoArmStart(_restartSession);
-    }
-
-    _safeNotify();
-  }
-
-  void _collectPreparationFrame(_ArmFrame frame) {
-    _appendCapped(_allPreparationFrames, frame, maxLength: 240);
-
-    if (_previousPreparationFrame == null) {
-      _previousPreparationFrame = frame;
-      return;
-    }
-
-    final armAccelDrift =
-        _vectorDeltaNorm(frame.accels[0], _previousPreparationFrame!.accels[0]) +
-        _vectorDeltaNorm(frame.accels[1], _previousPreparationFrame!.accels[1]);
-    final armGyroDrift =
-        _vectorDeltaNorm(frame.gyros[0], _previousPreparationFrame!.gyros[0]) +
-        _vectorDeltaNorm(frame.gyros[1], _previousPreparationFrame!.gyros[1]);
-
-    final stableNow = armAccelDrift <= 0.10 && armGyroDrift <= 1.8;
-    if (stableNow) {
-      _appendCapped(_stablePreparationFrames, frame, maxLength: 180);
-    }
-    _previousPreparationFrame = frame;
-  }
-
-  void _startPreparation({required bool resetBaseline}) {
-    if (resetBaseline) {
-      _baselineAccels = null;
-      _baselineGyros = null;
-    }
-    _preparationEndsAt =
-        DateTime.now().add(const Duration(seconds: preparationSeconds));
-    _phase = _GamePhase.preparing;
+  void _startCalibration() {
+    _baselineAccels = null;
+    _baselineGyros = null;
+    _calibrationEndsAt =
+        DateTime.now().add(const Duration(seconds: calibrationSeconds));
+    _phase = _GamePhase.calibrating;
     _bothRaisedSince = null;
-    _stablePreparationFrames.clear();
-    _allPreparationFrames.clear();
-    _previousPreparationFrame = null;
+    _stableCalibrationFrames.clear();
+    _allCalibrationFrames.clear();
+    _previousCalibrationFrame = null;
     _leftScore = 0;
     _rightScore = 0;
     _leftRaised = false;
@@ -373,21 +295,34 @@ class GameViewModel extends ChangeNotifier {
     _safeNotify();
   }
 
-  void _completePreparation() {
-    if (_phase != _GamePhase.preparing) {
-      return;
-    }
-    _finalizePreparationBaseline();
-    _phase = _GamePhase.armed;
-    _bothRaisedSince = null;
+  void _startCalibrationTicker() {
+    _calibrationTicker?.cancel();
+    _calibrationTicker =
+        Timer.periodic(const Duration(milliseconds: 250), (_) {
+      if (_phase == _GamePhase.calibrating &&
+          DateTime.now().isAfter(_calibrationEndsAt)) {
+        _completeCalibration();
+      }
+      _safeNotify();
+    });
   }
 
-  void _finalizePreparationBaseline() {
-    final source = _stablePreparationFrames.length >= 20
-        ? _stablePreparationFrames
-        : (_allPreparationFrames.isNotEmpty
-            ? _allPreparationFrames
-            : (_latestFrame == null ? const <_ArmFrame>[] : <_ArmFrame>[_latestFrame!]));
+  void _completeCalibration() {
+    if (_phase != _GamePhase.calibrating) return;
+    _finalizeCalibrationBaseline();
+    _phase = _GamePhase.armed;
+    _bothRaisedSince = null;
+    _safeNotify();
+  }
+
+  void _finalizeCalibrationBaseline() {
+    final source = _stableCalibrationFrames.length >= 20
+        ? _stableCalibrationFrames
+        : (_allCalibrationFrames.isNotEmpty
+            ? _allCalibrationFrames
+            : (_latestFrame == null
+                ? const <_ArmFrame>[]
+                : <_ArmFrame>[_latestFrame!]));
 
     if (source.isEmpty) {
       _baselineAccels = const [
@@ -401,8 +336,65 @@ class GameViewModel extends ChangeNotifier {
       return;
     }
 
-    _baselineAccels = _meanArmFrames(source, (frame) => frame.accels);
-    _baselineGyros = _meanArmFrames(source, (frame) => frame.gyros);
+    _baselineAccels = _meanArmFrames(source, (f) => f.accels);
+    _baselineGyros = _meanArmFrames(source, (f) => f.gyros);
+  }
+
+  // ─── Sensor frame handling ────────────────────────────────────────────────
+
+  void _handleSensorFrame(SensorFrameMessage message) {
+    if (message.imus.length < 2) return;
+
+    _frameStatus = 'seq ${message.seq} / ts ${message.timestampMs}ms';
+    final frame = _ArmFrame.fromMessage(message);
+    _latestFrame = frame;
+
+    if (_phase == _GamePhase.calibrating) {
+      _collectCalibrationFrame(frame);
+      if (DateTime.now().isAfter(_calibrationEndsAt)) {
+        _completeCalibration();
+      }
+      _safeNotify();
+      return;
+    }
+
+    if (_baselineAccels == null || _baselineGyros == null) {
+      _finalizeCalibrationBaseline();
+    }
+
+    _updateArmScores(frame);
+    _updatePaddleFromScores();
+
+    if (_phase == _GamePhase.armed) {
+      _handleTwoArmHold(() => _onReadyToPlay?.call());
+    } else if (_phase == _GamePhase.levelReady) {
+      _handleTwoArmHold(_startNextRound);
+    } else if (_phase == _GamePhase.victory || _phase == _GamePhase.gameOver) {
+      _handleTwoArmHold(restartPlay);
+    }
+
+    _safeNotify();
+  }
+
+  void _collectCalibrationFrame(_ArmFrame frame) {
+    _appendCapped(_allCalibrationFrames, frame, maxLength: 240);
+
+    if (_previousCalibrationFrame == null) {
+      _previousCalibrationFrame = frame;
+      return;
+    }
+
+    final armAccelDrift =
+        _vectorDeltaNorm(frame.accels[0], _previousCalibrationFrame!.accels[0]) +
+        _vectorDeltaNorm(frame.accels[1], _previousCalibrationFrame!.accels[1]);
+    final armGyroDrift =
+        _vectorDeltaNorm(frame.gyros[0], _previousCalibrationFrame!.gyros[0]) +
+        _vectorDeltaNorm(frame.gyros[1], _previousCalibrationFrame!.gyros[1]);
+
+    if (armAccelDrift <= 0.10 && armGyroDrift <= 1.8) {
+      _appendCapped(_stableCalibrationFrames, frame, maxLength: 180);
+    }
+    _previousCalibrationFrame = frame;
   }
 
   void _updateArmScores(_ArmFrame frame) {
@@ -415,16 +407,12 @@ class GameViewModel extends ChangeNotifier {
     }
 
     final rawLeft = _armScore(
-      frame.accels[0],
-      _baselineAccels![0],
-      frame.gyros[0],
-      _baselineGyros![0],
+      frame.accels[0], _baselineAccels![0],
+      frame.gyros[0], _baselineGyros![0],
     );
     final rawRight = _armScore(
-      frame.accels[1],
-      _baselineAccels![1],
-      frame.gyros[1],
-      _baselineGyros![1],
+      frame.accels[1], _baselineAccels![1],
+      frame.gyros[1], _baselineGyros![1],
     );
 
     _leftScore = _blendScore(_leftScore, rawLeft);
@@ -433,7 +421,7 @@ class GameViewModel extends ChangeNotifier {
     _rightRaised = _rightScore >= 0.34;
   }
 
-  void _updateControlFromScores() {
+  void _updatePaddleFromScores() {
     if (_leftRaised && _rightRaised) {
       _paddle.activeIndex = 1;
     } else if (_leftRaised && !_rightRaised) {
@@ -443,12 +431,10 @@ class GameViewModel extends ChangeNotifier {
     } else {
       _paddle.activeIndex = 1;
     }
-    if (_ball.stuck) {
-      _attachBallToPaddle();
-    }
+    if (_ball.stuck) _attachBallToPaddle();
   }
 
-  void _handleTwoArmStart(VoidCallback action) {
+  void _handleTwoArmHold(VoidCallback action) {
     final bothRaisedForStart = _leftScore >= 0.58 && _rightScore >= 0.58;
     if (!bothRaisedForStart) {
       _bothRaisedSince = null;
@@ -464,7 +450,26 @@ class GameViewModel extends ChangeNotifier {
     }
   }
 
-  void _startRound() {
+  // ─── Game loop ────────────────────────────────────────────────────────────
+
+  void _startGameLoop() {
+    _gameLoopTimer?.cancel();
+    _gameLoopTimer = Timer.periodic(const Duration(milliseconds: 16), (_) {
+      if (_phase != _GamePhase.running) return;
+
+      final now = DateTime.now();
+      final last = _lastTickAt;
+      _lastTickAt = now;
+      final deltaMs =
+          last == null ? 16.0 : now.difference(last).inMilliseconds.toDouble();
+
+      _updateBall(deltaMs);
+      _updateBricks();
+      _safeNotify();
+    });
+  }
+
+  void _startNextRound() {
     final speed = _levels[_levelIndex].ballSpeed;
     _paddle.activeIndex = 1;
     _attachBallToPaddle();
@@ -472,15 +477,8 @@ class GameViewModel extends ChangeNotifier {
     _ball.vy = -speed;
     _ball.stuck = false;
     _phase = _GamePhase.running;
-    _hasStartedGame = true;
-  }
-
-  void _restartSession() {
-    _score = 0;
-    _lives = 3;
-    _hasStartedGame = false;
-    _loadLevel(0);
-    _startPreparation(resetBaseline: true);
+    _lastTickAt = null;
+    _safeNotify();
   }
 
   void _loadLevel(int index) {
@@ -560,7 +558,8 @@ class GameViewModel extends ChangeNotifier {
       if (segmentIndex == _paddle.activeIndex) {
         final segmentCenter = _paddle.x + segmentWidth * (segmentIndex + 0.5);
         final localRatio = (_ball.x - segmentCenter) / (segmentWidth / 2);
-        _ball.vx = _clamp(localRatio * 4.8 + (segmentIndex - 1) * 1.2, -6.6, 6.6);
+        _ball.vx =
+            _clamp(localRatio * 4.8 + (segmentIndex - 1) * 1.2, -6.6, 6.6);
         _ball.vy = -_ball.vy.abs();
       } else {
         _loseLife();
@@ -576,9 +575,7 @@ class GameViewModel extends ChangeNotifier {
   void _updateBricks() {
     var aliveCount = 0;
     for (final brick in _bricks) {
-      if (!brick.alive) {
-        continue;
-      }
+      if (!brick.alive) continue;
       aliveCount += 1;
       final withinX = _ball.x + _ball.radius >= brick.x &&
           _ball.x - _ball.radius <= brick.x + brick.width;
@@ -604,9 +601,9 @@ class GameViewModel extends ChangeNotifier {
       _attachBallToPaddle();
       return;
     }
-
     _loadLevel(_levelIndex + 1);
     _phase = _GamePhase.levelReady;
+    _bothRaisedSince = null;
   }
 
   void _loseLife() {
@@ -616,31 +613,29 @@ class GameViewModel extends ChangeNotifier {
       _attachBallToPaddle();
       return;
     }
-
     _attachBallToPaddle();
     _phase = _GamePhase.levelReady;
+    _bothRaisedSince = null;
   }
 
+  // ─── Helpers ──────────────────────────────────────────────────────────────
+
   double _armScore(
-    List<double> accel,
-    List<double> accelBaseline,
-    List<double> gyro,
-    List<double> gyroBaseline,
+    List<double> accel, List<double> accelBaseline,
+    List<double> gyro, List<double> gyroBaseline,
   ) {
     final accelDelta = _vectorDeltaNorm(accel, accelBaseline);
     final gyroDelta = _vectorDeltaNorm(gyro, gyroBaseline);
     return accelDelta + gyroDelta * 0.035;
   }
 
-  double _blendScore(double previous, double next) {
-    return previous * 0.58 + next * 0.42;
-  }
+  double _blendScore(double previous, double next) =>
+      previous * 0.58 + next * 0.42;
 
-  double _vectorDeltaNorm(List<double> current, List<double> baseline) {
-    return (current[0] - baseline[0]).abs() +
-        (current[1] - baseline[1]).abs() +
-        (current[2] - baseline[2]).abs();
-  }
+  double _vectorDeltaNorm(List<double> current, List<double> baseline) =>
+      (current[0] - baseline[0]).abs() +
+      (current[1] - baseline[1]).abs() +
+      (current[2] - baseline[2]).abs();
 
   List<List<double>> _meanArmFrames(
     List<_ArmFrame> frames,
@@ -651,7 +646,6 @@ class GameViewModel extends ChangeNotifier {
       (_) => List<double>.filled(3, 0),
       growable: false,
     );
-
     for (final frame in frames) {
       final values = extractor(frame);
       for (var arm = 0; arm < 2; arm++) {
@@ -660,7 +654,6 @@ class GameViewModel extends ChangeNotifier {
         }
       }
     }
-
     return sums
         .map(
           (row) => row
@@ -672,23 +665,17 @@ class GameViewModel extends ChangeNotifier {
 
   void _appendCapped<T>(List<T> list, T value, {required int maxLength}) {
     list.add(value);
-    if (list.length > maxLength) {
-      list.removeAt(0);
-    }
+    if (list.length > maxLength) list.removeAt(0);
   }
 
-  double _clamp(double value, double min, double max) {
-    return math.max(min, math.min(max, value));
-  }
+  double _clamp(double value, double min, double max) =>
+      math.max(min, math.min(max, value));
 
-  int _clampInt(int value, int min, int max) {
-    return math.max(min, math.min(max, value));
-  }
+  int _clampInt(int value, int min, int max) =>
+      math.max(min, math.min(max, value));
 
   void _safeNotify() {
-    if (!_disposed) {
-      notifyListeners();
-    }
+    if (!_disposed) notifyListeners();
   }
 
   @override
@@ -698,11 +685,13 @@ class GameViewModel extends ChangeNotifier {
     _connectionStatusSubscription?.cancel();
     _sensorSubscription?.cancel();
     _gameLoopTimer?.cancel();
-    _preparationTicker?.cancel();
+    _calibrationTicker?.cancel();
     _reconnectTimer?.cancel();
     super.dispose();
   }
 }
+
+// ─── Snapshot / data classes ────────────────────────────────────────────────
 
 class GameBoardSnapshot {
   const GameBoardSnapshot({
@@ -766,7 +755,9 @@ class GameBallSnapshot {
   final bool stuck;
 }
 
-enum _GamePhase { preparing, armed, running, levelReady, victory, gameOver }
+// ─── Internal types ──────────────────────────────────────────────────────────
+
+enum _GamePhase { calibrating, armed, running, levelReady, victory, gameOver }
 
 class _GameLevelConfig {
   const _GameLevelConfig({
@@ -815,10 +806,7 @@ class _GameBall {
 }
 
 class _ArmFrame {
-  const _ArmFrame({
-    required this.accels,
-    required this.gyros,
-  });
+  const _ArmFrame({required this.accels, required this.gyros});
 
   factory _ArmFrame.fromMessage(SensorFrameMessage message) {
     SensorFrameImuSample pickArmImu({
@@ -826,9 +814,7 @@ class _ArmFrame {
       required int fallbackPosition,
     }) {
       for (final imu in message.imus) {
-        if (imu.index == preferredIndex) {
-          return imu;
-        }
+        if (imu.index == preferredIndex) return imu;
       }
       return message.imus[fallbackPosition];
     }
