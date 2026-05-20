@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from typing import List
 from pydantic_settings import BaseSettings
 
@@ -40,6 +41,20 @@ class Settings(BaseSettings):
     CHAT_HISTORY_TTL: int = int(os.getenv("CHAT_HISTORY_TTL", "3600"))
     # 한 대화에서 유지할 최대 턴 수 (히스토리 누적 토큰 폭발 방지)
     CHAT_MAX_TURNS: int = int(os.getenv("CHAT_MAX_TURNS", "10"))
+    CHAT_ALLOW_ANONYMOUS: bool = os.getenv("CHAT_ALLOW_ANONYMOUS", "false").lower() in (
+        "true",
+        "1",
+        "yes",
+    )
+    RAG_ENABLED: bool = os.getenv("RAG_ENABLED", "true").lower() in ("true", "1", "yes")
+    RAG_DOCS_DIR: str = os.getenv(
+        "RAG_DOCS_DIR",
+        str(Path(__file__).resolve().parents[1] / "resources" / "rag" / "pdfs"),
+    )
+    RAG_TOP_K: int = int(os.getenv("RAG_TOP_K", "4"))
+    RAG_CHUNK_SIZE: int = int(os.getenv("RAG_CHUNK_SIZE", "1200"))
+    RAG_CHUNK_OVERLAP: int = int(os.getenv("RAG_CHUNK_OVERLAP", "160"))
+    RAG_MAX_CONTEXT_CHARS: int = int(os.getenv("RAG_MAX_CONTEXT_CHARS", "5000"))
 
     @property
     def CORS_ORIGINS(self) -> List[str]:

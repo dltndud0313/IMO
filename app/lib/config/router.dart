@@ -12,6 +12,7 @@ import '../ui/chat/view_model/chat_viewmodel.dart';
 import '../ui/chat/widgets/chat_screen.dart';
 import '../ui/game/view_model/game_viewmodel.dart';
 import '../ui/game/widgets/game_screen.dart';
+import '../ui/game/widgets/game_play_screen.dart';
 import '../ui/history/widgets/history_screen.dart';
 import '../ui/history/widgets/history_detail_screen.dart';
 import '../ui/home/view_model/home_viewmodel.dart';
@@ -151,6 +152,16 @@ GoRouter buildRouter() {
           create: (_) => getIt<GameViewModel>(),
           child: const GameScreen(),
         ),
+      ),
+      GoRoute(
+        path: '/game/play',
+        builder: (context, state) {
+          final vm = state.extra as GameViewModel;
+          return ChangeNotifierProvider.value(
+            value: vm,
+            child: const GamePlayScreen(),
+          );
+        },
       ),
       GoRoute(
         path: '/session-result',

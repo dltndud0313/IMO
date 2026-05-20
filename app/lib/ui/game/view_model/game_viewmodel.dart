@@ -54,6 +54,8 @@ class GameViewModel extends ChangeNotifier {
   bool _leftRaised = false;
   bool _rightRaised = false;
   DateTime? _bothRaisedSince;
+  double _rawLeftDelta = 0;   // 즉각적인 raw delta (위치 판단용)
+  double _rawRightDelta = 0;
 
   int _levelIndex = 0;
   int _score = 0;
@@ -398,27 +400,27 @@ class GameViewModel extends ChangeNotifier {
   }
 
   void _updateArmScores(_ArmFrame frame) {
-    if (_baselineAccels == null || _baselineGyros == null) {
+    if (_baselineAccels == null) {
       _leftScore = 0;
       _rightScore = 0;
+      _rawLeftDelta = 0;
+      _rawRightDelta = 0;
       _leftRaised = false;
       _rightRaised = false;
       return;
     }
 
-    final rawLeft = _armScore(
-      frame.accels[0], _baselineAccels![0],
-      frame.gyros[0], _baselineGyros![0],
-    );
-    final rawRight = _armScore(
-      frame.accels[1], _baselineAccels![1],
-      frame.gyros[1], _baselineGyros![1],
-    );
+    // 캘리브레이션 기준값 대비 즉각적인 변화량 (L1 노름)
+    _rawLeftDelta = _armL1Delta(frame.accels[0], _baselineAccels![0]);
+    _rawRightDelta = _armL1Delta(frame.accels[1], _baselineAccels![1]);
 
-    _leftScore = _blendScore(_leftScore, rawLeft);
-    _rightScore = _blendScore(_rightScore, rawRight);
-    _leftRaised = _leftScore >= 0.34;
-    _rightRaised = _rightScore >= 0.34;
+    // 표시용: 스무딩해서 게이지가 떨리지 않게
+    _leftScore = _leftScore * 0.6 + _rawLeftDelta * 0.4;
+    _rightScore = _rightScore * 0.6 + _rawRightDelta * 0.4;
+
+    // 위치 판단은 raw delta 기준 (즉각 반응, 내리면 바로 해제)
+    _leftRaised = _rawLeftDelta > _armActivateThreshold;
+    _rightRaised = _rawRightDelta > _armActivateThreshold;
   }
 
   void _updatePaddleFromScores() {
@@ -435,7 +437,10 @@ class GameViewModel extends ChangeNotifier {
   }
 
   void _handleTwoArmHold(VoidCallback action) {
-    final bothRaisedForStart = _leftScore >= 0.58 && _rightScore >= 0.58;
+    // raw delta 기준: 두 팔 모두 움직임 감지되면 시작
+    final bothRaisedForStart =
+        _rawLeftDelta > _armStartThreshold &&
+        _rawRightDelta > _armStartThreshold;
     if (!bothRaisedForStart) {
       _bothRaisedSince = null;
       return;
@@ -484,9 +489,9 @@ class GameViewModel extends ChangeNotifier {
   void _loadLevel(int index) {
     _levelIndex = index;
     _bricks = _buildBricks(_levels[index]);
-    _paddle.width = boardWidth * 0.62;
+    _paddle.width = boardWidth - 44; // 벽(x=22) 끝까지 꽉 채움
     _paddle.height = 26;
-    _paddle.x = (boardWidth - _paddle.width) / 2;
+    _paddle.x = 22; // 왼쪽 벽 시작점
     _paddle.y = boardHeight - 46;
     _paddle.activeIndex = 1;
     _attachBallToPaddle();
@@ -620,17 +625,11 @@ class GameViewModel extends ChangeNotifier {
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
-  double _armScore(
-    List<double> accel, List<double> accelBaseline,
-    List<double> gyro, List<double> gyroBaseline,
-  ) {
-    final accelDelta = _vectorDeltaNorm(accel, accelBaseline);
-    final gyroDelta = _vectorDeltaNorm(gyro, gyroBaseline);
-    return accelDelta + gyroDelta * 0.035;
-  }
-
-  double _blendScore(double previous, double next) =>
-      previous * 0.58 + next * 0.42;
+  // 캘리브레이션 기준 대비 가속도 변화량 (L1 노름, 3축 합산)
+  double _armL1Delta(List<double> accel, List<double> baseline) =>
+      (accel[0] - baseline[0]).abs() +
+      (accel[1] - baseline[1]).abs() +
+      (accel[2] - baseline[2]).abs();
 
   double _vectorDeltaNorm(List<double> current, List<double> baseline) =>
       (current[0] - baseline[0]).abs() +
@@ -841,4 +840,11 @@ class _ArmFrame {
   final List<List<double>> gyros;
 }
 
-const int _requiredStartHoldMs = 350;
+// 가속도 L1 노름 임계값 (캘리브레이션 기준값 대비 변화량, 단위: g)
+// 정지 노이즈 ≈ 0.10~0.25, 명확한 팔 들기 ≈ 0.50~1.5
+// ── 조정 가이드 ──────────────────────────────────────────
+// 가만히 있는데도 패들이 움직인다 → _armActivateThreshold 올려라
+// 확실히 들었는데 인식 안 된다  → _armActivateThreshold 내려라
+const double _armActivateThreshold = 0.45; // 패들 전환 임계값
+const double _armStartThreshold = 0.35;    // 게임 시작 임계값 (두 팔 동시)
+const int _requiredStartHoldMs = 500;      // 게임 시작 유지 시간 (ms)

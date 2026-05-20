@@ -9,8 +9,11 @@ from core.exceptions import Unauthorized, UserNotFound
 from core.security import decode_access_token
 from models.user import User
 
-# OAuth2의 token URL 경로 (토큰이 발급되는 엔드포인트)
 reusable_oauth2 = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login")
+optional_oauth2 = OAuth2PasswordBearer(
+    tokenUrl=f"{settings.API_V1_STR}/auth/login",
+    auto_error=False,
+)
 
 
 async def get_current_user(
@@ -27,3 +30,21 @@ async def get_current_user(
     if not user:
         raise UserNotFound()
     return user
+
+
+async def get_optional_current_user(
+    db: AsyncSession = Depends(get_db),
+    token: str | None = Depends(optional_oauth2),
+) -> User | None:
+    if not token:
+        return None
+
+    try:
+        payload = decode_access_token(token)
+        sub = payload.get("sub")
+        if not sub:
+            return None
+        result = await db.execute(select(User).where(User.id == int(sub)))
+        return result.scalar_one_or_none()
+    except Exception:
+        return None

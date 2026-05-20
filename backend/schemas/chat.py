@@ -16,10 +16,18 @@ class ChatTokensUsed(CamelModel):
     cached: int = 0
 
 
+class ChatSource(CamelModel):
+    title: str
+    file: str
+    page: int
+    score: float
+
+
 class ChatResponse(CamelModel):
     reply: str
     model: str
     tokens_used: ChatTokensUsed
+    sources: List[ChatSource] = []
 
 
 class ChatMessage(CamelModel):

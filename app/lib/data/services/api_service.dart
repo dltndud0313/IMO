@@ -8,7 +8,16 @@ import '../../domain/models/exercise_type.dart';
 import '../../domain/models/user_profile.dart';
 import '../../domain/models/workout_session.dart';
 
-const backendApiBaseUrl = 'https://k14c203.p.ssafy.io/api/v1';
+const _prodBackendApiBaseUrl = 'https://k14c203.p.ssafy.io/api/v1';
+
+/// 예: `--dart-define=BACKEND_API_BASE_URL=http://10.0.2.2:8000/api/v1`
+/// 으로 실행하면 디버그/실기기 환경에서 원하는 백엔드로 쉽게 붙일 수 있다.
+const backendApiBaseUrl = String.fromEnvironment(
+  'BACKEND_API_BASE_URL',
+  defaultValue: _prodBackendApiBaseUrl,
+);
+
+const isUsingCustomBackendApi = backendApiBaseUrl != _prodBackendApiBaseUrl;
 
 /// Backend REST API 클라이언트
 /// Base URL: https://api.imo-app.com/v1 (또는 환경변수)
