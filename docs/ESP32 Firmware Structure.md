@@ -16,9 +16,9 @@
 ## 핵심 흐름
 
 1. `sensor_mock.cpp` 또는 실제 센서 어댑터가 샘플 생성
-2. `emg_filter.cpp`가 EMG 값을 처리
-3. `calibration.cpp`가 rest baseline / MVC peak 기준값 생성
-4. `state_machine.cpp`가 상태 전이 관리
+2. `sensor_analog_emg.cpp`가 부팅 직후 baseline 기준으로 EMG source 생성
+3. `emg_filter.cpp`가 EMG 표시값을 smoothing/hold/release 처리
+4. `imu_processor.cpp`가 IMU bias, deadzone, smoothing 처리
 5. `runtime_pipeline.cpp`가 최종 `OutputPacket` 생성
 6. `packet.cpp`가 wire format으로 직렬화
 7. `transport_serial.cpp`가 Serial로 송신
@@ -37,11 +37,11 @@
 추정 비교:
 
 - v1 JSON 예시 한 줄: 약 `228 bytes`
-- v2 binary 프레임: 약 `38 bytes`
-- 바이트 수 감소: 약 `83%`
+- v2 binary 프레임: `64 bytes`
+- 바이트 수 감소: 약 `71.9%`
 - 동일 baud 기준 순수 전송 시간:
   - v1 JSON: 약 `19.8ms`
-  - v2 Binary: 약 `3.3ms`
+  - v2 Binary: 약 `5.56ms`
 
 ## 하드웨어 도착 후 바뀌는 파일
 
@@ -50,7 +50,6 @@
 - `device/esp32/firmware/include/sensor_source.h` `(실제 장착 후 구현체 추가)`
 - `device/esp32/firmware/include/config.h` `(실제 장착 후 수치 튜닝 가능성 높음)`
 - `device/esp32/firmware/src/emg_filter.cpp` `(실제 장착 후 수치 튜닝 가능성 높음)`
-- `device/esp32/firmware/src/calibration.cpp` `(실제 장착 후 수치 튜닝 가능성 높음)`
 
 ## SZH-GJD001 실센서 연동 시 체크 포인트
 
@@ -61,7 +60,7 @@
   2. ADC 핀/감쇠/전압 범위 설정
   3. 전극 접촉 상태
   4. baseline 보정 전 raw 값의 중심 전압
-  5. `emg_filter.cpp`, `calibration.cpp`의 튜닝 값
+  5. `emg_filter.cpp`, `sensor_analog_emg.cpp`의 튜닝 값
 
 상세 문서:
 - `docs/esp32_emg_sensor_bringup.md`

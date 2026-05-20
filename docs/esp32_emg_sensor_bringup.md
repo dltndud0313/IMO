@@ -1,6 +1,6 @@
 # ESP32 EMG/IMU Sensor Bring-Up
 
-이 문서는 `SZH-GJD001` 계열 단일 아날로그 EMG 센서와 `MPU-6050` IMU를 ESP32에 실제로 붙일 때, 값이 안 잡히는 문제를 줄이기 위한 점검 문서입니다.
+이 문서는 `SZH-GJD001` 계열 아날로그 EMG 센서 4채널과 `MPU-6050` IMU 3개를 ESP32에 실제로 붙일 때, 값이 안 잡히는 문제를 줄이기 위한 점검 문서입니다.
 
 ## 전제
 
@@ -9,8 +9,9 @@
 - 현재 코드 구조:
   - `device/esp32/firmware/src/sensor_analog_emg.cpp`
   - `device/esp32/firmware/src/emg_filter.cpp`
-  - `device/esp32/firmware/src/calibration.cpp`
+  - `device/esp32/firmware/src/imu_processor.cpp`
   - `device/esp32/firmware/src/runtime_pipeline.cpp`
+  - `device/esp32/firmware/src/packet.cpp`
 
 ## 왜 판매처 예제를 그대로 쓰면 안 되는가
 
@@ -48,14 +49,14 @@
 
 가장 먼저 확인할 파일입니다.
 
-- `read_raw_sample()`에 실제 ESP-IDF ADC 읽기 코드 연결
-- 현재 기본 구현은 `GPIO4`를 `ADC1_CH3`로 읽습니다.
-- `read_imu_sample()`이 MPU-6050에서 accel/gyro raw 값을 읽어오도록 구현됨
+- ESP-IDF ADC oneshot으로 EMG 4채널 raw 값을 읽습니다.
+- 현재 기본 GPIO는 `GPIO4/5/6/7`입니다.
+- MPU-6050 3개에서 accel/gyro raw 값을 읽어옵니다.
 - 실제 ADC 핀과 감쇠 설정 반영
-- 실제 IMU 배선(`SDA`, `SCL`)과 주소(`0x68` 또는 `0x69`) 확인
+- 실제 IMU 배선(`SDA`, `SCL`)과 주소(`0x68`, `0x69`) 확인
 - 센서 원시값이 어느 범위로 들어오는지 확인
 
-현재는 EMG ADC 쪽은 placeholder이고, IMU 쪽은 I2C 읽기 경로가 구현돼 있습니다.
+현재는 EMG ADC와 IMU I2C 읽기 경로가 모두 구현돼 있습니다.
 
 ### 2. `device/esp32/firmware/main/main.cpp`
 
@@ -79,40 +80,41 @@
 
 - 이동평균 창 크기
 - RMS 계산 창 크기
-- threshold
+- hold/release threshold
+- 휴식값 0 복귀 기준
 
 실측 데이터 기준으로 튜닝해야 합니다.
 
-### 5. `device/esp32/firmware/src/calibration.cpp`
+### 5. `device/esp32/firmware/src/imu_processor.cpp`
 
-- rest baseline
-- MVC peak
-- 캘리브레이션 샘플 수
+- gyro bias sample 수
+- accel/gyro deadzone
+- motion detection threshold
 
-사용자별 편차 때문에 실제 측정 후 조정이 필요할 수 있습니다.
+IMU 흔들림, 멈춤, 축 반응 이상이 있으면 이 파일과 `config.h` 설정을 같이 봅니다.
 
 ## MPU-6050 빠른 점검 포인트
 
 현재 기본 설정:
 
-- `I2C port`: `0`
-- `SDA`: `GPIO8`
-- `SCL`: `GPIO9`
-- `address`: `0x68`
+- IMU1: `I2C port=0`, `SDA=GPIO8`, `SCL=GPIO9`, `address=0x68`
+- IMU2: `I2C port=0`, `SDA=GPIO8`, `SCL=GPIO9`, `address=0x69`
+- IMU3: `I2C port=1`, `SDA=GPIO10`, `SCL=GPIO11`, `address=0x68`
 - `gyro bias calibration`: 부팅 직후 `100` 프레임(약 `2초`)
 
 배선이 다르면 `device/esp32/firmware/include/config.h`에서 바꿔야 합니다.
 
-JSON으로 확인할 때는 `JSON_V1`로 두고 아래처럼 보는 게 가장 빠릅니다.
+BINARY_V2 기본 경로에서는 `./stream`으로 보는 게 가장 빠릅니다.
 
 ```bash
 cd ./device/esp32/firmware
 source ~/esp/esp-idf/export.sh
 idf.py build
-idf.py -p /dev/ttyUSB0 -b 115200 flash monitor
+idf.py -p /dev/ttyUSB0 -b 115200 flash
+./stream
 ```
 
-정상이라면 아래 필드가 0이 아닌 실제 변화값으로 보입니다.
+정상이라면 `imu1/imu2/imu3`의 아래 값이 자세 변화에 반응합니다.
 
 - `acc_x`
 - `acc_y`
@@ -121,7 +123,7 @@ idf.py -p /dev/ttyUSB0 -b 115200 flash monitor
 - `gyro_y`
 - `gyro_z`
 
-초기화 로그 기준으로는 아래 두 줄이 먼저 보여야 정상입니다.
+초기화 텍스트 로그를 켠 경우에는 아래 로그를 참고할 수 있습니다.
 
 - `MPU-6050 WHO_AM_I = 0x68`
 - `MPU-6050 ready on I2C port=...`
@@ -141,31 +143,28 @@ idf.py -p /dev/ttyUSB0 -b 115200 flash monitor
 ## 권장 bring-up 순서
 
 1. IMU I2C 배선과 주소가 맞는지 먼저 확인
-2. 부팅 직후 `2초` 동안 보드를 가만히 둔 뒤 `JSON_V1`로 `acc_*`, `gyro_*` 값이 실제로 바뀌는지 확인
-3. EMG 모듈 출력이 `GPIO4`에 연결된 상태에서 `emg_ch1` 값이 실제로 바뀌는지 확인
-4. band-pass 이후 값이 0이 아닌지 확인
-5. `emg_ch1`만 우선 정상화
-6. calibration 전/후 값 비교
-7. JSON 또는 binary 패킷으로 Pi에 전송
+2. 부팅 직후 `2초` 동안 보드를 가만히 둔 뒤 `./stream`으로 IMU 값이 실제로 바뀌는지 확인
+3. EMG 모듈 출력이 `GPIO4/5/6/7`에 연결된 상태에서 `emg` 4채널 값이 실제로 바뀌는지 확인
+4. 부착 직후 휴식 구간에서 baseline이 잡히도록 힘을 빼고 시작
+5. 이완/수축/이완 순서로 채널별 상승과 하강 확인
+6. BINARY_V2 패킷으로 Pi에 전송
 
 ## 현재 패킷 반영 방식
 
-이 센서는 초기 단계에서 단일 채널로 보고 있으므로:
+현재 EMG는 4채널 모두 활성화되어 있습니다.
 
-- `emg_ch1` = 실제 EMG 처리값
-- `emg_ch2` = `0`
-- `emg_ch3` = `0`
-
-이 방식은 허용되며, Pi 쪽도 이 전제를 받아들일 수 있게 맞추는 것이 안전합니다.
+- `emg[0]`: GPIO4
+- `emg[1]`: GPIO5
+- `emg[2]`: GPIO6
+- `emg[3]`: GPIO7
 
 ## EMG ADC 빠른 확인
 
 현재 기본 설정:
 
-- `EMG ADC GPIO`: `GPIO4`
+- `EMG ADC GPIO`: `GPIO4/5/6/7`
 - `ADC full scale`: `4095`
 - `Serial plotter mode`: `device/esp32/firmware/include/config.h`의 `kEnableEmgRawSerialPlotterMode`
-- `EMG bring-up packet mode`: `device/esp32/firmware/include/config.h`의 `kEnableEmgBringupPacketMode`
 - `Serial plotter interval`: `50ms`
 - `Serial plotter window`: 최근 `20`개 샘플 기준 `min/max`
 
@@ -180,22 +179,20 @@ idf.py -p /dev/ttyUSB0 -b 115200 flash monitor
 
 정상이라면:
 
-- 현재 기본 설정은 `kEnableEmgBringupPacketMode = false`라서 `emg_ch1`는 normalized 값입니다.
-- 실센서 입력이 실제로 들어오는지 확인해야 할 때만 `kEnableEmgBringupPacketMode = true`로 바꿔 EMG RMS/envelope를 직접 봅니다.
-- 가만히 있을 때 `emg_ch1`는 작은 값에 머뭅니다.
-- 근육에 힘을 주면 `emg_ch1`가 평소보다 커집니다.
-- 현재 구조는 단일 채널이므로 `emg_ch2`, `emg_ch3`는 `0`이 정상입니다.
+- 가만히 있을 때 `emg` 값은 작게 유지됩니다.
+- 근육에 힘을 주면 연결된 채널이 평소보다 커집니다.
+- 일반 수축 표시값은 `0.900` 상한, 탈착 경고는 `1.000`으로 분리됩니다.
 
 반대로 계속 `0.0000`이면 먼저 아래를 봐야 합니다.
 
 - EMG 모듈 출력 핀이 정말 `GPIO4`에 연결됐는지
 - `VCC`, `GND`가 정상인지
 - `GPIO4`가 다른 기능에 점유되지 않았는지
-- `device/esp32/firmware/include/config.h`의 `kAnalogEmgAdcGpio` 값이 실제 배선과 맞는지
+- `device/esp32/firmware/include/config.h`의 `kAnalogEmgAdcGpios` 값이 실제 배선과 맞는지
 
 ## EMG raw Serial Plotter 모드
 
-`emg_ch1`가 계속 `0.0000`이면 먼저 필터 전 raw ADC 값이 들어오는지 봐야 합니다.
+특정 EMG 채널이 계속 `0.0000`이면 먼저 필터 전 raw ADC 값이 들어오는지 봐야 합니다.
 
 1. `device/esp32/firmware/include/config.h`에서 아래 값을 켭니다.
 

@@ -61,6 +61,7 @@ class AnalogEmgSensorSource : public ISensorSource {
     std::size_t imu_ready_count() const override;
     std::size_t imu_expected_count() const override;
     float read_debug_raw_emg_sample();
+    std::array<float, kEmgChannelCount> read_debug_raw_emg_samples();
     void reset();
 
   private:
@@ -69,6 +70,8 @@ class AnalogEmgSensorSource : public ISensorSource {
     ImuSample read_imu_sample(std::size_t imu_index);
     bool ensure_imu_ready();
     bool ensure_emg_ready();
+    void mark_imu_read_failure(std::size_t imu_index);
+    void mark_imu_read_success(std::size_t imu_index);
 
     RawSampleReader raw_reader_ {};
     AnalogEmgSensorConfig config_ {};
@@ -85,9 +88,10 @@ class AnalogEmgSensorSource : public ISensorSource {
     bool emg_init_failed_ {false};
     std::size_t imu_ready_count_ {0};
     std::array<bool, kImuSensorCount> imu_channel_ready_ {};
+    std::array<std::size_t, kImuSensorCount> imu_read_failure_count_ {};
+    std::array<bool, kImuSensorCount> imu_read_error_logged_ {};
     bool imu_ready_ {false};
     bool imu_init_failed_ {false};
-    bool imu_read_error_logged_ {false};
 };
 
 }  // namespace mvp

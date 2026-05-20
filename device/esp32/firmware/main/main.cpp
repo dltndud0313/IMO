@@ -31,31 +31,17 @@ extern "C" void app_main(void) {
     mvp::AnalogEmgSensorSource sensor_source({}, sensor_config);
 
     if (mvp::kEnableEmgRawSerialPlotterMode) {
-        std::array<float, mvp::kEmgRawSerialPlotterWindowSamples> recent_raw_emg {};
-        std::size_t recent_count = 0;
-        std::size_t recent_index = 0;
-
         while (true) {
-            const float raw_emg = sensor_source.read_debug_raw_emg_sample();
-            recent_raw_emg[recent_index] = raw_emg;
-            recent_index = (recent_index + 1U) % recent_raw_emg.size();
-            if (recent_count < recent_raw_emg.size()) {
-                ++recent_count;
-            }
+            const std::array<float, mvp::kEmgChannelCount> raw_emg =
+                sensor_source.read_debug_raw_emg_samples();
 
-            float min_raw = raw_emg;
-            float max_raw = raw_emg;
-            for (std::size_t index = 0; index < recent_count; ++index) {
-                min_raw = std::min(min_raw, recent_raw_emg[index]);
-                max_raw = std::max(max_raw, recent_raw_emg[index]);
-            }
-
-            // Serial Plotter에서 raw / 최근 최소 / 최근 최대를 한 번에 비교할 수 있게 세 값을 같이 출력한다.
+            // EMG 배선/센서 진단용 모드다. 이 모드에서는 BINARY_V2 패킷을 보내지 않는다.
             printf(
-                "raw:%.0f,min:%.0f,max:%.0f\n",
-                static_cast<double>(raw_emg),
-                static_cast<double>(min_raw),
-                static_cast<double>(max_raw)
+                "raw1:%.0f,raw2:%.0f,raw3:%.0f,raw4:%.0f\n",
+                static_cast<double>(raw_emg[0]),
+                static_cast<double>(raw_emg[1]),
+                static_cast<double>(raw_emg[2]),
+                static_cast<double>(raw_emg[3])
             );
 
 #if __has_include("freertos/FreeRTOS.h")

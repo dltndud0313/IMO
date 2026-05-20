@@ -1,298 +1,316 @@
-# device/esp32
+# ESP32 센서 수집 펌웨어 최종 정리
 
-ESP32-S3 기반 센서 송신 코드를 관리하는 폴더입니다.
+이 파일이 **ESP32 작업 내용을 대표하는 README**입니다.
 
-현재 들어 있는 코드는 **mock 기반 사전 구현을 출발점으로 만들었고**, 지금은 `MPU-6050` IMU 실제 읽기 경로까지 포함한 상태입니다.
+PPT/포트폴리오에 ESP32 파트를 정리할 때는 이 문서를 먼저 보면 됩니다.  
+세부 측정 절차나 긴 트러블슈팅은 `docs/` 문서를 참고용으로 분리했습니다.
 
-즉, 지금 목표는 아래 흐름을 하드웨어 없이 먼저 고정하는 것입니다.
+## 한 줄 요약
 
-- 가짜 센서 입력 생성
-- EMG 처리
-- 캘리브레이션
-- 상태머신 전이
-- 패킷 생성
-- USB Serial 송신 준비
+ESP32-S3에서 EMG 4채널과 MPU-6050 IMU 3개를 50Hz로 수집하고, USB Serial `BINARY_V2` 64바이트 고정 프레임으로 Raspberry Pi에 전달하는 저지연 센서 수집 펌웨어입니다.
 
-현재는 위 흐름 중 **IMU 입력은 실제 하드웨어값**, EMG는 ADC 연동 전까지 mock/0 값 기반으로 운영할 수 있습니다.
+## 현재 구현 상태
 
-## 구성
+- ESP32 내부 운동 판정용 캘리브레이션 상태 제거
+- 센서 안정화용 baseline/noise 보정은 ESP32에서 수행
+- 전원 인가 후 즉시 `STREAMING`
+- EMG 4채널 ADC 입력 처리
+- IMU 3개 I2C 입력 처리
+- EMG 표시값 smoothing, hold, release 튜닝
+- 센서 탈착 경고값 분리
+- USB Serial 바이너리 프레임 송신
+- Raspberry Pi 디코더/로그 저장 경로와 연동 가능
+- 하드웨어 없이 확인 가능한 host test 유지
 
-- `firmware/`
-  - ESP-IDF 프로젝트 루트입니다.
-  - mock 센서 입력, EMG 처리, 캘리브레이션, 상태머신, JSONL 패킷 생성, Serial 송신 코드가 들어 있습니다.
-- `scripts/`
-  - Ubuntu 22.04에서 하드웨어 없이 핵심 로직을 검증하는 보조 스크립트입니다.
+## 센서 구성
 
-## 빠른 실행
+| 구분 | 현재 설정 |
+| --- | --- |
+| EMG | 4채널 ADC |
+| EMG GPIO | `GPIO4/5/6/7` |
+| IMU | MPU-6050 3개 |
+| IMU1 | `I2C port=0`, `SDA=GPIO8`, `SCL=GPIO9`, `address=0x68` |
+| IMU2 | `I2C port=0`, `SDA=GPIO8`, `SCL=GPIO9`, `address=0x69` |
+| IMU3 | `I2C port=1`, `SDA=GPIO10`, `SCL=GPIO11`, `address=0x68` |
+| 송신 주기 | `20ms`, 약 `50Hz` |
+| 기본 전송 | USB Serial |
+| 기본 패킷 | `BINARY_V2`, 64바이트 고정 프레임 |
 
-저장소 루트에서 아래 명령으로 호스트 테스트를 실행할 수 있습니다.
+## 실행 방법
+
+ESP-IDF 환경을 로드한 뒤 빌드합니다.
+
+```bash
+cd ./device/esp32/firmware
+source ~/esp/esp-idf/export.sh
+idf.py build
+```
+
+ESP32에 업로드합니다.
+
+```bash
+idf.py -p /dev/ttyUSB0 -b 115200 flash
+```
+
+실시간 센서값을 확인합니다.
+
+```bash
+./stream
+```
+
+포트가 다르면 먼저 확인합니다.
+
+```bash
+ls /dev/ttyUSB* /dev/ttyACM* 2>/dev/null
+```
+
+## 코드 흐름
+
+현재 펌웨어의 핵심 흐름은 아래와 같습니다.
+
+```text
+sensor_analog_emg.cpp
+  -> EMG ADC 4채널 raw 입력, baseline 대비 envelope 생성
+
+imu_processor.cpp
+  -> MPU-6050 3개 accel/gyro 입력, bias/deadzone 처리
+
+emg_filter.cpp
+  -> EMG moving average, RMS, display smoothing, hold/release 처리
+
+runtime_pipeline.cpp
+  -> 센서 읽기, 처리 결과 취합, OutputPacket 생성
+
+packet.cpp
+  -> OutputPacket을 BINARY_V2 64바이트 wire frame으로 변환
+
+transport_serial.cpp
+  -> USB Serial 송신
+```
+
+## 전체 동작을 쉽게 풀어쓴 설명
+
+ESP32는 운동을 최종 판단하는 장치가 아니라, **센서값을 빠르게 읽고 보기 좋은 형태로 1차 정리해서 Pi로 보내는 장치**입니다.
+
+전체 흐름은 아래처럼 생각하면 됩니다.
+
+```text
+1. EMG/IMU 센서에서 raw 값 읽기
+2. 너무 튀는 값, 기준선 차이, 작은 노이즈를 ESP32에서 1차 정리
+3. 화면/게이지에 쓰기 좋은 값으로 부드럽게 만들기
+4. 64바이트 바이너리 패킷으로 압축
+5. USB Serial로 Raspberry Pi에 전송
+6. Pi에서 로그 저장, 운동 횟수/자세 판단, UI 표시 처리
+```
+
+중요한 구분:
+
+- ESP32에서 제거한 것: 사용자별 운동 판정 캘리브레이션, MVC 같은 무거운 상태 절차
+- ESP32에 남긴 것: 센서가 안정적으로 보이기 위한 baseline, noise floor, smoothing, hold/release
+
+즉, “캘리브레이션을 완전히 안 한다”가 아니라 **운동 판단용 캘리브레이션은 Pi로 넘기고, 센서 신호 안정화용 보정은 ESP32에서 가볍게 한다**가 정확한 표현입니다.
+
+## EMG 값이 만들어지는 과정
+
+EMG는 건식 전극과 피부 접촉 상태 때문에 raw 값이 많이 흔들립니다. 그래서 ESP32에서 한 번에 바로 보내지 않고, 아래 단계를 거칩니다.
+
+| 단계 | 위치 | 하는 일 | 이유 |
+| --- | --- | --- | --- |
+| 1. ADC raw 읽기 | `sensor_analog_emg.cpp` | `GPIO4/5/6/7`에서 EMG 4채널 ADC 값을 읽음 | 실제 센서 전압을 숫자로 변환 |
+| 2. 시작 baseline 수집 | `sensor_analog_emg.cpp` | 부팅 직후 힘을 뺀 상태의 평균 raw 값을 채널별 기준선으로 저장 | 사람마다/전극마다 기본 전압이 달라서 기준선이 필요 |
+| 3. baseline 대비 변화량 계산 | `sensor_analog_emg.cpp` | 현재 raw와 baseline의 차이를 구함 | 절대 raw 값이 아니라 “휴식 대비 얼마나 변했는지”를 보기 위해 |
+| 4. noise floor 제거 | `sensor_analog_emg.cpp` | 휴식 중 흔들림보다 작은 변화는 0으로 처리 | 가만히 있어도 생기는 미세 노이즈 제거 |
+| 5. frame RMS 계산 | `sensor_analog_emg.cpp` | 20ms 프레임 안의 여러 샘플을 RMS로 묶음 | 순간 튐 하나보다 프레임 전체의 신호 세기를 보기 위해 |
+| 6. 이동평균/RMS 재계산 | `emg_filter.cpp` | 최근 값들을 다시 평균/RMS 처리 | 게이지가 너무 덜컥거리거나 순간적으로 꺼지는 것 완화 |
+| 7. display gain/clamp | `emg_filter.cpp` | 보기 좋은 범위로 키우고 `0.900` 상한 적용 | UI 게이지에서 값이 너무 작거나 과하게 튀지 않도록 조정 |
+| 8. hold/release smoothing | `emg_filter.cpp` | 힘 유지 중 급락 완화, 힘 뺄 때 자연스럽게 감소 | 실제 운동 게이지처럼 보이게 만들기 위해 |
+| 9. 탈착 감지 | `sensor_analog_emg.cpp`, `emg_filter.cpp` | 센서가 떨어진 것으로 보이면 `1.000` 경고값 출력 | 일반 힘 신호와 센서 이상을 구분 |
+
+정리하면 EMG는 크게 **baseline 보정 -> noise 제거 -> RMS/envelope -> moving average/RMS -> display smoothing** 순서로 처리됩니다.  
+그래서 “필터를 2번 또는 3번 하냐”라고 물으면, 실제로는 목적이 다른 안정화가 여러 단계 들어갑니다.
+
+### EMG 처리에서 각 단계가 필요한 이유
+
+- `baseline`: 센서를 붙인 사람과 위치마다 기본 전압이 다르기 때문에 휴식 기준을 잡습니다.
+- `noise floor`: 힘을 안 줘도 ADC와 전극 접촉 때문에 작은 흔들림이 생겨서, 이 구간은 0으로 붙입니다.
+- `RMS`: EMG처럼 흔들리는 신호를 평균적인 세기로 바꿉니다.
+- `moving average`: 화면에 보이는 값이 너무 빠르게 튀지 않게 합니다.
+- `hold`: 힘을 유지하는 중간에 신호가 짧게 꺼져도 게이지가 바로 꺼지지 않게 합니다.
+- `release`: 힘을 뺐을 때 값이 너무 오래 남지 않도록 하강 속도를 조정합니다.
+- `detach`: 전극이 떨어진 상태를 일반 근육 신호와 구분합니다.
+
+## IMU 값이 만들어지는 과정
+
+IMU는 `MPU-6050` 3개를 읽습니다. IMU 쪽도 raw 값을 그대로 쓰지 않고 안정화 단계를 거칩니다.
+
+| 단계 | 위치 | 하는 일 | 이유 |
+| --- | --- | --- | --- |
+| 1. I2C 초기화 | `sensor_analog_emg.cpp` | I2C 버스와 MPU-6050 장치를 등록 | 센서와 통신하기 위한 준비 |
+| 2. `WHO_AM_I` 확인 | `sensor_analog_emg.cpp` | 실제 MPU 계열 센서가 응답하는지 확인 | 주소만 맞고 실제 읽기가 안 되는 경우 분리 |
+| 3. wake 처리 | `sensor_analog_emg.cpp` | MPU-6050 sleep 해제 | 부팅 직후 센서가 잠들어 있는 상태 방지 |
+| 4. accel/gyro raw 읽기 | `sensor_analog_emg.cpp` | 가속도/자이로 raw register 읽기 | 실제 움직임 데이터 확보 |
+| 5. gyro bias 보정 | `imu_processor.cpp` | 부팅 직후 약 100프레임 평균을 자이로 영점으로 사용 | 정지 상태에서도 자이로가 0이 아닌 문제 보정 |
+| 6. deadzone 처리 | `imu_processor.cpp` | 너무 작은 accel/gyro 값은 0으로 처리 | 정지 상태의 미세 떨림 제거 |
+| 7. EMA smoothing | `imu_processor.cpp` | 지수이동평균으로 accel/gyro를 부드럽게 처리 | 움직임 값이 너무 튀지 않게 안정화 |
+| 8. motion score 계산 | `imu_processor.cpp` | 자이로 절대값 평균으로 움직임 정도 계산 | Pi/UI에서 움직임 여부를 빠르게 참고 |
+
+IMU는 EMG처럼 근육 세기를 계산하지 않습니다. 대신 **자이로 영점 보정, 작은 흔들림 제거, 부드러운 움직임 값 생성**에 집중합니다.
+
+## 부팅 후 실제 실행 순서
+
+ESP32에 전원이 들어오면 아래 순서로 동작합니다.
+
+1. `main.cpp`에서 센서 소스, 파이프라인, Serial transport를 준비합니다.
+2. `AnalogEmgSensorSource`가 EMG ADC와 IMU I2C 장치를 사용할 준비를 합니다.
+3. IMU는 `WHO_AM_I`를 읽어 실제 센서가 응답하는지 확인하고, sleep 상태를 해제합니다.
+4. 펌웨어는 별도 대기 상태 없이 `STREAMING` 상태로 들어갑니다.
+5. 매 `20ms`마다 `runtime_pipeline.cpp`의 `tick()`이 한 번 실행됩니다.
+6. `tick()` 안에서 EMG 4채널과 IMU 3개의 현재 값을 읽습니다.
+7. EMG는 `emg_filter.cpp`를 거쳐 표시용 값으로 바뀝니다.
+8. IMU는 `imu_processor.cpp`를 거쳐 bias/deadzone/smoothing이 적용됩니다.
+9. 처리 결과를 `OutputPacket` 하나로 묶습니다.
+10. `packet.cpp`가 `OutputPacket`을 `BINARY_V2` 64바이트 프레임으로 바꿉니다.
+11. `transport_serial.cpp`가 USB Serial로 Pi에 보냅니다.
+
+반복 구조를 코드 기준으로 단순화하면 아래와 같습니다.
+
+```text
+while true, every 20ms:
+  frame = sensor_source.read_frame(timestamp)
+  emg_result = emg_filter.process(frame.emg)
+  imu_result[0..2] = imu_processor.process(frame.imu[0..2])
+  packet = build_packet(timestamp, emg_result, imu_result)
+  serial.send(packet)
+```
+
+## Pi로 보내는 패킷에 들어가는 값
+
+ESP32는 raw ADC 값을 그대로 보내지 않습니다. Pi에는 **이미 1차 정리된 값**을 보냅니다.
+
+| 필드 | 내용 |
+| --- | --- |
+| `seq` | 몇 번째 프레임인지 나타내는 순번 |
+| `timestamp_ms` | ESP32 기준 timestamp |
+| `emg[0..3]` | EMG 4채널 display 값, 일반 수축은 최대 `0.900`, 탈착은 `1.000` |
+| `imu1 accel/gyro` | IMU1의 smoothing된 가속도/자이로 |
+| `imu2 accel/gyro` | IMU2의 smoothing된 가속도/자이로 |
+| `imu3 accel/gyro` | IMU3의 smoothing된 가속도/자이로 |
+| `state` | 현재 상태, 기본은 `STREAMING` |
+| `flags` | mock 여부, IMU bias 준비 여부, motion 감지 여부 등 |
+| `rep_index` | ESP32에서는 기본 `-1`, 반복 운동 판단은 Pi에서 처리 |
+
+패킷을 바이너리로 보내는 이유:
+
+- JSON은 사람이 읽기 쉽지만 문자열 길이가 길어 Serial 전송 시간이 큽니다.
+- `BINARY_V2`는 항상 64바이트라 Pi 수신기가 프레임을 일정하게 읽을 수 있습니다.
+- 같은 `115200 baud`에서도 JSON보다 전송 시간이 짧아 20ms 주기에 여유가 생깁니다.
+
+## 정량 비교 포인트
+
+PPT/포트폴리오에 바로 사용할 수 있는 수치입니다.
+
+| 항목 | 현재 값 | 의미 |
+| --- | --- | --- |
+| 센서 구성 | EMG 4채널 + IMU 3개 | ESP32에서 동시에 수집 |
+| 송신 주기 | `20ms` | 약 `50Hz` |
+| 패킷 포맷 | `BINARY_V2` | 실시간 USB Serial 경로 |
+| 프레임 크기 | `64 bytes` | 고정 길이 프레임 |
+| 115200 baud 전송 시간 | 약 `5.56ms/frame` | 64 bytes x 10 bits / 115200 |
+| JSON 대비 전송량 | 약 `71.9%` 감소 | 228 bytes 추정 JSON 대비 |
+
+요약 문장:
+
+- 기존 JSON 기반 송신은 20ms 주기에서 전송 시간만 약 19.8ms를 사용했지만, `BINARY_V2`는 약 5.56ms로 줄여 실시간 처리 여유를 확보했습니다.
+- ESP32는 센서 수집과 1차 안정화에 집중하고, 세션 저장과 운동 판단은 Raspberry Pi에서 처리하도록 역할을 분리했습니다.
+
+## EMG 튜닝 목표
+
+현재 EMG는 의료용 절대 측정이 아니라 **운동보조용 실시간 게이지**를 목표로 튜닝했습니다.
+
+- 부착 직후 휴식 상태는 `0.000`
+- 힘을 주면 값 상승
+- 힘 유지 중에는 값이 급락하지 않도록 완화
+- 힘을 빼면 자연스럽게 감소
+- 일반 근육 수축 상한은 `0.900`
+- 센서 탈착 경고는 `1.000`
+
+핵심 튜닝값은 `device/esp32/firmware/include/config.h`에 있습니다.
+
+| 항목 | 값 | 의미 |
+| --- | --- | --- |
+| `kEmgDisplayAttackAlpha` | `0.12` | 상승 반응 속도 |
+| `kEmgDisplayReleaseAlpha` | `0.78` | 하강 반응 속도 |
+| `kEmgDisplayZeroReleaseAlpha` | `0.10` | 0 근처 복귀 속도 |
+| `kEmgDisplayHoldFrames` | `6` | 유지 중 급락 완화 프레임 |
+| `kEmgDisplayHoldRawThreshold` | `0.020` | hold 재충전 raw 기준 |
+| `kEmgDisplayHoldDisplayThreshold` | `0.200` | 이전 표시값 유지 최소 기준 |
+| `kEmgRestDisplayThreshold` | `0.010` | 휴식으로 보고 0에 붙이는 기준 |
+| `kEmgDisplayGain` | `20.00` | 게이지 증폭 계수 |
+| `kEmgDisplaySignalMax` | `0.900` | 일반 수축 표시 상한 |
+| `kEmgDisplayMax` | `1.000` | 탈착 포함 전체 표시 상한 |
+
+## 주요 개선 내용
+
+- JSON 문자열 송신 중심 구조에서 `BINARY_V2` 고정 프레임으로 전환했습니다.
+- ESP32 내부 캘리브레이션 단계를 제거해 부팅 후 바로 스트리밍하도록 단순화했습니다.
+- EMG는 baseline 대비 변화량 envelope로 처리하고, 표시 안정화를 위해 moving average/RMS/smoothing을 적용했습니다.
+- EMG raw 값에 바로 threshold를 걸지 않고 baseline, noise floor, RMS, display smoothing을 순서대로 적용했습니다.
+- 힘 유지 중 값이 순간적으로 꺼지는 문제를 hold 로직으로 완화했습니다.
+- 작은 잔류 노이즈가 `0.900` 상한을 계속 유지시키는 문제를 줄이기 위해 hold 재충전 기준을 raw threshold와 display threshold로 분리했습니다.
+- IMU3를 별도 I2C 버스로 분리해 주소 충돌과 단일 버스 가정을 줄였습니다.
+
+## ESP32와 Raspberry Pi 역할 분리
+
+실시간 경로에서 ESP32는 가볍게 유지해야 합니다. 그래서 역할을 아래처럼 나눴습니다.
+
+| 장치 | 담당 |
+| --- | --- |
+| ESP32 | 센서 raw 읽기, baseline/noise 보정, EMG/IMU 1차 안정화, 바이너리 패킷 송신 |
+| Raspberry Pi | 패킷 수신, 세션 로그 저장, 운동별 분석, 반복 횟수/자세 판단, UI/글래스 연동 |
+
+이렇게 나눈 이유:
+
+- ESP32에서 무거운 운동 분석까지 하면 20ms 주기를 안정적으로 유지하기 어렵습니다.
+- Pi는 로그 저장과 분석을 하기 좋고, 나중에 운동별 로직을 바꾸기도 쉽습니다.
+- ESP32-Pi 사이 패킷 포맷만 유지하면 센서 처리와 UI 처리를 독립적으로 수정할 수 있습니다.
+
+## 테스트 방법
+
+하드웨어 없이 펌웨어 핵심 로직을 확인합니다.
 
 ```bash
 ./device/esp32/scripts/run_firmware_host_tests.sh
 ```
 
-## 라즈베리파이 전송 방식 요약
+실제 보드에서는 아래 순서로 확인합니다.
 
-전송 계층은 **v1 JSONL 시도안을 archive로 보존하고, 실시간 경로는 v2 바이너리 프로토콜로 전환하는 방향**으로 정리합니다.
+1. ESP32 플래시
+2. `./stream` 실행
+3. EMG 4채널이 이완/수축에 따라 변하는지 확인
+4. IMU 3개가 자세 변화에 따라 변하는지 확인
+5. Raspberry Pi 저장 스크립트로 세션 로그 저장
 
-### 현재 코드에서 바로 확인되는 것
+## 자주 나온 문제
 
-- 현재 실행 중인 펌웨어는 `emg-glass.v1` JSONL 패킷을 출력합니다.
-- 즉, 어제 ESP32에서 본 `{...}` 한 줄 출력은 **v1 JSONL 송신 성공**입니다.
-- 이 형식은 bring-up과 디버깅에는 유리하지만, 실시간 경로 최종안으로는 무겁습니다.
+| 증상 | 원인 | 대응 |
+| --- | --- | --- |
+| IMU 일부가 `0,0,0`으로 보임 | I2C 주소 probe와 실제 sample read는 별개 | `WHO_AM_I`, wake, sample read를 분리 확인 |
+| IMU1/IMU3 값이 만질 때 멈춤 | 배선/접촉/전원/GND 문제 가능성 | 단독 테스트, 공통 GND/VCC 교체, 모듈 교차 테스트 |
+| 디코더에 깨진 문자가 보임 | 바이너리 프레임을 텍스트처럼 출력 | `./stream` 또는 Pi binary decoder 사용 |
+| EMG가 `0.900`에 오래 붙음 | hold 로직이 작은 잔류값에 계속 갱신 | hold raw/display threshold 분리 |
+| EMG가 손으로 눌러야 잘 잡힘 | 전극 접촉 저항/부착 위치 영향 | 부착 위치와 접촉 안정화 후 baseline 시작 |
 
-### 현재 기준 권장 전송 방식
+## 관련 문서
 
-- 전송 매체: `USB Serial`
-- 전송 형식: `v2 binary frame`
-- 프레임 경계: `magic + payload_len + crc16`
-- 프로토콜 버전: `2`
-- 현재 기본 baud rate: `115200`
-- 현재 기본 송신 주기: `20ms` 간격, 약 `50Hz`
+상세 내용이 필요할 때만 아래 문서를 봅니다.
 
-### v1 JSONL archive
-
-- v1 문서: `shared/protocol/archive/esp32_pi_packet_format_v1_jsonl.md`
-- 용도: 사람이 직접 읽는 초기 디버깅, bring-up 참고
-- 상태: archive
-
-### v2 바이너리 설계 문서
-
-- 현재 기준 문서: `shared/protocol/esp32_pi_packet_format.md`
-- 변경 이유와 영향 범위: `docs/esp32_packet_protocol_migration.md`
-- Raspberry Pi는 위 문서를 기준으로 **byte stream을 읽고 binary unpack** 하는 구조로 맞추는 것이 권장됩니다.
-- 문자열 키 이름 대신 고정된 필드 순서와 상태 코드 표를 사용합니다.
-- Pi 담당자 시작 문서: `device/raspberry-pi/README.md`
-
-### 포맷 선택 구조
-
-- 현재 코드에는 `JSON_V1`, `BINARY_V2` 두 포맷이 모두 들어 있습니다.
-- 기본 선택 위치: `device/esp32/firmware/include/config.h`
-- 기본값: `kDefaultPacketFormat`
-- 현재 기본값은 디버깅 편의를 위해 `JSON_V1` 입니다.
-- 실시간성 비교 테스트 시에는 `BINARY_V2` 로 바꿔 같은 파이프라인을 비교할 수 있습니다.
-- 이후 무선 경로(MQTT) 실험 시에도 `OutputPacket -> PacketBuffer` 구조를 그대로 재사용할 수 있습니다.
-- 포맷 차이와 현재 기본값을 한 번에 보려면 `docs/esp32_pi_protocol_quick_reference.md`를 먼저 보면 됩니다.
-
-### 포맷 바꿔서 실행하는 법
-
-현재 포맷 선택은 **`config.h` 수정 -> 재빌드 -> 재플래시** 방식입니다.
-
-1. `device/esp32/firmware/include/config.h`에서 `kDefaultPacketFormat` 값을 선택
-2. 아래 명령으로 다시 빌드/플래시
-
-```bash
-cd ~/S14P31C203/device/esp32/firmware
-source ~/esp/esp-idf/export.sh
-idf.py build
-idf.py -p /dev/ttyACM0 -b 115200 flash monitor
-```
-
-- `JSON_V1`이면 사람이 읽을 수 있는 JSON이 출력됩니다.
-- `BINARY_V2`이면 문자열 대신 raw bytes가 송신됩니다.
-- JSON 출력 예시와 바이너리 1프레임/연속 프레임 확인 명령은 `docs/esp32_pi_protocol_quick_reference.md`에 정리돼 있습니다.
-- IMU bring-up 중에는 `JSON_V1`로 두고, 부팅 직후 약 `2초` 동안 보드를 가만히 둔 뒤 `gyro_*` 값이 0 근처로 내려오는지 먼저 확인하는 것이 좋습니다.
-
-참고 코드 위치:
-
-- `device/esp32/firmware/src/transport_serial.cpp`
-  - 현재/후속 MVP 기준 Serial 전송 계층입니다.
-- `device/esp32/firmware/src/packet.cpp`
-  - `OutputPacket`을 wire format으로 바꾸는 계층입니다.
-- `shared/protocol/esp32_pi_packet_format.md`
-  - ESP32-Pi 공통 패킷 포맷 v2 문서입니다.
-
-참고:
-
-- 지금 호스트 테스트는 JSON/BINARY 두 포맷 모두 검증합니다.
-- 실제 ESP32 보드에서는 `JSON_V1` 문자열 출력과 `BINARY_V2` raw frame 출력 모두 확인할 수 있습니다.
-- 실시간 경로 최종안은 v2 바이너리로 정리하되, v1 JSONL은 archive로 남겨 둡니다.
-
-## Raspberry Pi 담당자에게 바로 전달할 기준
-
-- 전체 개요: `device/esp32/README.md`
-- Pi 구현 시작 문서: `device/raspberry-pi/README.md`
-- 실제 구현 기준: `shared/protocol/esp32_pi_packet_format.md`
-- 기존 JSON 로그 해석: `shared/protocol/archive/esp32_pi_packet_format_v1_jsonl.md`
-
-즉, Pi 담당자는 **개요 -> Pi README -> 프로토콜 문서** 순서로 보면 됩니다.
-
-## v2로 바꾸는 이유와 예상 개선 폭
-
-- JSONL은 디버깅이 쉽지만 문자열 생성/파싱 비용이 있습니다.
-- 패킷 길이가 길어 `115200 baud` 에서 프레임 예산을 많이 차지합니다.
-- v2 바이너리 프레임은 동일 정보량 기준 약 `38 bytes` 수준으로 설계합니다.
-
-추정 비교:
-
-- v1 JSON 예시 한 줄: 약 `228 bytes`
-- v2 바이너리 프레임: 약 `38 bytes`
-- 바이트 수 감소: 약 `83%`
-- 동일 baud `115200` 기준 순수 전송 시간:
-  - v1 JSON: 약 `19.8ms`
-  - v2 Binary: 약 `3.3ms`
-
-즉, 현재 `20ms` 주기에서는 **JSON은 전송 시간만으로 프레임 예산 대부분을 쓰지만**, v2 바이너리는 같은 baud rate에서도 훨씬 큰 여유를 확보합니다.
-
-## 라즈베리파이가 나중에 받게 될 패킷 필드 이름
-
-아래 항목은 **v1 JSONL archive 기준 필드 이름**입니다.  
-기존 bring-up 로그와 문서를 읽을 때 참고용으로 유지합니다.
-
-- `schema`
-- `seq`
-- `timestamp_ms`
-- `emg_ch1`
-- `emg_ch2`
-- `emg_ch3`
-- `acc_x`
-- `acc_y`
-- `acc_z`
-- `gyro_x`
-- `gyro_y`
-- `gyro_z`
-- `state`
-- `flags`
-- `rep_index` (선택 필드)
-
-패킷 포맷 상세 설명과 예시는 아래 문서를 기준으로 맞춥니다.
-
-- `shared/protocol/archive/esp32_pi_packet_format_v1_jsonl.md`
-
-v2 바이너리에서는 위 문자열 필드 이름을 wire format에 직접 싣지 않습니다.  
-대신 `seq`, `timestamp_ms`, 상태 코드, 스케일된 정수 payload 순서로 송신합니다.
-
-## 패킷 필드 빠른 설명
-
-- `schema`: 패킷 형식 버전 이름 문자열
-  - 예: `"emg-glass.v1"`
-- `seq`: 몇 번째로 보낸 패킷인지 나타내는 순번 정수
-  - 예: `12`
-- `timestamp_ms`: 데이터 생성 시각을 나타내는 밀리초 정수
-  - 예: `240`
-- `emg_ch1`: 1번 EMG 채널 값
-  - 예: `0.53`
-- `emg_ch2`: 2번 EMG 채널 값
-  - 예: `0.00`
-- `emg_ch3`: 3번 EMG 채널 값
-  - 예: `0.00`
-- `acc_x`: 가속도 X축 값
-  - 예: `0.01`
-- `acc_y`: 가속도 Y축 값
-  - 예: `0.14`
-- `acc_z`: 가속도 Z축 값
-  - 예: `1.00`
-- `gyro_x`: 자이로 X축 값
-  - 예: `0.02`
-- `gyro_y`: 자이로 Y축 값
-  - 예: `0.03`
-- `gyro_z`: 자이로 Z축 값
-  - 예: `0.11`
-- `state`: 현재 상태머신 상태 문자열
-  - 예: `"STREAMING"`
-- `flags`: mock 여부, calibration 완료 여부 같은 추가 상태 비트값
-  - 예: `7`
-- `rep_index`: 몇 번째 반복 운동인지 나타내는 선택 정수값
-  - 예: `3`
-
-## `state` 값 의미
-
-- `IDLE`
-  - 아직 캘리브레이션이나 스트리밍을 시작하지 않은 대기 상태
-- `CALIBRATION_REST`
-  - 힘을 주지 않은 휴식 상태 기준값을 수집하는 상태
-- `CALIBRATION_MVC`
-  - 최대 힘 기준값(MVC)을 수집하는 상태
-- `READY`
-  - 캘리브레이션이 끝나서 스트리밍 시작 준비가 된 상태
-- `STREAMING`
-  - 센서 처리 결과를 패킷으로 만들어 계속 전송하는 상태
-- `ERROR`
-  - 센서 이상이나 예외 상황이 발생한 오류 상태
-
-## 현재 검토 중인 EMG 센서 기준 반영 사항
-
-- 대상 센서: `아두이노 근전도 EMG 모듈 KIT (건식 전극) [SZH-GJD001]`
-- 이 센서는 초기 연동 시 **단일 아날로그 EMG 채널**로 보는 것이 안전합니다.
-- 그래서 현재 코드에는 아래 파일이 추가되었습니다.
-  - `device/esp32/firmware/include/sensor_analog_emg.h`
-  - `device/esp32/firmware/src/sensor_analog_emg.cpp`
-- 이 어댑터는
-  - 센서 예제의 `500Hz` 샘플링 전제를 따라가고
-  - 한 패킷 프레임 안에서 여러 ADC 샘플을 읽어
-  - 우선 `emg_ch1` 에만 값을 넣는 구조입니다.
-- 즉, 현재 펌웨어 코드는 단순 mock만 있는 상태가 아니라 **SZH-GJD001 센서 기준 실센서 어댑터 뼈대도 함께 포함한 상태**입니다.
-- 초기 실제 장착 단계에서는 `emg_ch2`, `emg_ch3` 를 `0` 으로 유지해도 됩니다.
-
-## 실제 센서 연결 시 값이 안 잡힐 때 먼저 볼 것
-
-SZH-GJD001 계열 센서는 판매처 예제가 아두이노 기준이라, ESP32에서 그대로 쓰면 값이 안 잡히거나 이상한 값이 나올 수 있습니다.
-
-- `A0` 같은 아두이노 핀 이름을 ESP32에서 그대로 사용한 경우
-  - ESP-IDF에서는 실제 ADC 가능 GPIO 번호로 바꿔야 합니다.
-- ADC 설정이 빠진 경우
-  - ADC 채널, 감쇠(attentuation), 해상도 전제가 맞지 않으면 값이 거의 0처럼 보일 수 있습니다.
-- 센서 출력 영점이 중간 전압인데 이를 그대로 raw 값으로만 본 경우
-  - baseline 보정 전에 값이 흔들리거나 이상하게 보일 수 있습니다.
-- 전극 접촉 상태가 불안정한 경우
-  - 건식 전극은 접촉 품질에 따라 값 편차가 큽니다.
-- 아두이노 예제의 필터만 믿고 바로 `Serial.println(raw)` 식으로 본 경우
-  - ESP32 쪽에서는 `sensor_analog_emg.cpp` -> `emg_filter.cpp` -> `calibration.cpp` 흐름까지 같이 봐야 합니다.
-
-상세 점검 문서는 아래를 참고합니다.
-
-- `docs/esp32_emg_sensor_bringup.md`
-- `docs/esp32_sensor_measurement_guide.md`
-
-## 나중에 수치 비교/보고서용으로 남겨야 할 것
-
-- IMU 정지 상태 `10초` 로그
-- IMU 동작 상태 로그
-- EMG 휴식 상태 로그
-- EMG 수축 상태 로그
-
-JSON 로그를 저장한 뒤 아래 스크립트로 통계를 뽑을 수 있습니다.
-
-```bash
-python3 ./device/esp32/scripts/summarize_json_sensor_log.py /tmp/esp32_sensor_run_01.log
-```
-
-측정 기준, 표 예시, 기록해야 할 설정값은 아래 문서에 정리합니다.
-
-- `docs/esp32_sensor_measurement_guide.md`
-
-## 하드웨어 도착 후 교체 포인트
-
-- `device/esp32/firmware/src/sensor_mock.cpp` `(실제 장착 후 변경 필요)`
-  - 지금은 가짜 EMG/IMU 값을 생성합니다.
-  - 실제 EMG/IMU 값을 읽는 코드로 교체해야 합니다.
-- `device/esp32/firmware/src/sensor_analog_emg.cpp` `(실제 장착 후 우선 검토 대상)`
-  - SZH-GJD001 계열 단일 아날로그 EMG 센서 기준 어댑터입니다.
-  - 값이 안 잡히는 경우 가장 먼저 확인할 파일입니다.
-  - 실제 ADC 핀, ADC 감쇠, 영점, 증폭 범위에 맞춰 수정해야 합니다.
-- `device/esp32/firmware/include/sensor_source.h` `(실제 장착 후 구현체 연결 필요)`
-  - 실센서 입력이 따라야 하는 공통 인터페이스입니다.
-  - 인터페이스 자체는 유지하고, 이를 구현하는 실제 센서 어댑터를 추가하면 됩니다.
-- `device/esp32/firmware/include/config.h` `(실제 장착 후 설정값 조정 필요)`
-  - 샘플링 주기, threshold, smoothing 계수 같은 기본 설정이 들어 있습니다.
-  - 실제 센서 노이즈와 장착 위치에 맞춰 수치를 조정할 가능성이 높습니다.
-- `device/esp32/firmware/src/emg_filter.cpp` `(실제 장착 후 튜닝 가능성 높음)`
-  - 이동평균, RMS, baseline 보정, 정규화, 활성 판정 로직이 들어 있습니다.
-  - 실측 데이터 기준으로 윈도우 크기와 threshold를 조정할 수 있습니다.
-- `device/esp32/firmware/src/calibration.cpp` `(실제 장착 후 튜닝 가능성 높음)`
-  - rest baseline, MVC peak 보정 기준을 계산합니다.
-  - 실제 사용자 데이터에 맞춰 샘플 개수나 보정 방식 수정이 필요할 수 있습니다.
-- `shared/protocol/esp32_pi_packet_format.md` `(Pi 연동 시 검토 필요)`
-  - 라즈베리파이와 맞춰야 하는 패킷 포맷 문서입니다.
-  - 필드 이름은 유지하는 것이 좋지만, 팀 합의에 따라 확장 필드가 추가될 수 있습니다.
-
-## 하드웨어 도착 후에도 유지 권장되는 부분
-
-- `device/esp32/firmware/include/types.h`
-  - EMG/IMU/출력 패킷 구조체 정의입니다.
-- `device/esp32/firmware/src/packet.cpp`
-  - `OutputPacket`을 wire format으로 바꾸는 계층입니다.
-- `device/esp32/firmware/src/runtime_pipeline.cpp`
-  - 센서 읽기 -> 처리 -> 패킷 생성 -> 송신 흐름을 묶는 중심 파일입니다.
-
-핵심은 **전체 구조를 다시 짜는 것이 아니라, 센서 입력부와 전송 계층만 교체하는 것**입니다.
+- `firmware/README.md`
+  - ESP-IDF 실행 방법, 핵심 설정값, 코드 구조, 튜닝값
+- `../../docs/esp32_sensor_measurement_guide.md`
+  - 측정 절차, 포트폴리오 문장, 긴 트러블슈팅
+- `../../shared/protocol/esp32_pi_packet_format.md`
+  - ESP32-Pi 공통 바이너리 패킷 포맷
+- `../../docs/esp32_packet_protocol_migration.md`
+  - JSON에서 `BINARY_V2`로 바꾼 이유와 정량 비교
+- `../../docs/esp32_emg_sensor_bringup.md`
+  - EMG/IMU 실제 배선 후 값이 안 잡힐 때 확인 순서

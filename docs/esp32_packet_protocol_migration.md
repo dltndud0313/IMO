@@ -27,10 +27,9 @@
 - `sensor_analog_emg.cpp`
 - `emg_filter.cpp`
 - `imu_processor.cpp`
-- `calibration.cpp`
 - `state_machine.cpp`
 
-즉, **센서 생성/처리/상태 전이 로직은 유지**합니다.
+즉, **센서 생성/처리/상태 코드 로직은 유지**합니다.
 
 ### 주로 바뀌는 부분
 
@@ -48,13 +47,13 @@
 현재 JSON 예시 한 줄을 기준으로 비교하면:
 
 - v1 JSON: 약 `228 bytes`
-- v2 Binary: 약 `38 bytes`
-- 감소 폭: 약 `83%`
+- v2 Binary: 고정 `64 bytes`
+- 감소 폭: 약 `71.9%`
 
 동일 baud `115200` 기준 순수 전송 시간은 대략:
 
 - v1 JSON: 약 `19.8ms`
-- v2 Binary: 약 `3.3ms`
+- v2 Binary: 약 `5.56ms`
 
 즉, 같은 송신 주기 `20ms`에서도 바이너리 전환 후 훨씬 큰 여유를 확보할 수 있습니다.
 
