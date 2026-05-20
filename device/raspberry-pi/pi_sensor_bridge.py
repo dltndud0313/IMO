@@ -387,6 +387,8 @@ class BridgeState:
         # 앱의 start_workout 요청을 받아 monitoring 으로 진입하고 세션 시작 시각을 기록.
         # awaiting_workout_start 가 아닌 다른 phase 에서 호출되면 무시한다.
         with self._lock:
+            if self._phase == "monitoring":
+                return True
             if self._phase != "awaiting_workout_start":
                 return False
             self._start_workout_locked()
@@ -2329,7 +2331,7 @@ class SensorBridge:
             return
 
         if msg_type == "start_workout":
-            if session.exercise_type is None or session.phase != "awaiting_workout_start":
+            if session.exercise_type is None or session.phase not in {"awaiting_workout_start", "monitoring"}:
                 await websocket.send(
                     json.dumps(
                         build_error_message(
