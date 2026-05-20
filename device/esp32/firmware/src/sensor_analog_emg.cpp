@@ -365,6 +365,14 @@ float AnalogEmgSensorSource::read_debug_raw_emg_sample() {
     return read_raw_sample(0);
 }
 
+std::array<float, kEmgChannelCount> AnalogEmgSensorSource::read_debug_raw_emg_samples() {
+    std::array<float, kEmgChannelCount> samples {};
+    for (std::size_t channel = 0; channel < kEmgChannelCount; ++channel) {
+        samples[channel] = read_raw_sample(channel);
+    }
+    return samples;
+}
+
 void AnalogEmgSensorSource::reset() {
     emg_rest_baseline_raw_.fill(0.0F);
     emg_rest_noise_m2_.fill(0.0F);
@@ -379,9 +387,10 @@ void AnalogEmgSensorSource::reset() {
     emg_init_failed_ = false;
     imu_ready_count_ = 0;
     imu_channel_ready_.fill(false);
+    imu_read_failure_count_.fill(0U);
+    imu_read_error_logged_.fill(false);
     imu_ready_ = false;
     imu_init_failed_ = false;
-    imu_read_error_logged_ = false;
 }
 
 float AnalogEmgSensorSource::read_raw_sample(std::size_t channel_index) {
@@ -612,6 +621,8 @@ bool AnalogEmgSensorSource::ensure_imu_ready() {
         }
 
         imu_channel_ready_[imu_index] = true;
+        imu_read_failure_count_[imu_index] = 0U;
+        imu_read_error_logged_[imu_index] = false;
         IMU_LOGI(
             "imu%u addr=0x%02X ready (port=%d, sda=%d, scl=%d)",
             static_cast<unsigned>(imu_index + 1U),
@@ -650,6 +661,58 @@ bool AnalogEmgSensorSource::ensure_imu_ready() {
 #endif
 }
 
+void AnalogEmgSensorSource::mark_imu_read_failure(std::size_t imu_index) {
+    if (imu_index >= kImuSensorCount) {
+        return;
+    }
+
+#if __has_include("driver/i2c_master.h")
+    if (!imu_read_error_logged_[imu_index]) {
+        IMU_LOGW(
+            "imu%u failed to read MPU-6050 sensor frame",
+            static_cast<unsigned>(imu_index + 1U)
+        );
+        imu_read_error_logged_[imu_index] = true;
+    }
+
+    imu_read_failure_count_[imu_index] = std::min(
+        imu_read_failure_count_[imu_index] + 1U,
+        kImuReadFailureReinitFrames
+    );
+    if (imu_read_failure_count_[imu_index] < kImuReadFailureReinitFrames) {
+        return;
+    }
+
+    IMU_LOGW(
+        "imu%u read failed %u times; scheduling reinitialization",
+        static_cast<unsigned>(imu_index + 1U),
+        static_cast<unsigned>(imu_read_failure_count_[imu_index])
+    );
+
+    if (g_imu_device_handles[imu_index] != nullptr) {
+        (void)i2c_master_bus_rm_device(g_imu_device_handles[imu_index]);
+        g_imu_device_handles[imu_index] = nullptr;
+    }
+    imu_channel_ready_[imu_index] = false;
+    imu_read_failure_count_[imu_index] = 0U;
+    imu_read_error_logged_[imu_index] = false;
+
+    if (imu_ready_count_ > 0U) {
+        --imu_ready_count_;
+    }
+    imu_ready_ = false;
+#endif
+}
+
+void AnalogEmgSensorSource::mark_imu_read_success(std::size_t imu_index) {
+    if (imu_index >= kImuSensorCount) {
+        return;
+    }
+
+    imu_read_failure_count_[imu_index] = 0U;
+    imu_read_error_logged_[imu_index] = false;
+}
+
 ImuSample AnalogEmgSensorSource::read_imu_sample(std::size_t imu_index) {
     ImuSample sample {};
     if (imu_index >= kImuSensorCount) {
@@ -674,13 +737,10 @@ ImuSample AnalogEmgSensorSource::read_imu_sample(std::size_t imu_index) {
             config_.imu_i2c_transaction_timeout_ms
         ) != ESP_OK
     ) {
-        if (!imu_read_error_logged_) {
-            IMU_LOGW("failed to read MPU-6050 sensor frame");
-            imu_read_error_logged_ = true;
-        }
+        mark_imu_read_failure(imu_index);
         return sample;
     }
-    imu_read_error_logged_ = false;
+    mark_imu_read_success(imu_index);
 
     const int16_t raw_accel_x = join_i16(raw_bytes[0], raw_bytes[1]);
     const int16_t raw_accel_y = join_i16(raw_bytes[2], raw_bytes[3]);

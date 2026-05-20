@@ -61,6 +61,8 @@ inline constexpr std::size_t kAnalogEmgReattachConsecutiveFrames = 5;
 inline constexpr float kAnalogEmgDetachFrameValue = 1.000F;
 inline constexpr std::array<int, kEmgChannelCount> kAnalogEmgAdcGpios = {4, 5, 6, 7};
 inline constexpr std::array<bool, kEmgChannelCount> kAnalogEmgChannelEnabled = {true, true, true, true};
+// 시연 안정화: 4번 EMG 센서 라인이 불안정할 때 패킷의 ch4를 ch3 값으로 대체한다.
+inline constexpr bool kMirrorEmgChannel4FromChannel3 = true;
 inline constexpr bool kEnableEmgRawSerialPlotterMode = false;
 inline constexpr std::size_t kEmgRawSerialPlotterWindowSamples = 20;
 inline constexpr uint32_t kEmgRawSerialPlotterIntervalMs = 50;
@@ -73,6 +75,8 @@ inline constexpr std::array<int, kImuSensorCount> kImuI2cSdaGpios = {8, 8, 10};
 inline constexpr std::array<int, kImuSensorCount> kImuI2cSclGpios = {9, 9, 11};
 inline constexpr uint32_t kImuI2cClockHz = 100000;
 inline constexpr int kImuI2cTransactionTimeoutMs = 20;
+// IMU I2C read가 연속 실패하면 해당 채널을 not-ready로 되돌려 재초기화를 시도한다.
+inline constexpr std::size_t kImuReadFailureReinitFrames = 5;
 // IMU3는 별도 I2C 버스를 쓰므로 0x68 주소를 다시 사용할 수 있다.
 inline constexpr std::array<uint8_t, kImuSensorCount> kMpu6050Addresses = {0x68, 0x69, 0x68};
 inline constexpr std::array<bool, kImuSensorCount> kImuSensorEnabled = {true, true, true};

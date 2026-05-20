@@ -1,7 +1,20 @@
-# ESP32 센서 측정 가이드 (Current)
+# ESP32 센서 측정 가이드
 
-이 문서는 **캘리브레이션 없는 ESP32 수집기** 기준 측정 절차입니다.
-캘리브레이션은 Pi/앱에서 수행합니다.
+ESP32 작업 내용을 대표하는 문서는 `device/esp32/README.md`입니다.
+
+이 문서는 대표 README를 보완하는 **측정 절차/정량 비교/트러블슈팅 상세 문서**입니다.
+
+현재 펌웨어는 **캘리브레이션 없는 ESP32 수집기** 기준입니다.  
+캘리브레이션과 운동 판단은 Raspberry Pi/앱에서 수행하고, ESP32는 센서 수집과 1차 안정화에 집중합니다.
+
+## 문서 사용 기준
+
+- ESP32 대표 요약: `device/esp32/README.md`
+- 측정 절차와 세부 근거: 이 문서
+- 빌드/플래시/코드 구조 확인: `device/esp32/firmware/README.md`
+- ESP32-Pi 패킷 포맷 상세: `shared/protocol/esp32_pi_packet_format.md`
+- JSON에서 바이너리로 바꾼 이유: `docs/esp32_packet_protocol_migration.md`
+- 하드웨어 bring-up 점검: `docs/esp32_emg_sensor_bringup.md`
 
 ## 현재 전제
 
@@ -70,7 +83,25 @@ python3 ../scripts/decode_binary_sensor_stream.py --port /dev/ttyUSB0
 
 - `shared/protocol/esp32_pi_packet_format.md`
 
-## 6. EMG 튜닝 이력 정리
+## 6. 정량 비교 포인트
+
+PPT/포트폴리오에서 바로 사용할 수 있는 수치입니다.
+
+| 항목 | 현재 값 | 설명 |
+| --- | --- | --- |
+| 센서 구성 | EMG 4채널 + IMU 3개 | ESP32에서 동시에 수집 |
+| 송신 주기 | `20ms` | 약 `50Hz` |
+| 패킷 포맷 | `BINARY_V2` | USB Serial 실시간 경로 |
+| 프레임 크기 | `64 bytes` | 고정 길이 프레임 |
+| 115200 baud 전송 시간 | 약 `5.56ms/frame` | 64 bytes x 10 bits / 115200 |
+| JSON 대비 전송량 | 약 `71.9%` 감소 | 228 bytes 추정 JSON 대비 |
+
+요약 문장:
+
+- 기존 JSON 기반 송신은 20ms 주기에서 전송 시간만 약 19.8ms를 사용했지만, BINARY_V2는 약 5.56ms로 줄여 실시간 처리 여유를 확보했다.
+- ESP32는 EMG/IMU 수집과 1차 안정화에 집중하고, 세션 저장과 운동 판단은 Raspberry Pi 쪽에서 처리하도록 역할을 분리했다.
+
+## 7. EMG 튜닝 이력 정리
 
 이 프로젝트의 EMG 튜닝 목표는 "의료용 절대 측정"이 아니라 "운동보조용 실시간 게이지"에 가깝다.
 
@@ -105,9 +136,11 @@ python3 ../scripts/decode_binary_sensor_stream.py --port /dev/ttyUSB0
 | `kEmgRmsWindow` | `16` | RMS 계산 창 |
 | `kEmgHistoryWindow` | `40` | 표시 히스토리 길이 |
 | `kEmgDisplayAttackAlpha` | `0.12` | 상승 반응 속도 |
-| `kEmgDisplayReleaseAlpha` | `0.92` | 하강 반응 속도 |
-| `kEmgDisplayZeroReleaseAlpha` | `0.055` | 0 복귀 구간 하강 속도 |
-| `kEmgDisplayHoldFrames` | `16` | 유지 중 급락 완화 프레임 수 |
+| `kEmgDisplayReleaseAlpha` | `0.78` | 하강 반응 속도 |
+| `kEmgDisplayZeroReleaseAlpha` | `0.10` | 0 복귀 구간 하강 속도 |
+| `kEmgDisplayHoldFrames` | `6` | 유지 중 급락 완화 프레임 수 |
+| `kEmgDisplayHoldRawThreshold` | `0.020` | hold 재충전 raw 기준 |
+| `kEmgDisplayHoldDisplayThreshold` | `0.200` | 이전 표시값 유지 최소 기준 |
 | `kEmgRestDisplayThreshold` | `0.010` | 휴식으로 보고 0에 붙이는 기준 |
 | `kActivationThresholdOn` | `0.011` | 힘 신호로 보는 on 기준 |
 | `kEmgDisplayGain` | `20.00` | 게이지 증폭 계수 |
@@ -126,11 +159,12 @@ python3 ../scripts/decode_binary_sensor_stream.py --port /dev/ttyUSB0
 
 - ESP32 펌웨어에서 EMG/IMU 수집 파이프라인을 재설계하고, 캘리브레이션 없는 즉시 스트리밍 구조로 단순화했다.
 - EMG는 baseline 대비 envelope 기반으로 재해석하고, 운동보조용 게이지에 맞춰 휴식 `0.000`, 탈착 `1.000`, 일반 수축 상한 `0.900`으로 튜닝했다.
+- EMG 표시값이 상한에 오래 고정되는 문제를 줄이기 위해 hold 재충전 기준을 raw 신호 기준으로 분리하고 release 응답을 조정했다.
 - USB Serial 기준 `BINARY_V2` 64바이트 고정 프레임을 정의하고, Pi 수신 디코더와 테스트 스크립트를 함께 정리했다.
 
-## 7. 트러블슈팅 기록
+## 8. 트러블슈팅 기록
 
-### 7-1. IMU2가 보드에 연결되어 있는데도 0으로만 보임
+### 8-1. IMU2가 보드에 연결되어 있는데도 0으로만 보임
 
 - 증상:
   - `imu2_acc`, `imu2_gyro`가 계속 `0.000`
@@ -146,7 +180,7 @@ python3 ../scripts/decode_binary_sensor_stream.py --port /dev/ttyUSB0
   - IMU1/2는 `8/9`, IMU3는 `10/11` 버스로 분리
   - 최종적으로 주소는 `{0x68,0x69,0x68}` 구성
 
-### 7-2. 바이너리 디코더가 중간에 끊기거나 이상한 문자 출력
+### 8-2. 바이너리 디코더가 중간에 끊기거나 이상한 문자 출력
 
 - 증상:
   - `decode_binary_sensor_stream.py` 실행 시 깨진 문자 출력
@@ -158,7 +192,7 @@ python3 ../scripts/decode_binary_sensor_stream.py --port /dev/ttyUSB0
   - `kEnableImuInitTextLog = false`
   - monitor 종료 후 decoder만 단독 실행
 
-### 7-3. EMG가 탈착 후 재부착해도 기준값이 이상하게 남음
+### 8-3. EMG가 탈착 후 재부착해도 기준값이 이상하게 남음
 
 - 증상:
   - 다시 붙였는데 `0.000`으로 바로 안 돌아감
@@ -170,7 +204,7 @@ python3 ../scripts/decode_binary_sensor_stream.py --port /dev/ttyUSB0
   - baseline reset, reattach frame 수, magnitude threshold를 여러 차례 실험
   - 현재는 최종 커밋 기준 안정값으로 되돌려 보존
 
-### 7-4. 힘 유지 중 EMG 값이 많이 흔들림
+### 8-4. 힘 유지 중 EMG 값이 많이 흔들림
 
 - 증상:
   - 최대/최소 편차가 큼
@@ -180,9 +214,10 @@ python3 ../scripts/decode_binary_sensor_stream.py --port /dev/ttyUSB0
   - 표시값 smoothing이 약하면 dip가 그대로 게이지에 반영
 - 대응:
   - moving average / RMS / hold / release alpha를 반복 튜닝
+  - 작은 잔류값으로 hold가 계속 갱신되지 않도록 `kEmgDisplayHoldRawThreshold`와 `kEmgDisplayHoldDisplayThreshold`를 분리
   - 현재는 "운동보조 게이지처럼 보이는지"를 우선 기준으로 유지
 
-### 7-5. 손으로 눌러야 EMG가 잘 인식됨
+### 8-5. 손으로 눌러야 EMG가 잘 인식됨
 
 - 증상:
   - 그냥 붙이면 반응이 약함

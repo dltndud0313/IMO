@@ -59,9 +59,11 @@ idf.py -p /dev/ttyUSB0 -b 115200 flash monitor
 - `kEmgRmsWindow = 16`
 - `kEmgHistoryWindow = 40`
 - `kEmgDisplayAttackAlpha = 0.12`
-- `kEmgDisplayReleaseAlpha = 0.92`
-- `kEmgDisplayZeroReleaseAlpha = 0.055`
-- `kEmgDisplayHoldFrames = 16`
+- `kEmgDisplayReleaseAlpha = 0.78`
+- `kEmgDisplayZeroReleaseAlpha = 0.10`
+- `kEmgDisplayHoldFrames = 6`
+- `kEmgDisplayHoldRawThreshold = 0.020`
+- `kEmgDisplayHoldDisplayThreshold = 0.200`
 - `kEmgRestDisplayThreshold = 0.010`
 - `kActivationThresholdOn = 0.011`
 - `kEmgDisplayGain = 20.00`
@@ -106,7 +108,7 @@ idf.py -p /dev/ttyUSB0 -b 115200 flash monitor
   - 현재: baseline 대비 envelope + 표시용 smoothing
 - EMG 표시:
   - 초기: 최대 `1.000` 단일 상한
-  - 현재: 근육 수축 상한 `0.900`, 탈착 경고 `1.000`
+  - 현재: 근육 수축 상한 `0.900`, 탈착 경고 `1.000`, raw 기준 hold 재충전
 - 실행 편의:
   - 초기: 긴 Python 디코더 명령 직접 입력
   - 현재: `./stream`
@@ -120,7 +122,7 @@ idf.py -p /dev/ttyUSB0 -b 115200 flash monitor
 | IMU가 일부만 `0,0,0` 으로 보임 | I2C 주소 probe 성공과 실제 채널 준비 완료는 별개였고, 단일 버스 가정이 남아 있었음 | I2C scan, `WHO_AM_I`, sample read를 분리 확인하고 IMU1/2는 `8/9`, IMU3는 `10/11` 별도 버스로 분리 |
 | 디코더 로그가 움직일 때만 보이거나 중간에 끊김 | 텍스트 로그가 바이너리 프레임을 깨뜨리거나 포트 점유 충돌 | `BINARY_V2` 수신 중 텍스트 init 로그 비활성화, monitor와 decoder 동시 사용 금지 |
 | EMG가 탈착 후 다시 붙여도 이상한 기준값에서 시작 | 이전 baseline이 재부착 후에도 영향 | 탈착/재부착 로직과 baseline reset을 여러 방식으로 실험했고, 최종값은 안정 위주로 정리 |
-| 힘 유지 중 EMG 값이 급락 | raw EMG의 순간적인 dip가 표시값에 바로 반영 | moving average, RMS, hold frame, release alpha를 조정해 게이지 성격으로 완화 |
+| 힘 유지 중 EMG 값이 급락하거나 상한에 오래 붙음 | raw EMG의 순간적인 dip 또는 작은 잔류값이 표시 hold에 과하게 반영 | moving average, RMS, hold frame, release alpha를 조정하고 hold 재충전 기준을 raw threshold로 분리 |
 | 손으로 눌러야 EMG가 잘 잡힘 | 전극 접촉 저항이 높거나 부착 위치가 불안정 | 코드 튜닝보다 전극 위치/접촉 안정화가 우선, baseline은 힘을 뺀 상태에서 시작 |
 | `idf.py`가 안 잡힘 | ESP-IDF 환경 미로딩 | `source ~/esp/esp-idf/export.sh` 후 실행 |
 

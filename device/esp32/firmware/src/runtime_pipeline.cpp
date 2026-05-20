@@ -88,6 +88,9 @@ OutputPacket MockRuntimePipeline::build_packet(
     packet.seq = sequence_;
     packet.timestamp_ms = timestamp_ms;
     packet.emg = emg.display;
+    if (kMirrorEmgChannel4FromChannel3) {
+        packet.emg[3] = packet.emg[2];
+    }
     for (std::size_t imu_index = 0; imu_index < kImuSensorCount; ++imu_index) {
         packet.imus[imu_index].accel = imus[imu_index].accel_smoothed;
         packet.imus[imu_index].gyro = imus[imu_index].gyro_smoothed;

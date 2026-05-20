@@ -5,8 +5,8 @@
 ## 지금 결론
 
 - 구현은 `JSON_V1`, `BINARY_V2` 두 포맷을 모두 지원합니다.
-- 현재 ESP32 기본 포맷: `JSON_V1`
-- 실시간 경로 권장 포맷: `BINARY_V2`
+- 현재 ESP32 기본 포맷: `BINARY_V2`
+- `JSON_V1`은 archive/bring-up 참고용 포맷입니다.
 - Pi 구현 기준 문서: `shared/protocol/esp32_pi_packet_format.md`
 
 ## 포맷 비교
@@ -17,7 +17,7 @@
 | 경계 구분 | 줄바꿈 `\n` | `magic + payload_len + crc16` |
 | 파싱 방식 | UTF-8 decode + JSON parse | byte stream unpack |
 | 상태 표현 | 문자열 (`"STREAMING"`) | `uint8_t` 상태 코드 |
-| 패킷 길이 | 예시 약 `228 bytes` | 고정 `38 bytes` |
+| 패킷 길이 | 예시 약 `228 bytes` | 고정 `64 bytes` |
 | 장점 | 바로 읽기 쉬움, 디버깅 쉬움 | 가볍고 빠름, 대역폭 절약 |
 | 단점 | 문자열 생성/파싱 비용 큼 | 사람이 바로 읽기 어려움 |
 | Pi 구현 난이도 | 낮음 | 중간 |
@@ -25,12 +25,12 @@
 
 ## 현재 구현 상태
 
-- ESP32 mock 출력으로 `JSON_V1` 확인 완료
+- ESP32 mock 출력으로 `JSON_V1`, `BINARY_V2` 확인 완료
 - JSON/BINARY 선택형 직렬화 구조 구현 완료
 - 호스트 테스트 통과 완료
-- Pi 수신기 코드는 아직 저장소에 없음
+- Pi 수신기/브리지/세션 저장 스크립트 구현 완료
 
-즉, **ESP32 쪽은 두 포맷 모두 준비됐고**, Pi 쪽은 이 문서를 기준으로 수신기만 구현하면 됩니다.
+즉, **실시간 기본 경로는 BINARY_V2**이고 JSON_V1은 사람이 읽는 bring-up 참고용으로만 봅니다.
 
 ## 기본값과 변경 위치
 
@@ -39,8 +39,8 @@
 - 설정 상수:
   - `kDefaultPacketFormat`
 
-현재 기본값은 디버깅 편의를 위해 `JSON_V1` 입니다.  
-실시간 비교 테스트를 하려면 이 값을 `BINARY_V2`로 바꾸면 됩니다.
+현재 기본값은 `BINARY_V2` 입니다.  
+JSON 로그가 필요할 때만 `JSON_V1`로 바꿔 다시 빌드합니다.
 
 ## 포맷별 실행 방법
 
@@ -93,7 +93,7 @@ idf.py -p /dev/ttyACM0 -b 115200 flash
 
 ```bash
 stty -F /dev/ttyACM0 115200 raw -echo
-dd if=/dev/ttyACM0 bs=38 count=1 status=none | xxd -g1
+dd if=/dev/ttyACM0 bs=64 count=1 status=none | xxd -g1
 ```
 
 한 프레임만 보는 이유는 바이너리가 사람이 읽는 문자열이 아니라 프레임 경계 기준으로 확인해야 하기 때문입니다.
@@ -102,7 +102,7 @@ dd if=/dev/ttyACM0 bs=38 count=1 status=none | xxd -g1
 
 ```bash
 while true; do
-  dd if=/dev/ttyACM0 bs=38 count=1 status=none | xxd -g1 -c38
+  dd if=/dev/ttyACM0 bs=64 count=1 status=none | xxd -g1 -c64
 done
 ```
 
@@ -120,13 +120,13 @@ python3 ../scripts/decode_binary_sensor_stream.py --port /dev/ttyACM0
 - `ME` magic 재동기화
 - `version == 2`
 - `packet_type == 1`
-- `payload_len == 30`
+- `payload_len == 56`
 - `crc16` 일치
 
 출력 예:
 
 ```text
-seq=3897 ts=77940 emg=(0.001,0.000,0.000) acc=(0.018,0.944,-0.298) gyro=(-0.319,0.711,-0.227) state=STREAMING flags=2 rep_index=None
+seq=3897 ts=77940 emg=(0.001,0.000,0.000,0.000) imu1_acc=(0.018,0.944,-0.298) imu1_gyro=(-0.319,0.711,-0.227) state=STREAMING flags=2 rep_index=None
 ```
 
 주의:
