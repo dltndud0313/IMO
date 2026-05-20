@@ -157,11 +157,13 @@ class SessionResultCalibrationSummaryDto {
     required this.ch1Mvc,
     required this.ch2Mvc,
     required this.ch3Mvc,
+    required this.ch4Mvc,
   });
 
   final double ch1Mvc;
   final double ch2Mvc;
   final double ch3Mvc;
+  final double ch4Mvc;
 
   factory SessionResultCalibrationSummaryDto.fromJson(
     Map<String, dynamic> json,
@@ -170,6 +172,7 @@ class SessionResultCalibrationSummaryDto {
       ch1Mvc: _asDouble(json['ch1_mvc']),
       ch2Mvc: _asDouble(json['ch2_mvc']),
       ch3Mvc: _asDouble(json['ch3_mvc']),
+      ch4Mvc: _asDouble(json['ch4_mvc']),
     );
   }
 
@@ -177,6 +180,7 @@ class SessionResultCalibrationSummaryDto {
         'ch1_mvc': ch1Mvc,
         'ch2_mvc': ch2Mvc,
         'ch3_mvc': ch3Mvc,
+        'ch4_mvc': ch4Mvc,
       };
 
   CalibrationSummary toDomain() {
@@ -184,6 +188,7 @@ class SessionResultCalibrationSummaryDto {
       ch1Mvc: ch1Mvc,
       ch2Mvc: ch2Mvc,
       ch3Mvc: ch3Mvc,
+      ch4Mvc: ch4Mvc,
     );
   }
 }

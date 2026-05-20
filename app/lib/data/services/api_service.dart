@@ -221,6 +221,7 @@ class ApiService {
           'ch1_mvc': (calibration['ch1Mvc'] as num?)?.toDouble() ?? 0.0,
           'ch2_mvc': (calibration['ch2Mvc'] as num?)?.toDouble() ?? 0.0,
           'ch3_mvc': (calibration['ch3Mvc'] as num?)?.toDouble() ?? 0.0,
+          'ch4_mvc': (calibration['ch4Mvc'] as num?)?.toDouble() ?? 0.0,
         },
       // raw balanceSummary 블록이 있으면 우선 사용(무손실), 없으면 구버전
       // 세션 호환을 위해 파생 muscleBalance에서 역산한다.
