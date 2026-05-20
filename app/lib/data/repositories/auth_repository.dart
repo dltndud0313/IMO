@@ -55,6 +55,12 @@ class AuthRepository {
 
   /// 토큰 갱신
   /// (Dio 인터셉터 등에서 401 발생 시 호출됨)
+  ///
+  /// 실패 분기:
+  /// - refresh token 없음 → 로그아웃 (사용자 의도)
+  /// - 401/403 (refresh token 진짜 무효) → 로그아웃
+  /// - 네트워크 끊김/타임아웃/5xx → 토큰 유지, null 반환
+  ///   (호출부는 사용자에게 재시도/오프라인 안내만 하고 세션은 보존)
   Future<String?> refreshToken() async {
     final refreshToken = _prefsService.getRefreshToken();
     if (refreshToken == null || refreshToken.isEmpty) {
@@ -65,8 +71,14 @@ class AuthRepository {
       final newTokens = await _authService.refresh(refreshToken);
       await _saveTokens(newTokens);
       return newTokens.accessToken;
+    } on AuthRefreshException catch (error) {
+      if (error.kind == AuthRefreshFailureKind.unauthorized) {
+        await logout();
+      }
+      // network/server 일시 장애는 토큰을 보존해 다음 시도에서 회복 가능하게 한다.
+      return null;
     } catch (_) {
-      await logout();
+      // 분류되지 않은 예외는 안전한 쪽(토큰 유지)으로 처리.
       return null;
     }
   }
