@@ -85,6 +85,27 @@ class CalibrationData:
     ready: bool = False
 
 
+@dataclass
+class RepCounterState:
+    phase: str = "ready"
+    phase_started_ts_ms: Optional[int] = None
+    peak_score: float = 0.0
+    previous_score: float = 0.0
+    below_start_frames: int = 0
+    return_frames: int = 0
+
+
+@dataclass(frozen=True)
+class RepMotionProfile:
+    score: float
+    primary_activation: float
+    secondary_activation: float
+    arm_accel_avg: float
+    arm_accel_min: float
+    arm_gyro_avg: float
+    motion_detected: bool
+
+
 class BridgeState:
     def __init__(self) -> None:
         self._lock = threading.Lock()
@@ -103,7 +124,7 @@ class BridgeState:
         self._sensors_attached = False
         self._motion_active = False
         self._last_rep_timestamp_ms: Optional[int] = None
-        self._last_device_rep_index: Optional[int] = None
+        self._rep_counter = RepCounterState()
         self._current_speed_label = "분석 중"
         self._calibration_data = CalibrationData()
         self._calibration_frames: list[DecodedFrame] = []
@@ -117,10 +138,7 @@ class BridgeState:
                 # 캘리브레이션 종료 후 앱의 start_workout 요청 전까지 monitoring 진입을 보류한다.
                 self._phase = "awaiting_workout_start"
             events.extend(self._maybe_finish_rest_locked())
-            if frame.rep_index is not None:
-                events.extend(self._apply_device_rep_index_locked(frame))
-            else:
-                events.extend(self._maybe_increment_rep(frame))
+            events.extend(self._maybe_increment_rep(frame))
             return events
 
     def tick(self) -> list[dict[str, Any]]:
@@ -152,7 +170,7 @@ class BridgeState:
             self._sensors_attached = False
             self._motion_active = False
             self._last_rep_timestamp_ms = None
-            self._last_device_rep_index = None
+            self._reset_rep_counter_locked()
             self._current_speed_label = "분석 중"
             self._calibration_data = CalibrationData(exercise_type=exercise_type)
             self._calibration_frames = []
@@ -199,6 +217,7 @@ class BridgeState:
         with self._lock:
             if self._phase != "awaiting_workout_start":
                 return False
+            self._reset_rep_counter_locked()
             self._phase = "monitoring"
             return True
 
@@ -248,7 +267,8 @@ class BridgeState:
                 ready=self._calibration_data.ready,
             )
 
-    def _apply_device_rep_index_locked(self, frame: DecodedFrame) -> list[dict[str, Any]]:
+    def _apply_device_rep_index_legacy(self, frame: DecodedFrame) -> list[dict[str, Any]]:
+        return []
         events: list[dict[str, Any]] = []
         if self._last_device_rep_index is None:
             self._last_device_rep_index = frame.rep_index
@@ -283,7 +303,8 @@ class BridgeState:
         self._last_rep_timestamp_ms = frame.timestamp_ms
         return self._maybe_advance_workout_locked(frame.timestamp_ms)
 
-    def _maybe_increment_rep(self, frame: DecodedFrame) -> list[dict[str, Any]]:
+    def _maybe_increment_rep_legacy(self, frame: DecodedFrame) -> list[dict[str, Any]]:
+        return []
         if self._phase != "monitoring":
             return []
 
@@ -305,6 +326,162 @@ class BridgeState:
                 self._motion_active = active_now
                 return self._maybe_advance_workout_locked(frame.timestamp_ms)
         self._motion_active = active_now
+        return []
+
+    def _emg_activity_locked(self, frame: DecodedFrame) -> list[float]:
+        values = [0.0] * 4
+        for index, value in enumerate(frame.emg[:4]):
+            baseline = self._calibration_data.emg_rest_baseline[index]
+            values[index] = max(0.0, value - baseline)
+        return values
+
+    def _imu_accel_deltas_locked(self, frame: DecodedFrame) -> list[float]:
+        deltas = [0.0, 0.0, 0.0]
+        for imu_index, imu_accel in enumerate(frame.imu_accels[:3]):
+            baseline = self._calibration_data.imu_rest_accel[imu_index]
+            deltas[imu_index] = (
+                abs(imu_accel[0] - baseline[0])
+                + abs(imu_accel[1] - baseline[1])
+                + abs(imu_accel[2] - baseline[2])
+            )
+        return deltas
+
+    def _imu_gyro_deltas_locked(self, frame: DecodedFrame) -> list[float]:
+        deltas = [0.0, 0.0, 0.0]
+        for imu_index, imu_gyro in enumerate(frame.imu_gyros[:3]):
+            baseline = self._calibration_data.imu_rest_gyro[imu_index]
+            deltas[imu_index] = (
+                abs(imu_gyro[0] - baseline[0])
+                + abs(imu_gyro[1] - baseline[1])
+                + abs(imu_gyro[2] - baseline[2])
+            )
+        return deltas
+
+    def _build_rep_motion_profile_locked(self, frame: DecodedFrame) -> RepMotionProfile:
+        emg_activity = self._emg_activity_locked(frame)
+        accel_deltas = self._imu_accel_deltas_locked(frame)
+        gyro_deltas = self._imu_gyro_deltas_locked(frame)
+        primary_activation = (emg_activity[0] + emg_activity[1]) / 2.0
+        secondary_activation = (emg_activity[2] + emg_activity[3]) / 2.0
+        arm_accel_avg = (accel_deltas[0] + accel_deltas[1]) / 2.0
+        arm_accel_min = min(accel_deltas[0], accel_deltas[1])
+        arm_gyro_avg = (gyro_deltas[0] + gyro_deltas[1]) / 2.0
+        score = arm_accel_avg + 0.010 * arm_gyro_avg + 0.30 * primary_activation + 0.16 * secondary_activation
+        return RepMotionProfile(
+            score=score,
+            primary_activation=primary_activation,
+            secondary_activation=secondary_activation,
+            arm_accel_avg=arm_accel_avg,
+            arm_accel_min=arm_accel_min,
+            arm_gyro_avg=arm_gyro_avg,
+            motion_detected=bool(frame.flags & 0x04),
+        )
+
+    def _min_rep_gap_ms_locked(self) -> int:
+        if self._exercise_type == "pushup":
+            return 850
+        if self._exercise_type == "lateral_raise":
+            return 800
+        return 700
+
+    def _start_rep_condition_locked(self, profile: RepMotionProfile) -> bool:
+        if self._exercise_type == "pushup":
+            return (
+                profile.score >= 0.24
+                and profile.arm_accel_min >= 0.10
+                and profile.primary_activation >= 0.03
+                and (profile.motion_detected or profile.arm_gyro_avg >= 1.2)
+            )
+        if self._exercise_type == "lateral_raise":
+            return (
+                profile.score >= 0.22
+                and profile.arm_accel_min >= 0.09
+                and profile.primary_activation >= 0.03
+                and (profile.motion_detected or profile.arm_gyro_avg >= 1.0)
+            )
+        return (
+            profile.score >= 0.20
+            and profile.arm_accel_avg >= 0.10
+            and profile.primary_activation >= 0.03
+            and (profile.motion_detected or profile.arm_gyro_avg >= 1.0)
+        )
+
+    def _peak_rep_condition_locked(self, profile: RepMotionProfile) -> bool:
+        if self._exercise_type == "pushup":
+            return profile.score >= 0.54 and profile.arm_accel_min >= 0.22 and profile.primary_activation >= 0.08
+        if self._exercise_type == "lateral_raise":
+            return profile.score >= 0.56 and profile.arm_accel_min >= 0.26 and profile.primary_activation >= 0.08
+        return profile.score >= 0.44 and profile.arm_accel_avg >= 0.18 and profile.primary_activation >= 0.08
+
+    def _return_rep_condition_locked(self, profile: RepMotionProfile) -> bool:
+        if self._exercise_type == "pushup":
+            return profile.arm_accel_avg <= 0.16 and profile.primary_activation <= 0.03 and profile.arm_gyro_avg <= 1.4
+        if self._exercise_type == "lateral_raise":
+            return profile.arm_accel_avg <= 0.15 and profile.primary_activation <= 0.03 and profile.arm_gyro_avg <= 1.2
+        return profile.arm_accel_avg <= 0.13 and profile.primary_activation <= 0.03 and profile.arm_gyro_avg <= 1.2
+
+    def _near_rest_rep_condition_locked(self, profile: RepMotionProfile) -> bool:
+        return profile.arm_accel_avg < 0.14 and profile.primary_activation < 0.02
+
+    def _reset_rep_counter_locked(self) -> None:
+        self._rep_counter = RepCounterState()
+        self._motion_active = False
+
+    def _maybe_increment_rep(self, frame: DecodedFrame) -> list[dict[str, Any]]:
+        if self._phase != "monitoring":
+            self._reset_rep_counter_locked()
+            return []
+
+        profile = self._build_rep_motion_profile_locked(frame)
+        counter = self._rep_counter
+
+        if counter.phase == "ready":
+            enough_gap = (
+                self._last_rep_timestamp_ms is None
+                or frame.timestamp_ms - self._last_rep_timestamp_ms >= self._min_rep_gap_ms_locked()
+            )
+            if enough_gap and self._start_rep_condition_locked(profile):
+                self._rep_counter = RepCounterState(
+                    phase="driving",
+                    phase_started_ts_ms=frame.timestamp_ms,
+                    peak_score=profile.score,
+                    previous_score=profile.score,
+                )
+                self._motion_active = True
+            else:
+                self._motion_active = False
+            return []
+
+        counter.peak_score = max(counter.peak_score, profile.score)
+
+        if counter.phase == "driving":
+            if self._peak_rep_condition_locked(profile):
+                counter.phase = "returning"
+                counter.return_frames = 0
+            elif self._near_rest_rep_condition_locked(profile):
+                counter.below_start_frames += 1
+                if counter.below_start_frames >= 3:
+                    self._reset_rep_counter_locked()
+                    return []
+            else:
+                counter.below_start_frames = 0
+            self._motion_active = True
+            counter.previous_score = profile.score
+            return []
+
+        if self._return_rep_condition_locked(profile):
+            counter.return_frames += 1
+            if counter.return_frames >= 2:
+                self._current_rep = 1 if self._current_rep is None else self._current_rep + 1
+                self._update_speed_label_locked(frame.timestamp_ms)
+                self._last_rep_timestamp_ms = frame.timestamp_ms
+                self._reset_rep_counter_locked()
+                return self._maybe_advance_workout_locked(frame.timestamp_ms)
+        else:
+            counter.return_frames = 0
+
+        counter.previous_score = profile.score
+        self._motion_active = True
         return []
 
     def _current_target_rep_locked(self) -> Optional[int]:
@@ -329,6 +506,7 @@ class BridgeState:
         self._rest_deadline_monotonic = None
         self._phase = "monitoring"
         self._current_rep = 0
+        self._reset_rep_counter_locked()
         self._current_speed_label = "분석 중"
         return [
             {
@@ -370,6 +548,7 @@ class BridgeState:
         self._current_rep = 0
         self._phase = "resting"
         self._rest_deadline_monotonic = time.monotonic() + self._rest_sec
+        self._reset_rep_counter_locked()
         events.append(
             {
                 "event": "rest_started",
@@ -430,6 +609,7 @@ class BridgeState:
         # 앱의 start_workout 입력 전까지 monitoring 으로 자동 진입하지 않는다.
         self._phase = "awaiting_workout_start"
         self._current_rep = 0
+        self._reset_rep_counter_locked()
         self._current_speed_label = "분석 중"
 
     def _update_speed_label_locked(self, timestamp_ms: int) -> None:

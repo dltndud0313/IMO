@@ -29,6 +29,7 @@ sealed class PiMessage {
       return switch (type) {
         PiMessageType.connectionStatus =>
           ConnectionStatusMessage.fromPayload(payload),
+        PiMessageType.sensorFrame => SensorFrameMessage.fromPayload(payload),
         PiMessageType.planAck => PlanAckMessage.fromPayload(payload),
         PiMessageType.calibrationStatus =>
           CalibrationStatusMessage.fromPayload(payload),
@@ -66,6 +67,7 @@ abstract final class PiMessageType {
   static const resumeWorkout = 'resume_workout';
 
   static const connectionStatus = 'connection_status';
+  static const sensorFrame = 'sensor_frame';
   static const planAck = 'plan_ack';
   static const calibrationStatus = 'calibration_status';
   static const workoutPaused = 'workout_paused';
@@ -128,6 +130,110 @@ class ConnectionStatusMessage extends PiMessage {
         'pi_connected': piConnected,
         'esp32_connected': esp32Connected,
         'glass_connected': glassConnected,
+      };
+}
+
+class SensorFrameImuSample {
+  const SensorFrameImuSample({
+    required this.index,
+    required this.accel,
+    required this.gyro,
+  });
+
+  final int index;
+  final List<double> accel;
+  final List<double> gyro;
+
+  factory SensorFrameImuSample.fromJson(Map<String, dynamic> json) {
+    List<double> parseVector(Object? raw) {
+      final values = raw is List ? raw : const [];
+      return List<double>.generate(3, (index) {
+        final value = index < values.length ? values[index] : 0;
+        if (value is num) {
+          return value.toDouble();
+        }
+        return 0;
+      });
+    }
+
+    return SensorFrameImuSample(
+      index: json['index'] as int? ?? 0,
+      accel: parseVector(json['accel']),
+      gyro: parseVector(json['gyro']),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'index': index,
+        'accel': accel,
+        'gyro': gyro,
+      };
+}
+
+class SensorFrameMessage extends PiMessage {
+  const SensorFrameMessage({
+    required this.seq,
+    required this.timestampMs,
+    required this.flags,
+    required this.state,
+    required this.imus,
+    required this.repIndex,
+    required this.motionDetected,
+    required this.imuBiasReady,
+  }) : super(type: PiMessageType.sensorFrame);
+
+  final int seq;
+  final int timestampMs;
+  final int flags;
+  final String state;
+  final List<SensorFrameImuSample> imus;
+  final int? repIndex;
+  final bool motionDetected;
+  final bool imuBiasReady;
+
+  factory SensorFrameMessage.fromPayload(Map<String, dynamic> payload) {
+    final rawImus = payload['imus'];
+    final imus = rawImus is List
+        ? rawImus
+              .whereType<Map>()
+              .map(
+                (item) => SensorFrameImuSample.fromJson(
+                  item.map(
+                    (key, value) => MapEntry(key.toString(), value),
+                  ),
+                ),
+              )
+              .toList(growable: false)
+        : const <SensorFrameImuSample>[];
+    final flagDetail = payload['flag_detail'];
+    final flagMap = flagDetail is Map<String, dynamic>
+        ? flagDetail
+        : <String, dynamic>{};
+
+    return SensorFrameMessage(
+      seq: payload['seq'] as int? ?? 0,
+      timestampMs: payload['timestamp_ms'] as int? ?? 0,
+      flags: payload['flags'] as int? ?? 0,
+      state: payload['state'] as String? ?? '',
+      imus: imus,
+      repIndex: payload['rep_index'] as int?,
+      motionDetected: flagMap['motion_detected'] as bool? ?? false,
+      imuBiasReady: flagMap['imu_bias_ready'] as bool? ?? false,
+    );
+  }
+
+  @override
+  Map<String, dynamic> get payload => {
+        'seq': seq,
+        'timestamp_ms': timestampMs,
+        'flags': flags,
+        'state': state,
+        'imus': imus.map((imu) => imu.toJson()).toList(growable: false),
+        'rep_index': repIndex,
+        'flag_detail': {
+          'motion_detected': motionDetected,
+          'imu_bias_ready': imuBiasReady,
+        },
       };
 }
 
