@@ -1874,7 +1874,13 @@ def summarize_message_for_log(message: dict[str, Any]) -> str:
 
 
 class SensorBridge:
-    def __init__(self, serial_port: str, baud_rate: int, rep_debug: bool = False) -> None:
+    def __init__(
+        self,
+        serial_port: str,
+        baud_rate: int,
+        rep_debug: bool = False,
+        glass_debug: bool = False,
+    ) -> None:
         self._serial_port = serial_port
         self._baud_rate = baud_rate
         self._state = BridgeState(rep_debug=rep_debug)
@@ -1884,6 +1890,55 @@ class SensorBridge:
         self._last_frame: Optional[DecodedFrame] = None
         self._workout_started_emitted = False
         self._rep_debug = rep_debug
+        self._glass_debug = glass_debug
+        self._last_glass_debug_log_monotonic = 0.0
+
+    def _maybe_log_glass_emg_channels(self, message: dict[str, Any]) -> None:
+        if not self._glass_debug:
+            return
+
+        payload = message.get("payload")
+        if not isinstance(payload, dict):
+            return
+
+        emg_channels = payload.get("emg_channels")
+        if not isinstance(emg_channels, list) or not emg_channels:
+            return
+
+        now = time.monotonic()
+        if now - self._last_glass_debug_log_monotonic < 1.0:
+            return
+        self._last_glass_debug_log_monotonic = now
+
+        channel_parts: list[str] = []
+        for channel in emg_channels[:4]:
+            if not isinstance(channel, dict):
+                continue
+            raw_value = channel.get("raw_value")
+            attached = channel.get("attached")
+            activation_percent = channel.get("activation_percent")
+
+            if isinstance(raw_value, (int, float)):
+                raw_str = f"{float(raw_value):.3f}"
+            else:
+                raw_str = "None"
+            attached_str = "T" if bool(attached) else "F"
+            activation_str = (
+                str(int(activation_percent))
+                if isinstance(activation_percent, (int, float))
+                else "-"
+            )
+            channel_parts.append(f"({raw_str},{attached_str},{activation_str})")
+
+        if not channel_parts:
+            return
+
+        print(
+            "[glass] "
+            f"phase={payload.get('phase')} seq={payload.get('frame_seq')} "
+            "ch raw/att/act = "
+            + " ".join(channel_parts)
+        )
 
     def _build_app_event_from_state(self, event_type: str, details: dict[str, Any]) -> dict[str, Any]:
         now = now_iso()
@@ -1971,12 +2026,14 @@ class SensorBridge:
         self,
         frame: Optional[DecodedFrame] = None,
     ) -> dict[str, Any]:
-        return build_glass_display_data(
+        message = build_glass_display_data(
             self._state.session_snapshot(),
             self._last_frame if frame is None else frame,
             self._state.calibration_snapshot(),
             calibration_progress=self._state.calibration_progress_snapshot(),
         )
+        self._maybe_log_glass_emg_channels(message)
+        return message
 
 
     async def run(
@@ -1997,6 +2054,8 @@ class SensorBridge:
             print(f"[bridge] glass ui: http://{ui_host}:{ui_port}")
             if self._rep_debug:
                 print("[bridge] rep debug logging enabled")
+            if self._glass_debug:
+                print("[bridge] glass emg debug logging enabled")
             timer_task = asyncio.create_task(self._state_tick_loop())
             try:
                 await self._broadcast_loop()
@@ -2455,6 +2514,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Print detailed exercise rep inference logs for real-device validation.",
     )
+    parser.add_argument(
+        "--glass-debug",
+        action="store_true",
+        help="Print throttled glass EMG channel logs as (raw, attached, activation).",
+    )
     return parser.parse_args()
 
 
@@ -2464,6 +2528,7 @@ async def async_main() -> int:
         serial_port=args.serial_port,
         baud_rate=args.baud,
         rep_debug=args.rep_debug,
+        glass_debug=args.glass_debug,
     )
     await bridge.run(
         ws_host=args.ws_host,
