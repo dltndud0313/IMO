@@ -2319,7 +2319,7 @@ class SensorBridge:
                     build_calibration_status(
                         status="started",
                         message=(
-                            "힘을 빼고 5초간 유지하세요. 저장된 기준값을 자동 적용합니다."
+                            "힘을 빼고 5초간 유지하세요."
                             if self._preset_calibration
                             else "안정 자세 기준값 측정을 시작합니다. 이후 최대 수축 측정으로 자동 전환됩니다."
                         ),
@@ -2500,7 +2500,7 @@ class SensorBridge:
                 self._emit_from_thread(
                     build_calibration_status(
                         status="started",
-                        message="힘을 주세요. 5초 후 저장된 MVC 기준값을 자동 적용합니다.",
+                        message="힘을 주세요. 5초간 유지하세요.",
                         progress=0.5,
                     )
                 )
@@ -2512,7 +2512,7 @@ class SensorBridge:
                 self._emit_from_thread(
                     build_calibration_status(
                         status="success",
-                        message="저장된 REST/MVC 기준값 적용 완료",
+                        message="캘리브레이션 완료",
                         calibration_summary={
                             "ch1_mvc": calibration.emg_mvc[0],
                             "ch2_mvc": calibration.emg_mvc[1],
