@@ -124,6 +124,10 @@ class _CalibrationScreenAppVersionState
     if (!mounted) {
       return;
     }
+    await _viewModel.startWorkout();
+    if (!mounted) {
+      return;
+    }
     context.go('/workout');
   }
 

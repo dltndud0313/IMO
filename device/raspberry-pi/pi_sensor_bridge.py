@@ -387,6 +387,8 @@ class BridgeState:
         # 앱의 start_workout 요청을 받아 monitoring 으로 진입하고 세션 시작 시각을 기록.
         # awaiting_workout_start 가 아닌 다른 phase 에서 호출되면 무시한다.
         with self._lock:
+            if self._phase == "monitoring":
+                return True
             if self._phase != "awaiting_workout_start":
                 return False
             self._start_workout_locked()
@@ -2317,7 +2319,7 @@ class SensorBridge:
                     build_calibration_status(
                         status="started",
                         message=(
-                            "힘을 빼고 5초간 유지하세요. 저장된 기준값을 자동 적용합니다."
+                            "힘을 빼고 5초간 유지하세요."
                             if self._preset_calibration
                             else "안정 자세 기준값 측정을 시작합니다. 이후 최대 수축 측정으로 자동 전환됩니다."
                         ),
@@ -2329,7 +2331,7 @@ class SensorBridge:
             return
 
         if msg_type == "start_workout":
-            if session.exercise_type is None or session.phase != "awaiting_workout_start":
+            if session.exercise_type is None or session.phase not in {"awaiting_workout_start", "monitoring"}:
                 await websocket.send(
                     json.dumps(
                         build_error_message(
@@ -2468,8 +2470,8 @@ class SensorBridge:
             errors.append("target_reps_per_set values must be positive integers")
         elif isinstance(set_count, int) and len(target_reps_per_set) != set_count:
             errors.append("target_reps_per_set length must match set_count")
-        if not isinstance(rest_sec, int) or rest_sec <= 0:
-            errors.append("rest_sec must be greater than 0")
+        if not isinstance(rest_sec, int) or rest_sec < 0:
+            errors.append("rest_sec must be greater than or equal to 0")
         return errors
 
     async def _broadcast_loop(self) -> None:
@@ -2498,7 +2500,7 @@ class SensorBridge:
                 self._emit_from_thread(
                     build_calibration_status(
                         status="started",
-                        message="힘을 주세요. 5초 후 저장된 MVC 기준값을 자동 적용합니다.",
+                        message="힘을 주세요. 5초간 유지하세요.",
                         progress=0.5,
                     )
                 )
@@ -2510,7 +2512,7 @@ class SensorBridge:
                 self._emit_from_thread(
                     build_calibration_status(
                         status="success",
-                        message="저장된 REST/MVC 기준값 적용 완료",
+                        message="캘리브레이션 완료",
                         calibration_summary={
                             "ch1_mvc": calibration.emg_mvc[0],
                             "ch2_mvc": calibration.emg_mvc[1],
